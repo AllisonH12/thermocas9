@@ -328,8 +328,13 @@ Neither is a blocker.
   model docstrings now recommend V2.5 for matched cell-line / paper-
   comparable biology with explicit low-`n` tie-band caveats, while keeping
   V1 as the continuous-score fallback.
-- Remaining blocker to promoting V2.5 to the recommended default on
-  cell-line cohorts: GSE68379 generalization run.
+- GSE68379 (Sanger GDSC panel × GSE69914 normal) has been run and is
+  documented as an out-of-distribution **boundary case** in §8.1 — not
+  a fourth generalization cohort. The Roth-validated target probes are
+  methylated in Sanger's MCF-7 and unmethylated in Roth's, so the
+  transferred Roth label set is not biologically valid on this cohort;
+  inversion of low-tumor-methylation axes is the expected behavior
+  under label–biology mismatch. It does not bear on promotion.
 - V2.5 cannot be promoted to a universal default under any of these
   results — `tumor_only`'s tissue-AUC lead + V2.5's tissue-AUC shortfall
   means there is no regime-agnostic winner. The framing stays
@@ -380,10 +385,93 @@ Bold = best AUC in that row. `tumor_only` tie_band: 6,540 on GSE69914,
 
 ### Verdict
 
-V2.5 is now the recommended probabilistic axis on matched cell-line /
+V2.5 is the recommended probabilistic axis on matched cell-line /
 paper-comparable cohorts. It is second-best on tissue but the only
 tissue axis with a usable top-K. It is not universally dominant; the
-framing stays cohort-type-dependent. One external generalization cohort
-(GSE68379, Sanger cell-line panel, HM450) remains queued as the last
-check before promoting V2.5 to the recommended default for cell-line
-regime.
+framing stays cohort-type-dependent.
+
+---
+
+## 8.1 GSE68379 — out-of-distribution boundary case (not a generalization cohort)
+
+We also ran GSE68379 (Sanger GDSC1000, 52 breast cell lines on HM450,
+paired with GSE69914 healthy normals as a cross-series external normal
+arm, n=52/50). The headline AUC is dramatic and needs explicit framing
+to avoid being misread.
+
+| axis | validated AUC | narrow AUC | wide AUC | V2.5 tie_band |
+|---|---:|---:|---:|---:|
+| V1 `final_score` | 0.510 | 0.485 | 0.407 | 1 |
+| `tumor_only` | 0.222 | 0.228 | 0.462 | 5,271 |
+| V2.5 differential | 0.197 | 0.169 | 0.269 | 1,602 |
+
+`tumor_only` and V2.5 are strongly **inverted** (AUC well below 0.5). V1
+is near random. Under any naive reading this would look like V2.5
+failing a generalization test. It is not. The root cause is a probe-
+level biology mismatch at the three Roth-validated target sites:
+
+| probe | gene | Roth MCF-7 β (GSE322563) | Sanger MCF-7 β (GSE68379) |
+|---|---|---:|---:|
+| cg05251676 | EGFLAM | 0.01 | **0.92** |
+| cg25338972 | ESR1 | 0.07 | **0.63** |
+| cg01364137 | GATA3 | 0.02 | **0.70** |
+
+Same cell line name, **opposite methylation state** at exactly the
+three loci Roth validated. This is a known phenomenon in the field —
+MCF-7 has accumulated substantial genetic and epigenetic drift across
+laboratories after decades of separate passaging. Sanger's MCF-7 (and
+by extension most of their 52 breast lines) is heavily methylated at
+EGFLAM / ESR1 / GATA3; Roth's MCF-7 is unmethylated at those same sites.
+
+### Framing
+
+> **GSE68379 functions as an out-of-distribution boundary case rather
+> than a direct external validation cohort: the three Roth-validated
+> target probes are methylated in Sanger's MCF-7, whereas they are
+> unmethylated in Roth's MCF-7, so the transferred Roth label set is
+> not biologically valid on this cohort. Under this label–biology
+> mismatch, inversion of the low-tumor-methylation score axes is the
+> expected behavior.**
+
+Both V2.5 and `tumor_only` contain `p_targ = P(β_tumor < 0.30)` as a
+factor — when β_tumor is 0.6–0.9 at the positives, p_targ is near zero
+for those positives, and they rank at the *bottom* of the score
+distribution. That is the correct response of the scorer to the
+underlying biology; it is the labels that no longer describe the
+candidates' biology in this cohort.
+
+V1's near-random AUC arises by a different mechanism: its
+`selectivity_score = max(0, β_n − β_t)` caps at zero when β_t > β_n,
+so most validated positives score zero and land in a long mid-rank tie
+rather than a bottom-rank inversion.
+
+### What to say about this cohort
+
+- V2.5 is supported on cohorts that reproduce the Roth target biology
+  (GSE322563, GSE77348, GSE69914 under the repaired labels).
+- GSE68379 is a boundary case where the transferred Roth labels are
+  biologically invalid.
+- Under that label–biology mismatch, inversion of `tumor_only` and V2.5
+  is *expected*, because both encode low tumor methylation as part of
+  the targetability hypothesis.
+
+### What not to say
+
+- Do not call GSE68379 a "failed generalization" of V2.5. It is a
+  failure of label portability, not of the scorer.
+- Do not pool GSE68379 into a single cross-cohort headline metric for
+  V2.5 — it would pollute the estimate.
+- Do not redefine positives on GSE68379 from GSE68379's own β values
+  and report the resulting AUC as a comparable metric. That is
+  circular (positives defined from the data being tested) and
+  non-comparable to the label-transfer results on the other three
+  cohorts.
+
+### Recommended-axis table — unchanged
+
+Nothing about this result moves the cohort-type × axis recommendation
+in README. GSE68379 is not a fourth cohort in the main table; it is a
+documented boundary case. The recommendation stays: V2.5 is the
+recommended probabilistic axis on matched cell-line / paper-comparable
+biology; V1 is the continuous-score fallback for top-K stability;
+`tumor_only` stays analysis-only.

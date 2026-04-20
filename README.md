@@ -359,8 +359,14 @@ Three findings:
 probabilistic axis on matched cell-line cohorts, but it is not an
 unconditional default. V1 stays available as a continuous-score fallback
 with guaranteed top-K stability. `tumor_only` stays analysis-only. V2.5
-remains **experimental-on-main**, pending one more orthogonal
-generalization test on GSE68379.
+remains **experimental-on-main**.
+
+A separate GSE68379 run (Sanger GDSC breast panel × external normal)
+produced inverted AUC at the Roth-validated positives because Sanger's
+MCF-7 is methylated at exactly the sites where Roth's MCF-7 is
+unmethylated — a label-portability boundary case, not a V2.5
+generalization failure. Documented in `V2_5_REVIEW.md` §8.1; does not
+change the recommended-axis table.
 
 See [`V2_5_REVIEW.md`](V2_5_REVIEW.md) §8 for the full cross-cohort
 matrix and decision record.

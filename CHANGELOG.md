@@ -88,8 +88,19 @@ everywhere. `V1` tie_band is 1 everywhere.
 matched cell-line / paper-comparable biology, with low-`n` tie-band
 caveats. `tumor_only` stays analysis-only. V1 stays available as a
 continuous-score fallback for top-K stability across all cohort types.
-V2.5 is **not** promoted to unconditional default — that requires one
-more orthogonal generalization test (GSE68379 is queued).
+V2.5 is **not** promoted to unconditional default; the recommendation
+stays cohort-type-dependent.
+
+GSE68379 (Sanger GDSC 52-breast-line panel × GSE69914 external healthy
+normal, n=52/50) has also been run and is documented as an
+**out-of-distribution boundary case** in `V2_5_REVIEW.md` §8.1 — not
+a fourth generalization cohort. The three Roth-validated target probes
+are methylated in Sanger's MCF-7 (β 0.63–0.92) and unmethylated in
+Roth's MCF-7 (β 0.01–0.07), so the transferred Roth label set is not
+biologically valid on this cohort; inversion of low-tumor-methylation
+axes (V2.5, tumor_only) is the expected behavior under label–biology
+mismatch and does not bear on V2.5's cohort-level claims. The
+recommended-axis table is unchanged.
 
 ### Tests
 

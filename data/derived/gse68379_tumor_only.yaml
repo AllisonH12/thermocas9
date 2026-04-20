@@ -1,0 +1,8 @@
+cohort:
+  name: GSE68379-BreastPanel-tumor-only
+  tumor_dataset: GSE68379-52-breast-lines
+  normal_dataset: GSE69914-HealthyNormal-status0   # external normal (cross-series, n=50)
+  platform: HM450
+  min_samples_tumor: 30
+  min_samples_normal: 10
+  probabilistic_mode: tumor_only
