@@ -1,0 +1,7 @@
+cohort:
+  name: GSE77348-MCF7-vs-MCF10A-surrogate
+  tumor_dataset: GSE77348-MCF7-nt
+  normal_dataset: GSE77348-MCF10A-nt
+  platform: HM450
+  min_samples_tumor: 3
+  min_samples_normal: 3

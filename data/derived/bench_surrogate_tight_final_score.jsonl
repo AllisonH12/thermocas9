@@ -1,0 +1,1 @@
+{"cohort_name":"surrogate-tight / final_score","n_total":2979997,"n_positives":970,"n_negatives":2979027,"held_out_chromosomes":[],"top_k":100,"precision_at_k":0.03,"recall_at_k":0.003092783505154639,"roc_auc":0.6281685249552128}
