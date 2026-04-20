@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 
 from thermocas import __version__
@@ -545,14 +546,19 @@ def _cmd_gdc_fetch(args: argparse.Namespace) -> int:
 
 
 def _cmd_aggregate(args: argparse.Namespace) -> int:
-    cohorts: dict[str, list[ScoredCandidate]] = {}
+    # Pass iterators through rather than `list(read_jsonl(...))` — the CLI
+    # was preloading every cohort JSONL into memory before handing it to
+    # `aggregate()`. `aggregate()` itself still has to group across cohorts
+    # (requires O(N_candidates) memory for the sorted pan-cancer emission
+    # — see its docstring), but the CLI no longer double-buffers.
+    cohorts: dict[str, Iterable[ScoredCandidate]] = {}
     for spec in args.scored:
         if "=" not in spec:
             raise ValueError(
                 f"--scored entries must be COHORT=path; got {spec!r}"
             )
         name, path = spec.split("=", 1)
-        cohorts[name] = list(read_jsonl(Path(path), ScoredCandidate))
+        cohorts[name] = read_jsonl(Path(path), ScoredCandidate)
 
     aggregates = aggregate(cohorts, high_score_threshold=args.high_score_threshold)
     n = write_jsonl_atomic(args.output, aggregates)

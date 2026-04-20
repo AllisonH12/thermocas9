@@ -105,6 +105,17 @@ def read_beta_matrix(path: str | Path) -> tuple[list[str], dict[str, list[float 
         if header is None:
             raise ValueError(f"{path}: empty beta matrix")
         samples = header[1:]
+        # Reject duplicate sample IDs — the header defines cohort size and
+        # per-probe quantiles, so `s1, s1, s2` would silently double-count
+        # one biological sample.
+        seen_samples: set[str] = set()
+        for s in samples:
+            if s in seen_samples:
+                raise ValueError(
+                    f"{path}: duplicate sample ID {s!r} in header — "
+                    "each sample column must be unique"
+                )
+            seen_samples.add(s)
         for row in reader:
             if not row:
                 continue

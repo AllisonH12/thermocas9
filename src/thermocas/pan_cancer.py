@@ -45,6 +45,20 @@ def aggregate(
     Yields:
         One `PanCancerAggregate` per candidate that appears in at least one cohort.
         Candidates are emitted in deterministic (chrom, critical_c_pos, family) order.
+
+    Memory characteristic:
+        This function is **not single-pass streaming**. Despite returning an
+        iterator, it first consumes every input record into a
+        candidate_id → cohort_name → ScoredCandidate map, then sorts candidate
+        IDs, and only then yields. Peak memory is O(N_candidates × N_cohorts),
+        not O(1).
+
+        True streaming across cohorts would require a different contract:
+        either (a) give up the sorted emission order, or (b) require each
+        input JSONL to be sorted by candidate_id and do a k-way merge.
+        Neither is trivial and both would change the output contract, so
+        the current path is memory-bound by design. For genome-scale runs
+        (tens of millions of candidates × tens of cohorts), plan RAM accordingly.
     """
 
     # collect: candidate_id → (CandidateSite-derived facts, dict[cohort → ScoredCandidate])

@@ -108,6 +108,14 @@ def test_read_beta_matrix_rejects_out_of_range(tmp_path: Path):
         read_beta_matrix(p)
 
 
+def test_read_beta_matrix_rejects_duplicate_sample_ids(tmp_path: Path):
+    """Regression: `s1\ts1` header used to silently double-count one sample."""
+    p = tmp_path / "dup_cols.tsv"
+    p.write_text("probe_id\ts1\ts1\ncg001\t0.1\t0.9\n")
+    with pytest.raises(ValueError, match="duplicate sample ID"):
+        read_beta_matrix(p)
+
+
 def test_read_beta_matrix_rejects_duplicate_probe_rows(tmp_path: Path):
     """Regression: duplicate probe_id used to silently overwrite the earlier row."""
     p = tmp_path / "dups.tsv"

@@ -121,20 +121,10 @@ class LocalArrayBackend(MethylationBackend):
         tumor_beta: str | Path,
         normal_beta: str | Path,
     ) -> None:
-        self._probes: list[ProbeRecord] = []
-        for row in read_tsv(probe_annotation):
-            try:
-                self._probes.append(
-                    ProbeRecord(
-                        probe_id=row["probe_id"],
-                        chrom=row["chrom"],
-                        pos=int(row["pos"]),
-                    )
-                )
-            except (KeyError, ValueError) as e:
-                raise ValueError(
-                    f"{probe_annotation}: expected columns probe_id, chrom, pos — {e}"
-                ) from e
+        # `_load_probes` enforces the duplicate-probe_id invariant + rejects
+        # malformed rows; routing both LocalArrayBackend and LocalSummaryBackend
+        # through it keeps the two backends' annotation contract identical.
+        self._probes = list(_load_probes(probe_annotation))
 
         _, tumor_betas = read_beta_matrix(tumor_beta)
         _, normal_betas = read_beta_matrix(normal_beta)
@@ -182,57 +172,35 @@ class LocalArrayBackend(MethylationBackend):
         if not subtype_map:
             raise ValueError(f"{sample_subtypes}: no sample → subtype rows found")
 
-        # Load the raw matrix once, split by subtype.
-        from thermocas.io import _open_text  # noqa: PLC0415 — internal helper, intentional
-        import csv as _csv
+        # Reuse the hardened `read_beta_matrix` loader instead of manually
+        # reparsing the TSV. This inherits duplicate-probe-row rejection,
+        # duplicate-sample-ID rejection, and cell-validity checks — the
+        # V2 manual-parse path missed all three.
+        sample_ids, tumor_betas = read_beta_matrix(tumor_beta)
 
-        with _open_text(tumor_beta, "rt") as f:
-            reader = _csv.reader(f, delimiter="\t")
-            header = next(reader, None)
-            if header is None:
-                raise ValueError(f"{tumor_beta}: empty beta matrix")
-            sample_ids = header[1:]
-            unknown = [s for s in sample_ids if s not in subtype_map]
-            if unknown:
-                raise ValueError(
-                    f"{tumor_beta}: {len(unknown)} sample(s) missing from "
-                    f"subtype map (e.g. {unknown[:3]})"
-                )
+        unknown = [s for s in sample_ids if s not in subtype_map]
+        if unknown:
+            raise ValueError(
+                f"{tumor_beta}: {len(unknown)} sample(s) missing from "
+                f"subtype map (e.g. {unknown[:3]})"
+            )
 
-            # subtype → list[col_idx] within the original matrix
-            cols_by_subtype: dict[str, list[int]] = {}
-            for i, sid in enumerate(sample_ids):
-                cols_by_subtype.setdefault(subtype_map[sid], []).append(i)
+        # subtype → list[col_idx] within the original matrix
+        cols_by_subtype: dict[str, list[int]] = {}
+        for i, sid in enumerate(sample_ids):
+            cols_by_subtype.setdefault(subtype_map[sid], []).append(i)
 
-            # subtype → {probe_id → [betas restricted to that subtype]}
-            per_subtype_betas: dict[str, dict[str, list[float | None]]] = {
-                st: {} for st in cols_by_subtype
-            }
-
-            for row in reader:
-                if not row:
-                    continue
-                probe_id = row[0]
-                cells = row[1:]
-                if len(cells) != len(sample_ids):
-                    raise ValueError(
-                        f"{tumor_beta}: probe {probe_id} has {len(cells)} cells, "
-                        f"expected {len(sample_ids)}"
-                    )
-                parsed = [_parse_beta_cell(c) for c in cells]
-                for st, idxs in cols_by_subtype.items():
-                    per_subtype_betas[st][probe_id] = [parsed[i] for i in idxs]
-
-        # Build one backend per subtype by reusing the constructor's path
-        # without re-reading the raw matrix.
-        backends: dict[str, LocalArrayBackend] = {}
-        # Pre-load normal once (shared across subtype backends).
+        # Normal side shared across subtype backends (V2 design).
         _, normal_betas = read_beta_matrix(normal_beta)
         normal_summary = {pid: _summarize(pid, b) for pid, b in normal_betas.items()}
         probes = list(_load_probes(probe_annotation))
 
-        for subtype, betas in per_subtype_betas.items():
-            tumor_summary = {pid: _summarize(pid, b) for pid, b in betas.items()}
+        backends: dict[str, LocalArrayBackend] = {}
+        for subtype, idxs in cols_by_subtype.items():
+            tumor_summary = {
+                pid: _summarize(pid, [betas[i] for i in idxs])
+                for pid, betas in tumor_betas.items()
+            }
             backends[subtype] = cls.__new__(cls)
             backends[subtype]._probes = probes
             backends[subtype]._tumor_summary = tumor_summary
@@ -256,13 +224,26 @@ def _parse_beta_cell(cell: str) -> float | None:
 def _load_probes(path: str | Path) -> Iterable[ProbeRecord]:
     """Public-ish helper: yield ProbeRecord rows from a probe annotation TSV.
 
+    Rejects duplicate probe_ids. Tumor/normal summaries are keyed only by
+    probe_id; allowing the same probe_id at two different coordinates would
+    alias one assay across multiple loci (fabricating EXACT evidence at
+    whichever coordinate the classifier happens to pick).
+
     Tolerated by both LocalArrayBackend and LocalSummaryBackend.
     """
 
+    seen: set[str] = set()
     for row in read_tsv(path):
         try:
+            probe_id = row["probe_id"]
+            if probe_id in seen:
+                raise ValueError(
+                    f"{path}: duplicate probe_id {probe_id!r} — annotations "
+                    "must map each probe to exactly one genomic position"
+                )
+            seen.add(probe_id)
             yield ProbeRecord(
-                probe_id=row["probe_id"],
+                probe_id=probe_id,
                 chrom=row["chrom"],
                 pos=int(row["pos"]),
             )

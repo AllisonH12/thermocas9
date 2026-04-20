@@ -285,6 +285,19 @@ def test_local_summary_backend_handles_na_summary_cells(tmp_path: Path):
     assert res.mean is None and res.q25 is None and res.q75 is None
 
 
+def test_probe_annotation_rejects_duplicate_probe_ids(tmp_path: Path):
+    """Regression: LocalArrayBackend used to alias one probe_id across two
+    genomic positions, fabricating EXACT evidence at the wrong locus."""
+    probes = _write(
+        tmp_path / "probes.tsv",
+        "probe_id\tchrom\tpos\ncg001\tchr1\t10\ncg001\tchr1\t999\n",
+    )
+    tumor = _write(tmp_path / "tumor.tsv", "probe_id\ts1\ncg001\t0.1\n")
+    normal = _write(tmp_path / "normal.tsv", "probe_id\tn1\ncg001\t0.9\n")
+    with pytest.raises(ValueError, match="duplicate probe_id"):
+        LocalArrayBackend(probes, tumor, normal)
+
+
 def test_local_summary_backend_rejects_duplicate_probe_rows(tmp_path: Path):
     """Regression: duplicate probe_id in summary TSV used to silently overwrite."""
     probes = _write(tmp_path / "probes.tsv", "probe_id\tchrom\tpos\ncg001\tchr1\t1\n")

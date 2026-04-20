@@ -95,6 +95,24 @@ def test_split_by_subtype_rejects_missing_sample_in_map(tmp_path: Path):
         LocalArrayBackend.split_by_subtype(probes, tumor, normal, subtypes)
 
 
+def test_split_by_subtype_inherits_duplicate_probe_row_check(tmp_path: Path):
+    """Regression: V2 subtype path manually reparsed the TSV and missed the
+    duplicate-probe integrity check that the main loader enforces. Now
+    split_by_subtype reuses read_beta_matrix."""
+    probes = _write(tmp_path / "probes.tsv", "probe_id\tchrom\tpos\ncg001\tchr1\t100\n")
+    tumor = _write(
+        tmp_path / "tumor.tsv",
+        "probe_id\tT1\tT2\ncg001\t0.05\t0.10\ncg001\t0.90\t0.95\n",
+    )
+    normal = _write(tmp_path / "normal.tsv", "probe_id\tN1\ncg001\t0.5\n")
+    subtypes = _write(
+        tmp_path / "subtypes.tsv",
+        "sample_id\tsubtype\nT1\tLumA\nT2\tLumB\n",
+    )
+    with pytest.raises(ValueError, match="duplicate probe_id"):
+        LocalArrayBackend.split_by_subtype(probes, tumor, normal, subtypes)
+
+
 def test_split_by_subtype_empty_map_rejected(tmp_path: Path):
     probes = _write(tmp_path / "probes.tsv", "probe_id\tchrom\tpos\ncg001\tchr1\t100\n")
     tumor = _write(tmp_path / "tumor.tsv", "probe_id\tT1\ncg001\t0.5\n")
