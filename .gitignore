@@ -17,7 +17,10 @@ results/*.parquet
 results/*.png
 .DS_Store
 
-# Large per-session scored surrogates — not suitable for git (>100MB each).
-# Existing committed scored_surrogate*.jsonl predate this rule and remain
-# in history; for new artifacts, re-derive with scripts/.
-data/derived/scored_surrogate_differential.jsonl
+# Derived scoring artifacts are large (several GB each) and reproducible
+# from data/derived/<cohort>/*_summary.tsv via `thermocas score-cohort`.
+# Do not commit. History was rewritten on 2026-04-20 to drop the prior
+# commits of these artifacts; see the [Unreleased] CHANGELOG entry and
+# ../thermocas-framework-pre-rewrite.bundle (local byte-for-byte backup).
+data/derived/scored_*.jsonl
+data/derived/catalog_*.jsonl
