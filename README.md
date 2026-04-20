@@ -60,18 +60,23 @@ thermocas-framework/
 | Layer                                  | State                                                       |
 |----------------------------------------|-------------------------------------------------------------|
 | Data model + scoring schema            | V1 — implemented                                            |
-| PAM-model loader + matcher             | V1 — overlap-safe via lookahead regex; offset validated     |
+| PAM-model loader + matcher             | V1 — overlap-safe; V3 — exhaustive ACGT⁴…⁸ width validation |
 | Probe-to-site evidence classification  | V1 — implemented                                            |
 | Cohort + PAM YAML configs              | V1 — implemented                                            |
 | Genome-wide PAM catalog builder        | V1 — FASTA streamer, gzip-aware, strand-correct context     |
 | Cohort adapter                         | V1 — implemented                                            |
 | Pan-cancer aggregator                  | V1 — recurrence / exclusivity / risk                        |
 | CLI: `build-catalog` / `score-cohort` / `aggregate` | V1 — implemented                               |
-| **Probabilistic score** (P(targ) × P(prot) × P(trust))  | **V2 — implemented**                    |
-| **Subtype-aware backend factory** (`split_by_subtype`)  | **V2 — implemented**                    |
-| **Real `GDCBackend`** with HTTP + on-disk cache         | **V2 — implemented (stdlib urllib)**    |
-| **CLI: `--probabilistic`, `--sample-subtypes`, `gdc-fetch`** | **V2 — implemented**               |
-| End-to-end synthetic + CLI pipelines + tests | **100 tests** (in-process + CLI + mocked GDC)         |
+| Probabilistic score (P(targ) × P(prot) × P(trust))  | V2 — implemented                              |
+| Subtype-aware backend factory (`split_by_subtype`)  | V2 — implemented                              |
+| Real `GDCBackend` with HTTP + on-disk cache         | V2 — implemented (stdlib urllib)              |
+| CLI: `--probabilistic`, `--sample-subtypes`, `gdc-fetch` | V2 — implemented                         |
+| **Beta-distribution CDF** (regularized incomplete beta via Lentz CF) | **V3 — implemented**          |
+| **gRNA spacer scoring** (GC, Tm, runs, hairpin)     | **V3 — implemented**                          |
+| **Cross-validation benchmark harness** (P@K, R@K, ROC-AUC)  | **V3 — implemented**                  |
+| **CLI: `--spacer`, `benchmark`, `inspect`**         | **V3 — implemented**                          |
+| Repo readiness (git, CHANGELOG, CI workflow)        | **V3 — implemented**                          |
+| End-to-end synthetic + CLI pipelines + tests | **144 tests** (in-process + CLI + mocked GDC + Beta math) |
 
 ## Quickstart
 
@@ -140,11 +145,41 @@ thermocas gdc-fetch \
     --output-dir  results/gdc_brca
 ```
 
-The probabilistic decomposition uses a piecewise-linear CDF estimator over
-(q25, mean, q75) anchored at (0, 0) and (1, 1). With only `mean` known the
-estimator collapses to a sharp step at the mean — it never invents
-distributional shape that the data does not support. Trust scales with
-`EvidenceClass` and saturates with sample count.
+The probabilistic decomposition (V3) uses a **method-of-moments Beta(α, β)
+fit** from `(mean, IQR/1.349)`, with the regularized incomplete beta
+`I_x(α, β)` computed in pure stdlib via Lentz's continued fraction. When the
+moments admit no Beta (σ² ≥ μ(1−μ)) or only one quantile is present, the
+estimator falls back to the V2 piecewise-linear CDF; with only `mean` it
+collapses to a sharp step. Trust scales with `EvidenceClass` and saturates
+with sample count.
+
+## V3 features
+
+```bash
+# Score the protospacer (gRNA) alongside the methylation-driven ranking
+thermocas score-cohort ... --spacer --output scored.jsonl
+
+# Cross-validation benchmark — held-out chromosomes + a positives list
+thermocas benchmark \
+    --scored scored.jsonl \
+    --positives expected_targets.txt \
+    --cohort-name BRCA \
+    --top-k 20 \
+    --score-field final_score \
+    --held-out-chromosomes chrX chr22 \
+    --output benchmark.jsonl
+
+# Score by V2 probabilistic composite instead:
+thermocas benchmark ... --score-field p_therapeutic_selectivity ...
+# Or by V3 spacer quality:
+thermocas benchmark ... --score-field spacer_final_score ...
+
+# Quick summary of any JSONL artifact
+thermocas inspect catalog.jsonl
+thermocas inspect scored.brca.jsonl --top 20
+thermocas inspect panatlas.jsonl
+thermocas inspect benchmark.jsonl
+```
 
 ## Data model — one paragraph
 
