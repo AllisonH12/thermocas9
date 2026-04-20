@@ -328,8 +328,17 @@ def _load_summary_tsv(path: str | Path) -> dict[str, BetaSummary]:
             raise ValueError(
                 f"{path}: expected columns probe_id, n, mean, q25, q75 — {e}"
             ) from e
-        out[row["probe_id"]] = BetaSummary(
-            probe_id=row["probe_id"],
+        probe_id = row["probe_id"]
+        if probe_id in out:
+            # See read_beta_matrix: probe_id is the join key; a duplicate row
+            # is malformed input that would silently rewrite the earlier
+            # summary. Reject rather than overwrite.
+            raise ValueError(
+                f"{path}: duplicate probe_id {probe_id!r} (last-wins overwrite "
+                "would silently change scoring)"
+            )
+        out[probe_id] = BetaSummary(
+            probe_id=probe_id,
             n_samples=n,
             mean=_parse_summary_cell(row.get("mean", "")),
             q25=_parse_summary_cell(row.get("q25", "")),

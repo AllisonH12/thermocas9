@@ -109,6 +109,14 @@ def read_beta_matrix(path: str | Path) -> tuple[list[str], dict[str, list[float 
             if not row:
                 continue
             probe_id = row[0]
+            if probe_id in probe_betas:
+                # probe_id is the join key into annotation + scoring; a duplicate
+                # row is malformed input. Reject rather than silently overwriting
+                # the earlier vector.
+                raise ValueError(
+                    f"{path}: duplicate probe_id {probe_id!r} (last-wins overwrite "
+                    "would silently change cohort summaries)"
+                )
             betas: list[float | None] = []
             for cell in row[1:]:
                 cell = cell.strip()

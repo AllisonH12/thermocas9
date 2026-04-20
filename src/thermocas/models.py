@@ -426,11 +426,17 @@ class ProbabilisticScore(BaseModel):
 
 
 class EvidenceThresholds(BaseModel):
-    """Distance bins (bp) used by the evidence classifier."""
+    """Distance bins (bp) used by the evidence classifier.
 
-    model_config = ConfigDict(frozen=True)
+    EXACT means the probe assays the *same CpG* as the critical PAM cytosine —
+    that's distance 0. The previous default of `exact_bp=1` upgraded
+    one-base-away probes from PROXIMAL_CLOSE (0.7 confidence) to EXACT (1.0),
+    which doesn't match the documented contract. Tighten to 0.
+    """
 
-    exact_bp: int = Field(default=1, ge=0)
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    exact_bp: int = Field(default=0, ge=0)
     proximal_close_bp: int = Field(default=25, ge=0)
     proximal_bp: int = Field(default=50, ge=0)
     regional_bp: int = Field(default=500, ge=0)
@@ -448,7 +454,7 @@ class EvidenceThresholds(BaseModel):
 class Penalties(BaseModel):
     """Per-cohort penalty weights."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     heterogeneity_iqr_threshold: float = Field(default=0.30, ge=0.0, le=1.0)
     heterogeneity_weight: float = Field(default=0.4, ge=0.0)
@@ -552,9 +558,14 @@ class BenchmarkResult(BaseModel):
 
 
 class CohortConfig(BaseModel):
-    """One cohort spec — the unit a Cohort Adapter consumes."""
+    """One cohort spec — the unit a Cohort Adapter consumes.
 
-    model_config = ConfigDict(frozen=True)
+    Unknown keys are rejected (`extra='forbid'`). YAML typos like
+    `min_samples_tumour` (UK spelling) used to silently fall back to defaults
+    while the user thought their override was applied. Now they error at load.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     name: str
     tumor_dataset: str

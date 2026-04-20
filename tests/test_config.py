@@ -15,6 +15,6 @@ def test_load_brca_example_cohort():
     assert cfg.name == "TCGA-BRCA"
     assert cfg.platform == "HM450"
     assert cfg.min_samples_tumor == 30
-    assert cfg.evidence_thresholds.exact_bp == 1
+    assert cfg.evidence_thresholds.exact_bp == 0  # V3.1: tightened from 1 → 0
     assert cfg.evidence_thresholds.regional_bp == 500
     assert cfg.penalties.heterogeneity_iqr_threshold == 0.30

@@ -13,7 +13,7 @@ cohort:
 # Evidence-class boundaries (bp) from the critical PAM cytosine to nearest probe.
 # Override per cohort if probe density justifies it.
 evidence_thresholds:
-  exact_bp: 1                      # probe assays the exact CpG of the PAM cytosine
+  exact_bp: 0                      # distance 0 — probe assays the same CpG
   proximal_close_bp: 25            # probe within 25 bp
   proximal_bp: 50                  # probe within 50 bp
   regional_bp: 500                 # broader local context only

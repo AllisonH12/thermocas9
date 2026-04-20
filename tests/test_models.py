@@ -350,6 +350,39 @@ def test_evidence_thresholds_must_be_monotonic():
         EvidenceThresholds(exact_bp=10, proximal_close_bp=5, proximal_bp=50, regional_bp=500)
 
 
+def test_evidence_thresholds_default_exact_is_zero():
+    """Regression: V3.1 default was exact_bp=1, which over-classified
+    1-bp-away probes as EXACT (1.0 confidence) when they should have been
+    PROXIMAL_CLOSE (0.7). EXACT means the probe assays the same CpG."""
+    thresholds = EvidenceThresholds()
+    assert thresholds.exact_bp == 0
+
+
+def test_evidence_thresholds_rejects_unknown_keys():
+    """V3.1: extra='forbid' so YAML typos error rather than silently default."""
+    with pytest.raises(ValidationError, match="extra"):
+        EvidenceThresholds(exact_bp=0, exatc_bp=5)  # typo: exatc
+
+
+def test_cohort_config_rejects_unknown_keys():
+    """Regression: `min_samples_tumour` (UK spelling) used to silently fall
+    back to the default min_samples_tumor=30 — now errors at load."""
+    from thermocas.models import CohortConfig
+
+    with pytest.raises(ValidationError, match="extra"):
+        CohortConfig(
+            name="T", tumor_dataset="a", normal_dataset="b", platform="HM450",
+            min_samples_tumour=5,  # typo: tumour
+        )
+
+
+def test_penalties_rejects_unknown_keys():
+    from thermocas.models import Penalties
+
+    with pytest.raises(ValidationError, match="extra"):
+        Penalties(heterogeneity_iqr_threshhold=0.5)  # typo: threshhold
+
+
 def test_penalties_have_sensible_bounds():
     p = Penalties()
     assert 0.0 < p.heterogeneity_iqr_threshold <= 1.0

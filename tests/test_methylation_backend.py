@@ -285,6 +285,19 @@ def test_local_summary_backend_handles_na_summary_cells(tmp_path: Path):
     assert res.mean is None and res.q25 is None and res.q75 is None
 
 
+def test_local_summary_backend_rejects_duplicate_probe_rows(tmp_path: Path):
+    """Regression: duplicate probe_id in summary TSV used to silently overwrite."""
+    probes = _write(tmp_path / "probes.tsv", "probe_id\tchrom\tpos\ncg001\tchr1\t1\n")
+    s = _write(
+        tmp_path / "summary.tsv",
+        "probe_id\tn\tmean\tq25\tq75\n"
+        "cg001\t10\t0.05\t0.02\t0.10\n"
+        "cg001\t20\t0.85\t0.78\t0.92\n",
+    )
+    with pytest.raises(ValueError, match="duplicate probe_id"):
+        LocalSummaryBackend(probes, s, s)
+
+
 def test_local_summary_backend_rejects_missing_required_columns(tmp_path: Path):
     probes = _write(tmp_path / "probes.tsv", "probe_id\tchrom\tpos\ncg001\tchr1\t1\n")
     bad = _write(tmp_path / "summary.tsv", "probe_id\tmean\ncg001\t0.5\n")
