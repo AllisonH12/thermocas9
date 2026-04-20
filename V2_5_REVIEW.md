@@ -283,9 +283,13 @@ Neither is a blocker.
   the tie band on all three cohorts; the only axis producing a real
   top-K is V1. V2.5's value is in the continuous ranking above the tied
   band, not in the top-100 slice per se.
-- That V2.5 generalizes to cohorts outside this test set. GSE68379
-  (Sanger cell-line panel, ~40 breast lines) is the remaining
-  orthogonal generalization test.
+- That V2.5 generalizes to cohorts that do NOT reproduce the Roth
+  target biology. A cross-series run against the Sanger GDSC breast
+  panel (GSE68379, 52 breast lines × GSE69914 healthy normal) is
+  documented in §8.1 as an out-of-distribution boundary case: the
+  Roth-validated positives are methylated in Sanger's MCF-7 and
+  unmethylated in Roth's, so the label set is not biologically valid
+  there and the inverted AUC is expected, not informative.
 
 ---
 
@@ -310,13 +314,25 @@ Neither is a blocker.
 4. ~~**Benchmark label repair** to replace gene-universe positives with
    validated target loci.~~ **Done.** Three new positives files
    (`positives_roth_{validated,narrow,wide}.txt`) derived from Fig. 5d.
-5. **Second cell-line generalization cohort** — GSE68379 (Sanger GDSC,
-   ~40 breast lines on HM450). **Queued, not yet run.** This is the one
-   remaining item separating V2.5 from "promotion to recommended default
-   for cell-line regime" versus the current "recommended probabilistic
-   mode with cohort-type caveats."
+5. ~~**Second cell-line generalization cohort** — GSE68379 (Sanger GDSC,
+   breast line panel on HM450).~~ **Run; reclassified.** GSE68379 was
+   ingested and benchmarked (52 breast tumor × GSE69914 healthy normal,
+   n=52/50). It is **not** a fourth generalization cohort — at the three
+   Roth-validated probes, Sanger's MCF-7 is methylated (β 0.63–0.92)
+   where Roth's MCF-7 is unmethylated (β 0.01–0.07), so the transferred
+   Roth label set is not biologically valid on this cohort. Documented
+   in §8.1 as an out-of-distribution boundary case. Does not bear on the
+   V2.5 claim. A true "second cell-line generalization cohort" — one
+   that reproduces the Roth hypo/hypermethylation pattern at the
+   validated probes — remains open and would need a different cohort.
 6. Stress the `sigma_floor` and one-sided-quantile paths on real data
    where they actually occur. Still open; not a blocker.
+7. **Benchmark honesty for tied bands.** `tie_band_size_at_k` is
+   reported; the natural next step is `precision_at_k_min/max` or
+   "positives inside the K-boundary tie band", so low-`n` probabilistic
+   results are reportable without over-reading one deterministic slice.
+   Queued; not a blocker for the current cohort-type-dependent
+   recommendation but would strengthen any stronger public claim.
 
 ---
 
