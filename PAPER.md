@@ -9,46 +9,30 @@
 
 ## Abstract
 
-Roth et al. (2026) showed that ThermoCas9 is methylation-sensitive at the
-fifth-position cytosine of its `5'-NNNNCGA-3'` PAM: methylation of that
-cytosine blocks DNA binding and cleavage. This turns ThermoCas9 into a
-natural methylation-sensitive editor, usable to target loci that are
-hypomethylated in tumor and methylated in matched normal cells — a
-cleaner precision layer than engineered methylation-insensitive Cas9
-variants. Selecting such loci from genome-scale methylation data is a
-ranking problem: which of millions of PAM-compatible sites shows the
-strongest tumor-hypomethylation / normal-methylation contrast, scored in
-a way that is cohort-agnostic and reports its own uncertainty.
-
-A first-pass probabilistic composite `p_targ × p_prot × p_trust` was
-empirically **anti-predictive** because `p_prot` encoded a static
-"normal is methylated above 0.5" assumption that does not hold on bulk
-normal comparators. We replace the threshold-based `p_prot` with a
-differential factor `p_diff = P(β_normal − β_tumor > δ)` estimated under
-an independent-normal approximation on per-probe summary statistics.
-The new composite — V2.5 `tumor_plus_differential_protection` —
-dominates AUC on matched cell-line cohorts (GSE322563 Roth actual
-samples at validated Roth-Fig.-5d target probes: AUC **0.990** vs V1
-`final_score` 0.821) and is the only probabilistic axis whose top-K is
-interpretable on low-replicate cohorts (tie band shrinks from hundreds
-at n=2/3 to 2 at n=305/50, exactly matching the `p_trust`-saturation
-prediction made before the high-n cohort was run).
-
-The recommendation is cohort-type-dependent rather than universal:
-V2.5 is the strongest probabilistic axis for matched cell-line /
-paper-comparable biology; V1 `final_score` stays available as a
-continuous-score fallback for top-K stability; the deprecated V2
-`tumor_only` mode stays analysis-only. A cross-series run against the
-Sanger GDSC breast panel produced inverted AUC at Roth-validated
-probes because Sanger's MCF-7 is methylated at exactly the sites where
-Roth's MCF-7 is unmethylated — a label-transportability boundary, not
-a scorer failure. That finding is preserved in the documentation as an
-out-of-distribution case rather than pooled with the paper-comparable
-cohorts.
-
-Code, benchmark artifacts, and test suite (215 passing tests) are
-public. All cohorts are reproducible from committed summary TSVs plus
-publicly-available reference annotations.
+Methylation-sensitive Cas9 variants target genomic loci that are
+hypomethylated in disease cells and methylated in matched normal
+cells. Selecting such loci from genome-scale array data is a ranking
+problem whose scoring axis must be cohort-agnostic and must report
+its own uncertainty. A first-pass probabilistic composite
+`p_targ × p_prot × p_trust` failed empirically — `p_prot` encoded
+a static "normal is methylated above 0.5" assumption that is
+anti-predictive on bulk normal comparators (AUC 0.38). We replace it
+with a differential factor `p_diff = P(β_normal − β_tumor > δ)` under
+an independent-normal approximation on per-probe summaries. On the
+primary endpoint — AUC at the validated target probes from Roth et
+al. (2026) Fig. 5d on two matched MCF-7/MCF-10A cohorts — the new
+composite (V2.5) reaches 0.990 on Roth's own samples and 0.982 on an
+independent surrogate, compared with 0.821 and 0.968 for the
+deterministic V1 score. Every benchmark result emits
+`tie_band_size_at_k` and `precision_at_k_{min,max}` so that
+low-replicate top-K numbers are reported as adversarial intervals,
+not point estimates. A separate cross-series run at the Sanger GDSC
+breast panel is documented as an out-of-distribution label-transport
+boundary case, not a generalization test, because Sanger's MCF-7 is
+methylated at the sites where Roth's MCF-7 is unmethylated. V1
+remains the stable-release default; V2.5 is the recommended
+probabilistic mode for matched cell-line cohorts; all code and
+benchmark artifacts are public.
 
 ---
 
@@ -222,6 +206,44 @@ directly tests.
 
 ## 4 · Benchmark methodology
 
+### 4.0 Pre-registration: primary endpoint, sensitivity, boundary
+
+To guard against post-hoc optimization, the analysis design separates
+tuned components from evaluation:
+
+- **Tuned, fixed before cross-cohort evaluation.**
+  `differential_delta = 0.2` was selected by an offline sweep over
+  {0.2, 0.3, 0.4, 0.5} on the GSE77348 MCF-7/MCF-10A surrogate
+  against the *pre-repair* (gene-universe) positives. The value was
+  fixed in code before any other cohort was ingested or benchmarked.
+  The label-repair exercise that produced the Roth-validated
+  positives is data preparation, not scoring-axis tuning; it post-
+  dates the δ choice.
+
+- **Primary endpoint.** AUC at the `positives_roth_validated.txt`
+  label set (n = 3 Roth Fig. 5d target probes, hg38 → hg19-lifted)
+  on the two matched MCF-7 / MCF-10A cell-line cohorts: **GSE322563**
+  (Roth actual samples) and **GSE77348** (DNMT3B-paper surrogate).
+  This is the direct paper-comparable test.
+
+- **Sensitivity analyses** (§5.2). The `narrow` (±50 bp) and `wide`
+  (±500 bp) label sets are alternative label granularities; the
+  cross-granularity AUC ordering stability is reported without
+  retuning δ. `P@K` intervals on tied bands are reported but are
+  expected to be uninformative on low-`n` cohorts (§3.4).
+
+- **Tissue-cohort behavior** (§5.3). GSE69914 (n = 305 / 50 primary
+  breast tissue) is *not* a paper-comparable test of Roth biology —
+  it probes whether the V2.5 architecture generalizes to a
+  high-replicate setting where the `p_trust`-saturation prediction
+  of §3.4 can be falsified.
+
+- **Out-of-distribution boundary case** (§5.4). GSE68379 (Sanger
+  GDSC breast panel × GSE69914 healthy normal) is *not* a
+  generalization cohort; it is a label-transportability test. It is
+  reported separately and is not pooled into any primary-endpoint
+  average.
+
 ### 4.1 Cohorts
 
 Four cohorts, all public HM450 or EPIC v2 methylation arrays:
@@ -275,7 +297,35 @@ Three axes are benchmarked on every cohort:
 - **V2 `tumor_only`** — `p_targ × p_trust`. Retained for audit; default in v0.4.0.
 - **V2.5 `tumor_plus_differential_protection`** — `p_targ × p_diff × p_trust` with δ = 0.2.
 
-### 4.4 Tie-band handling
+### 4.4 Platform harmonization and catalog scope
+
+Two facts constrain interpretation of the reported numbers and
+belong in the methodology, not as a footnote:
+
+- **Platform.** GSE322563 was profiled on Illumina EPIC v2
+  (GPL33022, ~935K probes); GSE77348, GSE69914, and GSE68379 are on
+  HM450 (GPL13534, ~485K probes). To use a single scorer across
+  both platforms, we harmonize EPIC v2 probe IDs to the HM450
+  canonical form by stripping the EPIC v2 beadchip design suffixes
+  (`_BC##`, `_TC##`, `_TO##`, `_BO##`) and intersecting with the
+  HM450 universe. Retention: 80.7% of HM450 probes map. Per Roth-
+  validated gene: ESR1 96%, EGFLAM 91%, VEGFA 90%, GATA3 83%. A
+  native EPIC v2 probe annotation (manifest ingest + catalog
+  rebuild) would remove this caveat but is not shipped; every EPIC
+  v2-origin per-probe β reported here passes through the HM450
+  intersect.
+
+- **Catalog scope.** The candidate catalog is chr5 / chr6 / chr10
+  only, filtered to candidates within ±500 bp of any assayed HM450
+  probe (~2.98M NNNNCGA / NNNNCCA candidates). The three chromosomes
+  were chosen because they carry the Roth Fig. 5d validated targets
+  (EGFLAM on chr5, ESR1 on chr6, GATA3 on chr10) and because they
+  provide a realistic but not whole-genome test bed. All AUC /
+  `P@K` / tie_band numbers in §5 are on this scope. Extending to
+  whole-genome hg19 is an infrastructure change, not a scientific
+  one.
+
+### 4.5 Tie-band handling
 
 Earlier iterations of the benchmark sorted candidates by score alone,
 with input-order as the implicit tie-break. On cohorts with low n, the
@@ -303,183 +353,268 @@ These three fields are on every emitted `BenchmarkResult` JSONL row.
 
 ## 5 · Results
 
-### 5.1 Cross-cohort AUC matrix
+### 5.1 Primary endpoint — matched cell-line AUC at validated Roth probes
 
-AUC under the repaired Roth-validated labels
-(`tumor_only` / **differential** / V1`final_score`):
+Primary endpoint: AUC at `positives_roth_validated.txt` (n = 3 Roth
+Fig. 5d target probes, hg38 → hg19-lifted) on the two matched
+MCF-7 / MCF-10A cohorts. Score axis on the rows:
 
-| cohort | regime | n | validated | narrow | wide | V2.5 tie_band@100 |
-|---|---|:---:|---|---|---|---:|
-| **GSE322563** | Roth cell lines | 2/2 | 0.928 / **0.990** / 0.821 | 0.886 / **0.942** / 0.884 | 0.871 / **0.910** / 0.768 | 190 |
-| **GSE77348** | MCF-7/MCF-10A surrogate | 3/3 | 0.912 / **0.982** / 0.968 | 0.911 / **0.983** / 0.969 | 0.887 / **0.949** / 0.931 | 299 |
-| **GSE69914** | primary tissue | 305/50 | **0.803** / 0.773 / 0.660 | **0.843** / 0.711 / 0.539 | **0.874** / 0.726 / 0.435 | **2** |
+| axis | GSE322563 (Roth actual, n=2/2) | GSE77348 (surrogate, n=3/3) |
+|---|---:|---:|
+| V1 `final_score` | 0.821 | 0.968 |
+| V2 `tumor_only` | 0.928 | 0.912 |
+| **V2.5 differential** | **0.990** | **0.982** |
 
-Bold = best AUC in that row. `tumor_only` tie_band is 6,540–11,848
-across all three cohorts — top-K not usable on any of them. V1 tie_band
-is 1 everywhere.
+V2.5 is the highest-AUC axis on both matched cell-line cohorts —
++0.17 over V1 on Roth's own samples, +0.01 over V1 on the surrogate,
+and +0.06 to +0.07 over the deprecated V2 `tumor_only` composite.
+`δ = 0.2` was fixed before these two cohorts were benchmarked (§4.0).
 
-Three readings:
+### 5.2 Sensitivity analyses: label granularity and P@K intervals
 
-1. **V2.5 wins AUC on matched cell-line cohorts by clear margins.** +0.17 loose on the strictest label set for GSE322563, +0.01 on GSE77348. Label repair by itself shifted V2.5 on GSE322563 from 0.694 (gene-universe tight) to 0.990 (validated); V1 from 0.541 to 0.821. Both axes were penalized by noisy labels; V2.5 more so.
-2. **Tissue cohort has a different mode ordering**: `tumor_only` > V2.5 > V1 on AUC, but `tumor_only`'s tie_band (6,540) makes its top-K fictional — V2.5 is the only probabilistic axis with a usable top-K on GSE69914.
-3. **The `p_trust`-saturation prediction from §3.4 held**: V2.5's tie_band at K=100 is 190 at n=2/2 → 299 at n=3/3 → 2 at n=305/50. This is a prediction made before the high-n cohort was run; no hyperparameter was touched between cohorts.
+**Label granularity (AUC).** Stability of the primary-endpoint
+ordering under weaker label definitions (narrow ±50 bp, wide
+±500 bp):
 
-### 5.2 P@K intervals
+| cohort | label set | V1 | tumor_only | V2.5 |
+|---|---|---:|---:|---:|
+| GSE322563 | validated (n=3) | 0.821 | 0.928 | **0.990** |
+| GSE322563 | narrow (n=28) | 0.884 | 0.886 | **0.942** |
+| GSE322563 | wide (n=142) | 0.768 | 0.871 | **0.910** |
+| GSE77348 | validated (n=3) | 0.968 | 0.912 | **0.982** |
+| GSE77348 | narrow (n=28) | 0.969 | 0.911 | **0.983** |
+| GSE77348 | wide (n=142) | 0.931 | 0.887 | **0.949** |
 
-On the two low-n cohorts, `P@100` values should be read as intervals,
-not point estimates. Example from GSE322563 narrow labels (n=28 positives):
+V2.5 remains the highest-AUC axis on both cohorts at every label
+granularity. No retuning of `δ` between rows.
 
-| axis | P@100 observed | P@100 min | P@100 max | tie_band |
+**P@K intervals.** On `n = 2 / 2` and `n = 3 / 3` cohorts the score
+distribution at K = 100 sits inside a tied band (§3.4); P@100 is
+reported as an adversarial interval `[min, max]` per §4.5. On
+GSE322563 narrow labels:
+
+| axis | P@100 observed | P@100 min | P@100 max | tie_band@100 |
 |---|---:|---:|---:|---:|
 | V2.5 differential | 0.000 | 0.000 | 0.020 | 190 |
 | tumor_only | 0.000 | 0.000 | 0.020 | 10,005 |
 | V1 final_score | 0.020 | 0.020 | 0.020 | 1 |
 
-The min-max interval is the tie-band-aware uncertainty on the metric.
-V2.5's "P@100 = 0.000" on this cohort means: under the deterministic
-`candidate_id` ascending tie-break, zero Roth-narrow-positives landed
-in top-100; under the best-case adversarial tie-break, up to 2 could
-have. V1's interval collapses to its observed value because V1's score
-is continuous-valued and tie_band = 1. This is the most honest reading
-of P@K on cohorts with n ≪ `ramp_n`.
+V2.5's interval is [0.000, 0.020] — under the deterministic
+`candidate_id` ascending tie-break, zero narrow-positives land in
+top-100; under the best-case adversarial tie-break inside the
+190-tied band, 2 of 28 could. V1's interval collapses to the
+observed value because V1's score is continuous and `tie_band = 1`.
+`tumor_only`'s tied band (10,005) spans two orders of magnitude
+more of the score distribution than V2.5's; top-K on `tumor_only`
+is not a meaningful quantity on this cohort.
 
-### 5.3 Top-hit biology
+### 5.3 Tissue-cohort behavior — GSE69914 (high-`n`, tissue biology)
 
-We ran an annotation pass (nearest gene + TSS distance + feature class
-+ CpG-island context, from UCSC `refGene` and `cpgIslandExt` hg19
-tables) on the V2.5 top-20 for each cell-line cohort:
+GSE69914 (n = 305 / 50 primary breast vs. healthy donor tissue)
+tests whether the `p_trust`-saturation prediction of §3.4 holds at
+`n ≫ 30`:
 
-- **GSE322563** top-20 by V2.5 differential (chr10 portion of the
-  190-tied band under `candidate_id` ascending): KCNIP2, CALHM2,
-  SORCS3-AS1, LINC00710, CELF2 (×2), XPNPEP1, CELF2-AS2, ADRB1 (×3),
-  ABLIM1, GFRA1 (×3), PLPP4, DMBT1, BUB3, CTBP2 (×2).
-- **GSE77348** top-20 by V2.5 differential: PITX3, BTRC, SORCS1,
-  LINC02624, CELF2-DT, CELF2, XPNPEP1, ADRB1, AFAP1L2, GFRA1 (×3)
-  (plus earlier ranks that we omit here; full TSV committed).
-- **Cross-cohort V2.5 top-20 overlap (GSE322563 ∩ GSE77348)**:
-  **ADRB1, CELF2, GFRA1, XPNPEP1** (4 genes). Meaningful convergence
-  given both lists are 20-record windows inside large (190 / 299) tied
-  bands. These four genes are differentially methylated across both
-  cohorts and carry known cancer relevance (ADRB1 as a β-adrenergic
-  receptor implicated in tumor microenvironment signaling;
-  GFRA1 as a GDNF coreceptor with loss-of-function roles in some
-  cancers; CELF2 as a splicing regulator; XPNPEP1 as a peptidase with
-  reported prognostic associations).
-- **V1 `final_score` top-20 on GSE322563**: ZMIZ1, DPYSL4, **RET**,
-  LINC02669, ADRB1, KCNIP2, TRIM31 (×5), CNPY3-GNMT, TTBK1, GFRA1,
-  IRX1, CTBP2, ADGRA1, LINC01163, ME1, NRG3. The standalone **RET** hit
-  is particularly notable — RET is a well-established therapeutic
-  target in medullary thyroid cancer and *RET*-rearranged non-small-cell
-  lung cancer. V1 is not tied-band-confined (tie_band = 1), so it
-  samples more broadly than V2.5's window into the 190-tied band.
-  Shared genes across V1 and V2.5 on GSE322563: ADRB1, CTBP2, GFRA1,
-  KCNIP2.
-- **GSE69914 tissue top-20 by V2.5**: RUNX2 (×5), SCML4 (×5), FOXCUT,
-  FOXC1, MAS1L, COL21A1, MXI1, TENM2 (×3), MAT2B. tie_band = 2 — the
-  top-20 is a real top-20. β differentials are smaller (0.17–0.31)
-  than on cell lines (0.79–0.96) because primary tissue is
-  cell-type-heterogeneous. **Zero gene overlap** with the cell-line
-  top-20s — V2.5 is cohort-specific, not returning a fixed gene list.
+| label set | V1 | tumor_only | V2.5 | V2.5 tie_band@100 |
+|---|---:|---:|---:|---:|
+| validated (n=3) | 0.660 | **0.803** | 0.773 | **2** |
+| narrow (n=28) | 0.539 | **0.843** | 0.711 | 2 |
+| wide (n=142) | 0.435 | **0.874** | 0.726 | 2 |
 
-The top hits are biologically coherent Roth-pattern loci. None of the
-three Roth-*Fig.-5d*-validated probes (EGFLAM T11, ESR1 T17, GATA3
-T18) appear in any cohort's top-20 — they appear in the top ~1% of the
-scored set (rank-lifted by AUC), not the top-100. That is the expected
-behavior on cohorts with large tied bands.
+Two findings:
 
-### 5.4 Out-of-distribution: GSE68379 label transportability
+1. **The saturation prediction holds exactly.** V2.5's tied band
+   at K = 100 shrinks from 190 at `n = 2 / 2` → 299 at `n = 3 / 3`
+   → 2 at `n = 305 / 50`, with no hyperparameter changes between
+   cohorts. This is a falsifiable prediction made before the
+   high-`n` run; `p_trust` behaved as the model says it should.
 
-GSE68379 (Sanger GDSC 52-breast-line panel × GSE69914 healthy normal,
-n = 52/50) produced systematically **inverted** AUC for both
-probabilistic axes under the Roth-validated labels:
+2. **The mode ordering flips on tissue biology.** `tumor_only`
+   wins AUC (+0.03 to +0.15 over V2.5), but `tumor_only`'s tied
+   band is 6,540 at K = 100 — its top-K is not usable. V2.5 is the
+   only probabilistic axis with an interpretable top-K on tissue.
+   V1 collapses on tissue (AUC 0.44 on wide, below random).
 
-| label | V1 | tumor_only | differential | V2.5 tie_band |
+### 5.4 Out-of-distribution boundary case — GSE68379
+
+*Reported here separately. **Not** pooled with the primary-endpoint
+or sensitivity tables.*
+
+A cross-series run against the Sanger GDSC 52-breast-line panel ×
+GSE69914 healthy normal (n = 52 / 50) at the Roth-validated labels
+produced systematically inverted AUC:
+
+| label | V1 | tumor_only | V2.5 | V2.5 tie_band@100 |
 |---|---:|---:|---:|---:|
 | validated | 0.510 | 0.222 | 0.197 | 1,602 |
 | narrow | 0.485 | 0.228 | 0.169 | 1,602 |
 | wide | 0.407 | 0.462 | 0.269 | 1,602 |
 
-The root cause is a probe-level biology mismatch at the three Roth
-target sites:
+The root cause is a probe-level biology mismatch. At the three
+Roth Fig. 5d target probes:
 
-| probe | gene | Roth MCF-7 β | Sanger MCF-7 β |
+| probe | gene | Roth MCF-7 β (GSE322563) | Sanger MCF-7 β (GSE68379) |
 |---|---|---:|---:|
 | cg05251676 | EGFLAM | 0.01 | **0.92** |
 | cg25338972 | ESR1 | 0.07 | **0.63** |
 | cg01364137 | GATA3 | 0.02 | **0.70** |
 
-Same cell line name, **opposite methylation state** at the validated
-loci. MCF-7 is notorious in the field for accumulating substantial
-genetic and epigenetic drift across laboratories over decades of
-passaging. Because the Roth labels encode "tumor hypomethylated at
-target", and Sanger's MCF-7 is methylated at those targets, any
-scorer that contains `p_targ = P(β_tumor < 0.30)` will rank the
-"positives" at the *bottom* of its distribution — which is exactly
-what V2.5 and `tumor_only` do. The inversion is the *correct* response
-to the underlying biology; it is the labels that no longer describe
-the candidates' biology in this cohort, not the scorer that is wrong.
+Same cell line name, opposite methylation state at the validated
+loci. MCF-7 has accumulated substantial genetic and epigenetic
+drift across laboratories over decades of separate passaging.
+Because the Roth labels encode "tumor hypomethylated at target"
+and Sanger's MCF-7 is methylated at those targets, any scorer whose
+composite contains `p_targ = P(β_tumor < 0.30)` will rank the
+validated positives at the *bottom* of its distribution — which is
+what V2.5 and `tumor_only` do. The inversion is the correct
+response of the scorer to the underlying biology; the labels are
+the component that is no longer valid on this cohort.
 
-We document GSE68379 as an **out-of-distribution boundary case**
-rather than a fourth generalization cohort. It is not pooled into any
-cross-cohort summary metric. Redefining positives from GSE68379's own
-β values would be circular (positives defined from the data being
-tested).
+GSE68379 is reported as a label-transportability boundary, not a
+failed generalization of V2.5. Pooling it into an average across
+cohorts would misrepresent the result; redefining positives from
+GSE68379's own β values would be circular (labels derived from the
+data under test). It remains in the documentation as a documented
+boundary case.
+
+### 5.5 Top-hit annotation (tie-window-aware)
+
+An annotation pass (nearest gene + TSS distance + feature class + CpG-
+island context, from UCSC `refGene` and `cpgIslandExt` hg19 tables)
+was run on the top-20 of each score axis × cohort. Important phrasing
+note: on cohorts with large tied bands at K=100, the "top-20" is a
+20-record *window* inside that tied band, selected by the documented
+tie-break policy (`candidate_id` ascending). The membership of this
+window is not a robust property of the scorer in the way AUC is — a
+different deterministic tie-break would surface a different slice of
+the same band. The claims below are therefore phrased in terms of
+"present in the benchmark-selected top-20 window," not "the model
+converges on this gene."
+
+On the two matched cell-line cohorts (GSE322563 tie_band = 190;
+GSE77348 tie_band = 299):
+
+- **Present in the GSE322563 V2.5 top-20 window** (chr10 slice under
+  `candidate_id` ascending): KCNIP2, CALHM2, SORCS3-AS1, LINC00710,
+  CELF2 (×2), XPNPEP1, CELF2-AS2, ADRB1 (×3), ABLIM1, GFRA1 (×3),
+  PLPP4, DMBT1, BUB3, CTBP2 (×2).
+- **Present in the GSE77348 V2.5 top-20 window**: PITX3, BTRC, SORCS1,
+  LINC02624, CELF2-DT, CELF2, XPNPEP1, ADRB1, AFAP1L2, GFRA1 (×3)
+  (full TSV committed).
+- **Shared between the two top-20 windows**: ADRB1, CELF2, GFRA1,
+  XPNPEP1 (4 genes). This is cross-cohort convergence inside the
+  `candidate_id`-ascending slice of the tied bands, not cross-cohort
+  convergence of the underlying ranking. AUC is the stable claim at
+  low `n`; top-20 membership is a window claim.
+
+On GSE322563, V1 `final_score` has `tie_band = 1` and so its top-20
+is a genuine ordering of the full candidate set, not a window slice.
+It surfaces different and overlapping genes:
+
+- **GSE322563 V1 top-20** (tie_band = 1): ZMIZ1, DPYSL4, RET,
+  LINC02669, ADRB1, KCNIP2, TRIM31 (×5), CNPY3-GNMT, TTBK1, GFRA1,
+  IRX1, CTBP2, ADGRA1, LINC01163, ME1, NRG3. RET is included and is
+  notable as a well-established therapeutic target in medullary
+  thyroid cancer and RET-rearranged NSCLC; this is a robust top-20
+  claim under the V1 axis. Overlap with the V2.5 top-20 window on
+  the same cohort: ADRB1, CTBP2, GFRA1, KCNIP2.
+
+On GSE69914 (tissue, `n = 305 / 50`, tie_band = 2) the top-20 is
+essentially a genuine top-20:
+
+- **GSE69914 V2.5 top-20**: RUNX2 (×5), SCML4 (×5), FOXCUT, FOXC1,
+  MAS1L, COL21A1, MXI1, TENM2 (×3), MAT2B. β differentials are
+  smaller (0.17–0.31) than on cell lines (0.79–0.96) — primary
+  tissue is cell-type-heterogeneous, β regresses toward the middle.
+  Zero gene overlap with the cell-line top-20 windows. This is the
+  expected behavior: on a genuine top-20 (not a tied-band slice),
+  V2.5 is cohort-specific and does not return a fixed gene list.
+
+None of the three Roth-*Fig.-5d*-validated probes (EGFLAM T11, ESR1
+T17, GATA3 T18) appear in any cohort's top-20 — they appear in the
+top ~1% of the scored set (rank-lifted by AUC) but not in the top-
+100 slice. This is the expected behavior on cohorts with large
+tied bands at K = 100 and is why AUC, not P@K, is the primary
+endpoint.
 
 ---
 
 ## 6 · Discussion
 
-### 6.1 Recommended use
+### 6.1 Decision table — hierarchy of use
 
-| cohort type | example | recommended axis | rationale |
+Three truths coexist and should not be conflated:
+
+1. V1 `final_score` is the stable release axis (tagged `v0.4.0`).
+2. V2.5 is an **experimental-on-main** probabilistic mode.
+3. V2.5 is **recommended** as the probabilistic research mode for
+   matched cell-line / paper-comparable cohorts.
+
+The decision table below is the literal hierarchy:
+
+| intended use | axis | status in the repo | rationale |
 |---|---|---|---|
-| Matched cell-line / paper-comparable | GSE322563, GSE77348 | **V2.5** | Highest AUC by clear margins at every label granularity. |
-| Primary tumor tissue | GSE69914 | V2.5 | `tumor_only` has slightly higher AUC but its top-K is determined by tie-break, not score; V2.5 has tie_band = 2 and is the only interpretable top-K. |
-| Any cohort, top-K stability priority | — | V1 `final_score` | Continuous-valued, tie_band = 1 always. Safe to read P@K under all cohort shapes. |
+| **Default stable framework release** | V1 `final_score` | tagged `v0.4.0`; default `probabilistic_mode` in cohort YAMLs remains `tumor_only` | Deterministic, continuous-valued score; `tie_band = 1` on every cohort tested, so P@K is never tie-break-dependent. Best AUC on independent surrogate (GSE77348 validated 0.968). |
+| **Recommended probabilistic research mode, matched cell-line / paper-comparable cohorts** | V2.5 `tumor_plus_differential_protection` | experimental-on-main, not tagged | Highest AUC at every label granularity on GSE322563 and GSE77348 (§5.1–5.2). Tie-bands reported per benchmark; P@K intervals honest. |
+| **Analysis-only (diagnostic)** | V2 `tumor_only` | retained in the mode enum; not a discovery axis | Competitive AUC on tissue (§5.3) but `tie_band_size_at_k` consistently 6,000–12,000; top-K is not interpretable. Use only for AUC sanity checks against V2.5 / V1. |
+| **Unsupported / out-of-distribution interpretation** | any axis at GSE68379 | documented as §5.4 boundary case | Sanger MCF-7 epigenetic drift breaks label transportability from Roth Fig. 5d. Inverted AUC is the expected scorer response; do not pool this cohort's numbers with §5.1. |
 
-V2.5 is **not** promoted to an unconditional default. The default
-`probabilistic_mode` in cohort YAMLs remains `tumor_only`. V2.5 ships
-as `probabilistic_mode: tumor_plus_differential_protection` on the
-`main` branch (v0.4.0 is the last tagged stable release) with the
-caveats documented in `V2_5_REVIEW.md`.
+The phrase "recommended" in row 2 means: for a user running V2.5 on a
+cohort that matches the §5.1 use profile, we believe the reported
+benefit over V1 is real. It does not mean V2.5 is tagged as a
+release, and it does not mean V2.5 is safe to use on cohorts outside
+that profile without re-running the diagnostics in §5.3 and §5.4 on
+the new cohort.
 
 ### 6.2 Limitations
 
-1. **Low-replicate tie bands.** On cohorts with n < `ramp_n = 30`,
-   `p_trust` saturates at the evidence-class ceiling × min(n_t, n_n)
-   / 30, creating a tied band of 100s–1000s of records at the top of
-   the probabilistic composite. `tie_band_size_at_k` and
-   `precision_at_k_{min, max}` are reported on every benchmark result
-   so that P@K can be read as an interval. The problem dissolves at
-   n ≳ 30 (demonstrated on GSE69914).
+(Platform harmonization and catalog scope are part of the methodology
+proper — §4.4 — because they materially shape what the reported AUCs
+mean. They are cited briefly here as the methodological constraints
+they are.)
 
-2. **EPIC v2 → HM450 intersect.** 80.7% of HM450 probes are retained
-   after canonical probe-ID intersect. Per-gene retention for the
-   Roth-validated genes: ESR1 96%, EGFLAM 91%, VEGFA 90%, GATA3 83%.
-   A native EPIC v2 probe annotation (manifest ingest, catalog
-   rebuild) is queued but not yet shipped.
+1. **Low-replicate tie bands.** On cohorts with `n < ramp_n = 30`,
+   `p_trust` saturates and produces tied bands of 100s–1000s of
+   records at the top of the probabilistic composite.
+   `tie_band_size_at_k` and `precision_at_k_{min, max}` are reported
+   per benchmark result so that P@K is read as an interval. The
+   problem dissolves at `n ≳ 30` (demonstrated on GSE69914; §5.3).
 
-3. **Cell-line drift.** GSE68379 establishes that MCF-7 in one lab
-   is not the same epigenetic object as MCF-7 in another. Any V2.5
-   target shortlist generated on a given cohort must be validated
-   against the specific cell line that will be used in the follow-up
-   editing assay, not against a different lab's stock of the
-   same-named line.
+2. **HM450/EPIC harmonization (see §4.4).** Reported AUCs that use
+   GSE322563 are under the HM450-intersect path, not a native EPIC v2
+   scoring run. Retention of HM450 probes is 80.7% overall and
+   83–96% at the Roth-validated genes. A native EPIC v2 ingest would
+   remove this caveat but is not shipped.
 
-4. **Catalog scope.** Our catalog is chr5 / chr6 / chr10 only (2.98M
-   NNNNCGA/NNNNCCA candidates within ±500 bp of an HM450 probe).
-   Extending to the whole genome is straightforward but unnecessary
-   for the scientific question asked here.
+3. **Catalog scope (see §4.4).** AUCs are on chr5 / chr6 / chr10
+   candidates filtered to within ±500 bp of an HM450 probe, not on
+   a whole-genome catalog. The three chromosomes carry the Roth
+   Fig. 5d validated targets and provide a realistic test bed.
+
+4. **Cell-line drift.** GSE68379 (§5.4) establishes that MCF-7 in
+   one lab is not the same epigenetic object as MCF-7 in another.
+   Any V2.5 target shortlist generated on a given cohort must be
+   validated against the specific cell line that will be used in
+   the follow-up editing assay, not against a different lab's stock
+   of the same-named line.
 
 5. **σ floor.** The 0.05 floor on per-side σ prevents σ_Δ from
-   collapsing to zero at boundary β-values. The value is empirical; a
-   formal robustness study across floor values is deferred.
+   collapsing to zero at boundary β-values. The value is empirical;
+   a formal robustness study across floor values is deferred.
 
-6. **No wet-lab validation in this memo.** V2.5 is a
-   target-prioritization tool. The claim is AUC + top-list
-   interpretability on committed methylation data, not actual editing
-   efficiency at any specific site. The top hits (ADRB1, CELF2, GFRA1,
-   XPNPEP1) are unvalidated predictions at this stage.
+6. **Top-20 membership is a window claim on low-`n` cohorts.** As
+   §5.5 states, the cell-line top-20 lists are 20-record windows
+   inside 190- and 299-record tied bands, selected by the
+   documented tie-break policy. The four-gene overlap (ADRB1,
+   CELF2, GFRA1, XPNPEP1) is convergence of the benchmark-selected
+   window, not a robust claim about the underlying scorer ordering.
+   AUC is the stable metric on low-`n` cohorts; top-20 membership
+   becomes a stable metric at `n ≳ 30` (GSE69914, `tie_band = 2`).
+
+7. **No wet-lab validation in this memo.** V2.5 is a target-
+   prioritization tool. The claim is AUC + tie-band-aware top-K
+   reporting on committed methylation data, not actual editing
+   efficiency at any specific site. All named top hits are
+   unvalidated predictions at this stage.
 
 ### 6.3 Next steps
 
@@ -545,19 +680,57 @@ matches the product implied by the declared `mode` to within
 enforces that the differential audit fields (`p_differential_protection`,
 `differential_delta`) are populated iff `mode` is differential.
 
-**Benchmark ranking contract:**
+**Benchmark ranking contract.** Let the scored set be N records, each
+with a score `s_i` and a ground-truth label `y_i ∈ {0, 1}` (1 for
+positive). The benchmark sorts records by the total order
 
 ```
-primary key    = score descending
-secondary key  = candidate_id ascending  (tie_break_policy)
-top-K          = first K records under (primary, secondary) sort
-P@K_observed   = positives in top-K / K
-tie_band_size_at_k = records at the K-th position's score
-P@K_min        = max(0, band_pos − drop_slots) contribution +
-                 committed_pos, all / K
-P@K_max        = min(band_pos, k_band) contribution + committed_pos, / K
-AUC            = Mann-Whitney U / (n_pos · n_neg); ties contribute 0.5
+    (s_i, c_i)   with primary  -s_i  ascending
+                      secondary c_i   ascending
 ```
+
+where `c_i` is the candidate_id. Let `r_1, r_2, …, r_N` be the
+resulting ranking (smallest `(-s, c)` first). Define:
+
+```
+    top-K               := {r_1, …, r_K}
+    cutoff_score        := s at position K in the sort, i.e. s_{r_K}
+    tied_band           := {r_i : s_{r_i} = cutoff_score}           # records at the cutoff
+    tie_band_size_at_k  := |tied_band|
+    k_band              := |tied_band ∩ top-K|                      # records in top-K at the cutoff
+    drop_slots          := tie_band_size_at_k − k_band              # records at cutoff outside top-K
+    band_pos            := |{r_i ∈ tied_band : y_{r_i} = 1}|
+    committed_pos       := |{r_i ∈ top-K \ tied_band : y_{r_i} = 1}|
+```
+
+Then:
+
+```
+    P@K_observed := (committed_pos + |{r_i ∈ tied_band ∩ top-K : y_{r_i} = 1}|) / K
+
+    P@K_min      := (committed_pos + max(0, band_pos − drop_slots)) / K
+    P@K_max      := (committed_pos + min(band_pos, k_band))          / K
+```
+
+`P@K_min` is the smallest possible value of P@K achievable by any
+tie-break policy that respects the primary score ordering; it is
+reached by pushing as many tied-band positives as possible outside
+the top-K (limited by `drop_slots` available). `P@K_max` is the
+symmetric upper bound: pull as many tied-band positives as possible
+into top-K (limited by `k_band` available). By construction:
+
+```
+    P@K_min ≤ P@K_observed ≤ P@K_max
+```
+
+and the interval collapses to `{P@K_observed}` exactly when
+`tie_band_size_at_k = 1`.
+
+The `R@K_min / R@K_max` counterparts replace the denominator with
+`n_positives`. `AUC` is the Mann-Whitney U / (n_pos · n_neg) with
+ties contributing 0.5 (standard tie-handling); it does not need an
+interval form because under the cid-ascending tie-break it is
+already invariant within tied score regions.
 
 ---
 
