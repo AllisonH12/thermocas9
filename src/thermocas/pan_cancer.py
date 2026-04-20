@@ -6,12 +6,18 @@ across cohorts.
 
 Metric definitions (see `models.PanCancerAggregate`):
 
-  * pan_cancer_score = mean(cohort_scores) over observed cohorts
-  * recurrence       = n_cohorts_high_score / max(1, n_cohorts_observed)
-  * exclusivity      = stdev(cohort_scores) over observed cohorts
-                       (high → cohort-specific, low → pan-cancer recurrent)
-  * normal_risk_max  = max(beta_normal_mean) across cohorts
-                       (higher → better protected in normal tissue)
+  * pan_cancer_score      = mean(cohort_scores) over observed cohorts
+  * recurrence            = n_cohorts_high_score / max(1, n_cohorts_observed)
+  * exclusivity           = stdev(cohort_scores) over observed cohorts
+                            (high → cohort-specific, low → pan-cancer recurrent)
+  * normal_protection_max = max(β_normal_mean) across observed cohorts
+                            (best-case protection — at least one cohort methylates)
+  * normal_protection_min = min(β_normal_mean) across observed cohorts
+                            (worst-case / pan-cancer risk view — least-protected cohort)
+
+Both protection metrics are emitted because the single "max" view overstates
+safety in cross-cohort summaries (a candidate with β_normal=0.9 in BRCA and
+0.1 in LUAD shouldn't report only the 0.9).
 """
 
 from __future__ import annotations

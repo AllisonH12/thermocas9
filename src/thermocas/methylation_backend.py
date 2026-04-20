@@ -1,19 +1,30 @@
 """Methylation backends.
 
-A backend's job is, given a list of probe coordinates, to produce per-probe
-beta-value summaries (mean, q25, q75, n) for both a tumor and a normal cohort.
-Cohort orchestration consumes that to produce `MethylationObservation`s per
-candidate site.
+A `MethylationBackend` implementation, given a list of probe coordinates,
+produces per-probe beta-value summaries (mean, q25, q75, n) for both a tumor
+and a normal cohort. Cohort orchestration consumes that to produce
+`MethylationObservation`s per candidate site.
 
-Two backends ship in V1:
+Two `MethylationBackend` implementations ship:
 
-* `LocalArrayBackend` — works against pre-downloaded files on disk
-  (probe annotation TSV + tumor beta TSV + normal beta TSV). This is the format
-  GDC bulk downloads land in once you've fetched the cohort with `gdc-client`,
-  so it doubles as the realistic on-disk path.
+* `LocalArrayBackend` — works against pre-downloaded raw beta matrices on
+  disk (probe annotation TSV + tumor beta TSV + normal beta TSV, one column
+  per sample). Use when you already have the per-sample matrix.
 
-* `GDCBackend` — STUB. Documents the intended API surface so a real
-  implementation can be dropped in without touching `cohort.py`. Not wired yet.
+* `LocalSummaryBackend` — works against per-probe summary TSVs
+  (probe_id, n, mean, q25, q75) plus a probe annotation TSV. This is the
+  format `gdc-fetch` writes directly, so it's the canonical live-data path:
+  `thermocas gdc-fetch → thermocas score-cohort --backend summary`.
+
+One fetcher (not a `MethylationBackend`) ships:
+
+* `GDCBackend` — stdlib-urllib client against the live GDC API with on-disk
+  caching. Lists files, downloads them, aggregates per-probe, exports a
+  summary TSV. Deliberately *not* a `MethylationBackend` subclass: live GDC
+  traffic can't satisfy the backend contract because per-sample files don't
+  carry probe coordinates and one fetcher only handles one sample-type side.
+  Use it to materialize a cohort, then point `LocalSummaryBackend` at the
+  output directory.
 """
 
 from __future__ import annotations

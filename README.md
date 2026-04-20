@@ -140,14 +140,28 @@ thermocas score-cohort ... --probabilistic --output scored.jsonl
 # Outputs scored.LumA.jsonl, scored.LumB.jsonl, ... with cohort_name = 'BRCA::LumA' etc.
 thermocas score-cohort ... --sample-subtypes sample_subtypes.tsv --output scored.jsonl
 
-# Pull a TCGA cohort from the live GDC API and export
-# LocalArrayBackend-compatible summary TSVs (cached to disk for re-runs):
+# Pull a TCGA cohort from the live GDC API. gdc-fetch exports per-probe
+# summary TSVs (probe_id, n, mean, q25, q75) that LocalSummaryBackend reads
+# directly — no raw beta matrices are materialized. Raw files are cached on
+# disk for re-runs.
 thermocas gdc-fetch \
     --project TCGA-BRCA \
     --platform HM450 \
     --sample-type both \
+    --probe-annotation path/to/hm450_probes.tsv \
     --cache-dir   results/gdc_cache \
     --output-dir  results/gdc_brca
+
+# Then score against the exported cohort using --backend summary:
+thermocas score-cohort \
+    --catalog catalog.jsonl \
+    --pam-model config/pam_model.yaml \
+    --cohort config/cohorts/brca_example.yaml \
+    --backend summary \
+    --probe-annotation results/gdc_brca/probes.tsv \
+    --tumor-summary    results/gdc_brca/tumor_summary.tsv \
+    --normal-summary   results/gdc_brca/normal_summary.tsv \
+    --output scored.brca.jsonl
 ```
 
 The probabilistic decomposition (V3) uses a **method-of-moments Beta(α, β)
