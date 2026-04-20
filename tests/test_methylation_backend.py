@@ -9,6 +9,8 @@ import pytest
 from thermocas.methylation_backend import (
     GDCBackend,
     LocalArrayBackend,
+    LocalSummaryBackend,
+    MethylationBackend,
     _summarize,
 )
 
@@ -133,10 +135,6 @@ def test_gdc_backend_uses_injected_opener_and_caches(tmp_path: Path):
     assert (tmp_path / "FA.txt").exists()
     assert (tmp_path / "FB.txt").exists()
 
-    # tumor_summary returns from build_summaries cache; normal_summary returns None
-    assert backend.tumor_summary("cg001") is not None
-    assert backend.normal_summary("cg001") is None
-
     # second call to download_file uses on-disk cache, no extra HTTP calls
     n_downloads_before = sum(1 for u, _ in calls if "/data/" in u)
     backend.download_file("FA")
@@ -173,8 +171,114 @@ def test_gdc_backend_export_summaries(tmp_path: Path):
     assert "cg001" in text
 
 
-def test_gdc_backend_normal_summary_when_sample_type_normal(tmp_path: Path):
+def test_gdc_backend_is_not_a_methylation_backend():
+    """V3 — GDCBackend is intentionally not a MethylationBackend.
+
+    The class can't satisfy the backend contract (probes() returns empty,
+    one instance is single-sided). The supported live-data path is
+    gdc-fetch → LocalSummaryBackend.
+    """
+    assert not issubclass(GDCBackend, MethylationBackend)
+
+
+def test_gdc_backend_max_files_caps_downloads(tmp_path: Path):
+    """V3 — max_files lets tests / quota-conscious users limit per-cohort downloads."""
     import json
+
+    files_payload = json.dumps({
+        "data": {"hits": [
+            {"file_id": f"F{i}"} for i in range(1, 11)
+        ]}
+    }).encode()
+    file_payload = b"Composite Element REF\tBeta_value\ncg001\t0.30\n"
+    downloaded: list[str] = []
+
+    def fake_opener(url: str, body: bytes | None, headers: dict[str, str]) -> bytes:
+        if url.endswith("/files"):
+            return files_payload
+        downloaded.append(url)
+        return file_payload
+
+    backend = GDCBackend(
+        project_id="TCGA-X", cache_dir=tmp_path,
+        sample_type="Primary Tumor", max_files=3,
+        url_opener=fake_opener,
+    )
+    backend.build_summaries()
+    assert len(downloaded) == 3, f"max_files=3 should cap downloads to 3, got {len(downloaded)}"
+
+
+# ---------- LocalSummaryBackend ----------
+
+
+def test_local_summary_backend_round_trips_export(tmp_path: Path):
+    """V3 — gdc-fetch's export_summaries output must be readable by LocalSummaryBackend."""
+    import json
+
+    files_payload = json.dumps({"data": {"hits": [{"file_id": "F1"}, {"file_id": "F2"}]}}).encode()
+    file_a = b"Composite Element REF\tBeta_value\ncg001\t0.05\ncg002\t0.40\n"
+    file_b = b"Composite Element REF\tBeta_value\ncg001\t0.10\ncg002\tNA\n"
+
+    def fake_opener(url, body, headers):
+        if url.endswith("/files"):
+            return files_payload
+        return file_a if url.endswith("/F1") else file_b
+
+    # Step 1: gdc-fetch-style export
+    tumor_summary = tmp_path / "tumor_summary.tsv"
+    GDCBackend(
+        project_id="TCGA-X", cache_dir=tmp_path,
+        sample_type="Primary Tumor", url_opener=fake_opener,
+    ).export_summaries(tumor_summary)
+
+    # Reset cache by using a different cache dir for normal (real callers do per-side dirs;
+    # here we just write a hand-crafted normal summary)
+    normal_summary = _write(
+        tmp_path / "normal_summary.tsv",
+        "probe_id\tn\tmean\tq25\tq75\ncg001\t10\t0.85\t0.78\t0.92\ncg002\t10\t0.50\t0.45\t0.55\n",
+    )
+    probes = _write(
+        tmp_path / "probes.tsv",
+        "probe_id\tchrom\tpos\ncg001\tchr1\t100\ncg002\tchr1\t200\n",
+    )
+
+    # Step 2: LocalSummaryBackend reads the gdc-fetch output
+    backend = LocalSummaryBackend(probes, tumor_summary, normal_summary)
+    assert isinstance(backend, MethylationBackend)
+    probe_list = list(backend.probes())
+    assert {p.probe_id for p in probe_list} == {"cg001", "cg002"}
+    t = backend.tumor_summary("cg001")
+    n = backend.normal_summary("cg001")
+    assert t is not None and n is not None
+    assert t.n_samples == 2
+    assert n.n_samples == 10
+    assert n.mean is not None and n.mean > 0.80
+
+
+def test_local_summary_backend_handles_na_summary_cells(tmp_path: Path):
+    """NA cells in the summary TSV become None (not zeros)."""
+    probes = _write(tmp_path / "probes.tsv", "probe_id\tchrom\tpos\ncg001\tchr1\t1\n")
+    s = _write(
+        tmp_path / "summary.tsv",
+        "probe_id\tn\tmean\tq25\tq75\ncg001\t0\tNA\tNA\tNA\n",
+    )
+    backend = LocalSummaryBackend(probes, s, s)
+    res = backend.tumor_summary("cg001")
+    assert res is not None
+    assert res.mean is None and res.q25 is None and res.q75 is None
+
+
+def test_local_summary_backend_rejects_missing_required_columns(tmp_path: Path):
+    probes = _write(tmp_path / "probes.tsv", "probe_id\tchrom\tpos\ncg001\tchr1\t1\n")
+    bad = _write(tmp_path / "summary.tsv", "probe_id\tmean\ncg001\t0.5\n")
+    with pytest.raises(ValueError, match="probe_id, n, mean"):
+        LocalSummaryBackend(probes, bad, bad)
+
+
+def test_gdc_backend_summarizes_normal_side(tmp_path: Path):
+    """V3 — GDCBackend.build_summaries works for either side via sample_type."""
+    import json
+
     files_payload = json.dumps({"data": {"hits": [{"file_id": "F1"}]}}).encode()
     file_payload = b"Composite Element REF\tBeta_value\ncg001\t0.85\n"
 
@@ -187,5 +291,6 @@ def test_gdc_backend_normal_summary_when_sample_type_normal(tmp_path: Path):
         sample_type="Solid Tissue Normal",
         url_opener=fake_opener,
     )
-    assert backend.normal_summary("cg001") is not None
-    assert backend.tumor_summary("cg001") is None  # wrong side
+    summaries = backend.build_summaries()
+    assert "cg001" in summaries
+    assert summaries["cg001"].mean == pytest.approx(0.85)

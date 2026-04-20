@@ -25,7 +25,11 @@ from thermocas.catalog import stream_catalog
 from thermocas.cohort import score_cohort
 from thermocas.config import load_cohort_config
 from thermocas.io import read_jsonl, write_jsonl_atomic
-from thermocas.methylation_backend import LocalArrayBackend, MethylationBackend
+from thermocas.methylation_backend import (
+    LocalArrayBackend,
+    LocalSummaryBackend,
+    MethylationBackend,
+)
 from thermocas.models import CandidateSite, CohortConfig, ScoredCandidate
 from thermocas.pam_model import PamModel
 from thermocas.pan_cancer import aggregate
@@ -76,13 +80,19 @@ def _build_parser() -> argparse.ArgumentParser:
                     help="YAML cohort config (e.g. config/cohorts/brca_example.yaml)")
     sc.add_argument("--pam-model", required=True, type=Path,
                     help="YAML PAM model — must match the one used to build the catalog")
-    sc.add_argument("--backend", choices=["local", "gdc"], default="local")
+    sc.add_argument("--backend", choices=["local", "summary", "gdc"], default="local",
+                    help="local = raw beta matrices; summary = per-probe summary TSVs "
+                         "(the format gdc-fetch produces); gdc = unsupported live mode")
     sc.add_argument("--probe-annotation", type=Path,
-                    help="(local backend) TSV with probe_id, chrom, pos columns")
+                    help="(local + summary backends) TSV with probe_id, chrom, pos columns")
     sc.add_argument("--tumor-beta", type=Path,
                     help="(local backend) TSV beta matrix for the tumor cohort")
     sc.add_argument("--normal-beta", type=Path,
                     help="(local backend) TSV beta matrix for the normal cohort")
+    sc.add_argument("--tumor-summary", type=Path,
+                    help="(summary backend) TSV with probe_id, n, mean, q25, q75 for tumor")
+    sc.add_argument("--normal-summary", type=Path,
+                    help="(summary backend) TSV with probe_id, n, mean, q25, q75 for normal")
     sc.add_argument("--sample-subtypes", type=Path,
                     help=("(local backend, V2) optional TSV with sample_id, subtype "
                           "columns. When provided, the tumor matrix is split into "
@@ -127,7 +137,11 @@ def _build_parser() -> argparse.ArgumentParser:
                     choices=["final_score", "p_therapeutic_selectivity", "spacer_final_score"],
                     help="Which scalar to rank by (V2 probabilistic / V3 spacer also supported)")
     bn.add_argument("--held-out-chromosomes", nargs="*", default=[],
-                    help="Chromosomes excluded from training; recorded in the result")
+                    help="Chromosomes excluded from training; only candidates on "
+                         "these chroms are evaluated unless --no-enforce-holdout")
+    bn.add_argument("--no-enforce-holdout", action="store_true",
+                    help="Record held_out_chromosomes as metadata but evaluate the "
+                         "full scored set (not the cross-validation default)")
     bn.add_argument("--output", required=True, type=Path,
                     help="Output JSONL containing one BenchmarkResult record")
     bn.set_defaults(func=_cmd_benchmark)
@@ -148,6 +162,13 @@ def _build_parser() -> argparse.ArgumentParser:
                     help="Directory for raw GDC file cache (re-used across runs)")
     gd.add_argument("--output-dir", required=True, type=Path,
                     help="Output directory for summary TSVs")
+    gd.add_argument("--probe-annotation", type=Path,
+                    help="Optional probe-annotation TSV (probe_id, chrom, pos) to copy "
+                         "into the output dir as probes.tsv. Required for the downstream "
+                         "score-cohort --backend summary step.")
+    gd.add_argument("--max-files", type=int,
+                    help="Cap files per side for testing or quota control "
+                         "(default: download all matching files)")
     gd.set_defaults(func=_cmd_gdc_fetch)
 
     # aggregate
@@ -353,6 +374,7 @@ def _cmd_benchmark(args: argparse.Namespace) -> int:
         cohort_name=args.cohort_name,
         top_k=args.top_k,
         held_out_chromosomes=list(args.held_out_chromosomes),
+        enforce_holdout=not args.no_enforce_holdout,
         score_field=args.score_field,
     )
     write_jsonl_atomic(args.output, [result])
@@ -373,6 +395,8 @@ def _fmt(v: float | None) -> str:
 def _cmd_gdc_fetch(args: argparse.Namespace) -> int:
     """V2 — download a cohort from GDC and export per-side summary TSVs."""
 
+    import shutil
+
     args.output_dir.mkdir(parents=True, exist_ok=True)
     sides: list[tuple[str, str, str]] = []  # (label, sample_type, filename)
     if args.sample_type in ("tumor", "both"):
@@ -387,12 +411,22 @@ def _cmd_gdc_fetch(args: argparse.Namespace) -> int:
             cache_dir=args.cache_dir,
             platform=args.platform,
             sample_type=sample_type,
+            max_files=args.max_files,
         )
         out = args.output_dir / fname
         files = backend.list_files()
-        print(f"gdc-fetch[{args.project}/{label}]: {len(files)} files matched")
+        cap = f" (capped to {args.max_files})" if args.max_files else ""
+        print(f"gdc-fetch[{args.project}/{label}]: {len(files)} files matched{cap}")
         n = backend.export_summaries(out)
         print(f"gdc-fetch[{args.project}/{label}]: wrote {n} probe summaries → {out}")
+
+    if args.probe_annotation is not None:
+        dest = args.output_dir / "probes.tsv"
+        shutil.copyfile(args.probe_annotation, dest)
+        print(f"gdc-fetch[{args.project}]: copied probe annotation → {dest}")
+    else:
+        print(f"gdc-fetch[{args.project}]: no --probe-annotation supplied; "
+              "downstream score-cohort will need a probes.tsv.")
     return 0
 
 
@@ -428,11 +462,26 @@ def _build_backend(args: argparse.Namespace) -> MethylationBackend:
             tumor_beta=args.tumor_beta,
             normal_beta=args.normal_beta,
         )
+    if args.backend == "summary":
+        missing = [
+            name for name, val in (
+                ("--probe-annotation", args.probe_annotation),
+                ("--tumor-summary", args.tumor_summary),
+                ("--normal-summary", args.normal_summary),
+            ) if val is None
+        ]
+        if missing:
+            raise ValueError(f"summary backend requires: {', '.join(missing)}")
+        return LocalSummaryBackend(
+            probe_annotation=args.probe_annotation,
+            tumor_summary=args.tumor_summary,
+            normal_summary=args.normal_summary,
+        )
     if args.backend == "gdc":
         raise ValueError(
-            "gdc backend is not yet implemented. Download cohort with gdc-client "
-            "and use --backend local against the resulting TSVs. "
-            "See methylation_backend.GDCBackend for the intended interface."
+            "gdc backend is unsupported as a live MethylationBackend. Use "
+            "`thermocas gdc-fetch` to materialize the cohort to disk, then "
+            "rerun score-cohort with --backend summary."
         )
     raise ValueError(f"unknown backend: {args.backend}")
 

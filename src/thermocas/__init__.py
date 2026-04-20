@@ -24,6 +24,7 @@ from thermocas.methylation_backend import (
     BetaSummary,
     GDCBackend,
     LocalArrayBackend,
+    LocalSummaryBackend,
     MethylationBackend,
 )
 from thermocas.models import (
@@ -80,6 +81,7 @@ __all__ = [
     "EvidenceThresholds",
     "GDCBackend",
     "LocalArrayBackend",
+    "LocalSummaryBackend",
     "MethylationBackend",
     "MethylationObservation",
     "PamFamily",

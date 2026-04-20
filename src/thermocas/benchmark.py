@@ -64,6 +64,7 @@ def evaluate_ranking(
     cohort_name: str,
     top_k: int = 10,
     held_out_chromosomes: list[str] | None = None,
+    enforce_holdout: bool = True,
     score_field: str = "final_score",
 ) -> BenchmarkResult:
     """Measure ranking quality of `scored` against a known-positives set.
@@ -74,8 +75,14 @@ def evaluate_ranking(
             Anything else in `scored` counts as a negative.
         cohort_name: passed through to the result for downstream JSONL labeling.
         top_k: K for precision@K and recall@K.
-        held_out_chromosomes: optional list of chromosomes that were held out
-            of training; recorded in the result for traceability.
+        held_out_chromosomes: list of chromosomes the scoring did NOT see during
+            training. When `enforce_holdout=True` (default), only candidates on
+            these chromosomes are evaluated — this is the cross-validation
+            control the docstring advertises.
+        enforce_holdout: if True (default), filter `scored` so only candidates
+            whose `candidate.chrom` ∈ `held_out_chromosomes` are evaluated.
+            Set False to evaluate the full scored set with the held-out list
+            recorded only as metadata.
         score_field: which scalar to rank by. Default is the deterministic
             `final_score`. Pass `"p_therapeutic_selectivity"` to rank by the
             V2 probabilistic composite instead.
@@ -84,8 +91,16 @@ def evaluate_ranking(
     if top_k < 1:
         raise ValueError("top_k must be >= 1")
 
+    holdout_set: set[str] = set(held_out_chromosomes or [])
+    if enforce_holdout and not holdout_set:
+        # No holdout requested → trivially "all candidates are in the holdout".
+        # Treating this as enforce-False keeps the contract intuitive.
+        enforce_holdout = False
+
     pairs: list[tuple[str, float, bool]] = []
     for sc in scored:
+        if enforce_holdout and sc.candidate.chrom not in holdout_set:
+            continue
         score = _extract_score(sc, score_field)
         if score is None:
             continue

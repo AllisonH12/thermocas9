@@ -154,6 +154,58 @@ def test_evaluate_records_held_out_chromosomes():
     assert r.held_out_chromosomes == ["chr1", "chr2"]
 
 
+def _scored_on_chrom(cid: str, score: float, chrom: str) -> ScoredCandidate:
+    """Variant of _scored that places the candidate on a specific chromosome."""
+    sc = _scored(cid, score)
+    cand = sc.candidate.model_copy(update={"chrom": chrom})
+    return sc.model_copy(update={"candidate": cand})
+
+
+def test_evaluate_held_out_filters_to_only_those_chromosomes():
+    """Regression: held_out_chromosomes is the cross-validation control,
+    not metadata. With a positive on chr2 and a negative on chr1, holding
+    out chr2 must evaluate ONLY the chr2 candidate (n_total=1)."""
+
+    scored = [
+        _scored_on_chrom("p_chr2", 0.9, "chr2"),
+        _scored_on_chrom("n_chr1", 0.5, "chr1"),
+    ]
+    r = evaluate_ranking(
+        scored, {"p_chr2"}, cohort_name="T", top_k=1,
+        held_out_chromosomes=["chr2"],
+    )
+    assert r.n_total == 1
+    assert r.n_positives == 1
+    assert r.n_negatives == 0
+
+
+def test_evaluate_no_enforce_holdout_evaluates_full_set():
+    """`enforce_holdout=False` keeps the metadata but evaluates everything."""
+
+    scored = [
+        _scored_on_chrom("p_chr2", 0.9, "chr2"),
+        _scored_on_chrom("n_chr1", 0.5, "chr1"),
+    ]
+    r = evaluate_ranking(
+        scored, {"p_chr2"}, cohort_name="T", top_k=1,
+        held_out_chromosomes=["chr2"],
+        enforce_holdout=False,
+    )
+    assert r.n_total == 2
+    assert r.held_out_chromosomes == ["chr2"]
+
+
+def test_evaluate_empty_holdout_evaluates_full_set():
+    """No held-out chromosomes → no filter applied (intuitive default)."""
+
+    scored = [
+        _scored_on_chrom("p_chr2", 0.9, "chr2"),
+        _scored_on_chrom("n_chr1", 0.5, "chr1"),
+    ]
+    r = evaluate_ranking(scored, {"p_chr2"}, cohort_name="T", top_k=1)
+    assert r.n_total == 2
+
+
 def test_evaluate_rejects_zero_top_k():
     with pytest.raises(ValueError, match="top_k must be"):
         evaluate_ranking([], set(), cohort_name="T", top_k=0)

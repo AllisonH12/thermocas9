@@ -192,6 +192,71 @@ def test_cli_score_cohort_by_subtype(tmp_path: Path):
     assert all(r.observation.cohort_name == "BRCA::LumB" for r in lumb_records)
 
 
+def test_cli_score_cohort_summary_backend_end_to_end(tmp_path: Path):
+    """Regression: gdc-fetch writes per-probe summary TSVs, score-cohort
+    --backend summary reads them. Earlier P1 bug: the formats didn't connect."""
+
+    fa = _write(tmp_path / "ref.fa", ">chr1\nAAAAAAAAAAACGTCGAGGGGGGGGGGGGGGGGGGGG\n")
+    cohort = _write(
+        tmp_path / "cohort.yaml",
+        "cohort:\n  name: T\n  tumor_dataset: a\n  normal_dataset: b\n  platform: HM450\n"
+        "  min_samples_tumor: 1\n  min_samples_normal: 1\n",
+    )
+    probes = _write(tmp_path / "probes.tsv", "probe_id\tchrom\tpos\ncg001\tchr1\t14\n")
+    # gdc-fetch-style summary TSV format: probe_id, n, mean, q25, q75 (NA-tolerant).
+    tumor_summary = _write(
+        tmp_path / "tumor_summary.tsv",
+        "probe_id\tn\tmean\tq25\tq75\ncg001\t5\t0.05\t0.02\t0.10\n",
+    )
+    normal_summary = _write(
+        tmp_path / "normal_summary.tsv",
+        "probe_id\tn\tmean\tq25\tq75\ncg001\t5\t0.85\t0.78\t0.92\n",
+    )
+
+    catalog = tmp_path / "catalog.jsonl"
+    main([
+        "build-catalog", "--reference", str(fa),
+        "--pam-model", str(PAM_YAML), "--output", str(catalog),
+    ])
+
+    scored = tmp_path / "scored.jsonl"
+    rc = main([
+        "score-cohort",
+        "--catalog", str(catalog),
+        "--cohort", str(cohort),
+        "--pam-model", str(PAM_YAML),
+        "--backend", "summary",
+        "--probe-annotation", str(probes),
+        "--tumor-summary", str(tumor_summary),
+        "--normal-summary", str(normal_summary),
+        "--output", str(scored),
+    ])
+    assert rc == 0
+    records = list(read_jsonl(scored, ScoredCandidate))
+    # At least one candidate scored above zero — the summary backend correctly
+    # produced a methylation observation, not UNOBSERVED.
+    assert any(r.final_score > 0 for r in records)
+
+
+def test_cli_score_cohort_summary_backend_requires_summary_inputs(tmp_path: Path, capsys):
+    """Switching to --backend summary without --tumor-summary / --normal-summary fails clearly."""
+    catalog = _write(tmp_path / "catalog.jsonl", "")
+    cohort = _write(
+        tmp_path / "cohort.yaml",
+        "cohort:\n  name: T\n  tumor_dataset: a\n  normal_dataset: b\n  platform: HM450\n",
+    )
+    rc = main([
+        "score-cohort",
+        "--catalog", str(catalog),
+        "--cohort", str(cohort),
+        "--pam-model", str(PAM_YAML),
+        "--backend", "summary",
+        "--output", str(tmp_path / "out.jsonl"),
+    ])
+    assert rc == 1
+    assert "summary backend requires" in capsys.readouterr().err
+
+
 def test_cli_gdc_backend_rejected_in_score_cohort(tmp_path: Path, capsys):
     """V2 — score-cohort still rejects --backend gdc; users should run gdc-fetch first."""
     catalog = _write(tmp_path / "catalog.jsonl", "")

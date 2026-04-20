@@ -177,7 +177,7 @@ def score_candidate(
     spacer = None
     if compute_spacer:
         from thermocas.grna import score_spacer
-        spacer = score_spacer(candidate)
+        spacer = score_spacer(candidate, family)
 
     return ScoredCandidate(
         candidate=candidate,

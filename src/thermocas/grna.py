@@ -24,7 +24,8 @@ pulls the spacer down rather than averaging away.
 
 from __future__ import annotations
 
-from thermocas.models import CandidateSite, SpacerScore, Strand
+from thermocas.catalog import LOCAL_CONTEXT_HALF_WIDTH
+from thermocas.models import CandidateSite, PamFamily, SpacerScore
 from thermocas.pam_model import reverse_complement
 
 #: Length of the protospacer (Type II Cas9 = 20 nt).
@@ -34,42 +35,65 @@ SPACER_LEN = 20
 # ---------- public API ----------
 
 
-def extract_spacer(candidate: CandidateSite) -> str | None:
+def extract_spacer(
+    candidate: CandidateSite,
+    family: PamFamily,
+) -> str | None:
     """Pull the 20-nt protospacer immediately upstream of the candidate's PAM.
 
     `local_seq_100bp` is stored on the candidate's strand (V1 strand-orientation
-    fix), with the critical PAM cytosine roughly in the middle. The PAM sits at
-    `[half - critical_c_offset, half + (pam_width - critical_c_offset)]`; the
-    protospacer is the 20 nt **before** that, on the same strand.
+    fix), with the **critical PAM cytosine** at index
+    `min(critical_c_pos, LOCAL_CONTEXT_HALF_WIDTH)` of the local context.
+    The PAM start is therefore that index minus `family.critical_c_offset`,
+    not whatever `seq.find(pam)` returns first.
 
-    Returns None when there isn't enough flanking context (chrom edges).
+    The previous V3 implementation used `seq.find(candidate.pam)` and silently
+    extracted the spacer of an earlier decoy match if the PAM motif appeared
+    twice in the 100-bp window. Anchoring on the known critical-C index fixes
+    that — and we still verify the PAM string actually sits there before
+    trusting the result.
+
+    Returns None when there isn't enough flanking context (chrom edges) or the
+    expected PAM doesn't appear at the computed position.
     """
 
     seq = candidate.local_seq_100bp
-    if not seq:
+    if not seq or family.name != candidate.pam_family:
         return None
-    # Locate the PAM in the local context. PAM is on the indicated strand, so
-    # local_seq is already oriented; search for the literal PAM string.
-    pam_start = seq.find(candidate.pam)
-    if pam_start < 0 or pam_start < SPACER_LEN:
+
+    # Critical-C index inside local_seq_100bp: the catalog builder centers the
+    # window on critical_c_pos (clipped at chrom start), so for non-edge
+    # candidates the index is exactly LOCAL_CONTEXT_HALF_WIDTH.
+    critical_c_idx = min(candidate.critical_c_pos, LOCAL_CONTEXT_HALF_WIDTH)
+    pam_start = critical_c_idx - family.critical_c_offset
+
+    if pam_start < SPACER_LEN:
         return None
+    pam_end = pam_start + len(candidate.pam)
+    if pam_end > len(seq):
+        return None
+    if seq[pam_start:pam_end] != candidate.pam:
+        # Local context out of sync with the candidate's reported PAM —
+        # don't fall back to seq.find(); refuse rather than guess.
+        return None
+
     spacer = seq[pam_start - SPACER_LEN : pam_start]
-    if len(spacer) != SPACER_LEN:
-        return None
-    if "N" in spacer:
+    if len(spacer) != SPACER_LEN or "N" in spacer:
         return None
     return spacer
 
 
 def score_spacer(
     candidate: CandidateSite,
+    family: PamFamily,
     spacer: str | None = None,
 ) -> SpacerScore | None:
     """Compute a `SpacerScore` for a candidate. Returns None when no spacer
-    can be extracted (chrom edge, or `local_seq_100bp` doesn't include the PAM)."""
+    can be extracted (chrom edge, or `local_seq_100bp` doesn't include the PAM
+    at the expected position)."""
 
     if spacer is None:
-        spacer = extract_spacer(candidate)
+        spacer = extract_spacer(candidate, family)
     if spacer is None or len(spacer) != SPACER_LEN:
         return None
 

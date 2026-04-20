@@ -249,7 +249,10 @@ def _parse_beta_cell(cell: str) -> float | None:
 
 
 def _load_probes(path: str | Path) -> Iterable[ProbeRecord]:
-    """Internal: yield ProbeRecord rows from a probe annotation TSV."""
+    """Public-ish helper: yield ProbeRecord rows from a probe annotation TSV.
+
+    Tolerated by both LocalArrayBackend and LocalSummaryBackend.
+    """
 
     for row in read_tsv(path):
         try:
@@ -264,28 +267,116 @@ def _load_probes(path: str | Path) -> Iterable[ProbeRecord]:
             ) from e
 
 
-# ---------- GDCBackend ----------
+# ---------- LocalSummaryBackend ----------
 
 
-class GDCBackend(MethylationBackend):
-    """V2 — GDC HTTP client over stdlib `urllib`, with local file cache.
+class LocalSummaryBackend(MethylationBackend):
+    """V3 — backend over per-probe summary TSVs (the format `gdc-fetch` writes).
 
-    Workflow:
+    Inputs:
+      * `probe_annotation` — TSV with probe_id, chrom, pos columns
+      * `tumor_summary` and `normal_summary` — TSVs with
+        `probe_id, n, mean, q25, q75` (NA-tolerant)
 
-      1. `list_files()` → POST /files with filters for project + platform +
-         data type + sample type. Returns one file per sample.
-      2. `download_file(file_id)` → GET /data/<id> → cached to `cache_dir`.
-      3. `build_summaries()` → parse cached files → per-probe BetaSummary dict.
-      4. `export_to_local(...)` → write probes.tsv + tumor.tsv + normal.tsv
-         compatible with `LocalArrayBackend`. Run once, then re-use.
+    The summary format is what `GDCBackend.export_summaries()` produces, so the
+    intended workflow is:
 
-    GDC's per-sample beta files are typically ~50-250 MB on HM450, so a full
-    cohort can be many GB. For repeated runs, prefer the export-then-LocalArray
-    pattern via `thermocas gdc-fetch` rather than calling this backend live.
+        thermocas gdc-fetch --project TCGA-BRCA --output-dir cohort/
+        thermocas score-cohort --backend summary \\
+            --probe-annotation cohort/probes.tsv \\
+            --tumor-summary cohort/tumor_summary.tsv \\
+            --normal-summary cohort/normal_summary.tsv \\
+            ...
 
-    Auth: GDC's public methylation data does not require an API token. If GDC
-    later restricts access, supply `auth_token` and the client will pass it as
-    the X-Auth-Token header.
+    The class implements `MethylationBackend`, unlike `GDCBackend` which is
+    just a fetcher.
+    """
+
+    def __init__(
+        self,
+        probe_annotation: str | Path,
+        tumor_summary: str | Path,
+        normal_summary: str | Path,
+    ) -> None:
+        self._probes = list(_load_probes(probe_annotation))
+        self._tumor_summary = _load_summary_tsv(tumor_summary)
+        self._normal_summary = _load_summary_tsv(normal_summary)
+
+    def probes(self) -> Iterable[ProbeRecord]:
+        return list(self._probes)
+
+    def tumor_summary(self, probe_id: str) -> BetaSummary | None:
+        return self._tumor_summary.get(probe_id)
+
+    def normal_summary(self, probe_id: str) -> BetaSummary | None:
+        return self._normal_summary.get(probe_id)
+
+
+def _load_summary_tsv(path: str | Path) -> dict[str, BetaSummary]:
+    """Parse a per-probe summary TSV (probe_id, n, mean, q25, q75 — NA-tolerant)."""
+
+    out: dict[str, BetaSummary] = {}
+    for row in read_tsv(path):
+        try:
+            n = int(row["n"])
+        except (KeyError, ValueError) as e:
+            raise ValueError(
+                f"{path}: expected columns probe_id, n, mean, q25, q75 — {e}"
+            ) from e
+        out[row["probe_id"]] = BetaSummary(
+            probe_id=row["probe_id"],
+            n_samples=n,
+            mean=_parse_summary_cell(row.get("mean", "")),
+            q25=_parse_summary_cell(row.get("q25", "")),
+            q75=_parse_summary_cell(row.get("q75", "")),
+        )
+    return out
+
+
+def _parse_summary_cell(cell: str) -> float | None:
+    """Like _parse_beta_cell but accepts the rounded values export_summaries writes."""
+
+    cell = cell.strip()
+    if cell == "" or cell.upper() in {"NA", "NAN", "NULL"}:
+        return None
+    v = float(cell)
+    # Be lenient with floating-point overshoot (export_summaries rounds to 6dp).
+    if -1e-9 <= v <= 1.0 + 1e-9:
+        return max(0.0, min(1.0, v))
+    raise ValueError(f"summary value {v} not in [0, 1]")
+
+
+# ---------- GDCBackend (fetcher only) ----------
+
+
+class GDCBackend:
+    """V2 — GDC HTTP fetcher over stdlib `urllib`, with on-disk file cache.
+
+    **Note: this class is a fetcher, not a `MethylationBackend`.** It is
+    intentionally not a `MethylationBackend` subclass: live GDC traffic
+    cannot satisfy the backend contract because (a) the per-sample beta-value
+    files don't carry probe coordinates, and (b) one instance only handles
+    one sample-type side. The supported live-data path is:
+
+        thermocas gdc-fetch --project TCGA-BRCA --output-dir cohort/
+        # then:
+        thermocas score-cohort --backend summary --probe-annotation cohort/probes.tsv \\
+            --tumor-summary cohort/tumor_summary.tsv \\
+            --normal-summary cohort/normal_summary.tsv \\
+            ...
+
+    The fetcher exposes:
+      1. `list_files()` → POST /files with project + platform + data type +
+         sample type filters; returns one record per sample.
+      2. `download_file(file_id)` → GET /data/<id>, cached to `cache_dir`.
+      3. `build_summaries()` → parse cached files into a per-probe BetaSummary
+         dict (handles NA, capped by `max_files` for testing).
+      4. `export_summaries(output_path)` → write a `probe_id, n, mean, q25, q75`
+         TSV that `LocalSummaryBackend` consumes.
+
+    Auth: GDC's public methylation data does not require an API token. Supply
+    `auth_token` if a future endpoint restricts access; it'll be sent as
+    `X-Auth-Token`.
     """
 
     BASE_URL = "https://api.gdc.cancer.gov"
@@ -297,6 +388,7 @@ class GDCBackend(MethylationBackend):
         platform: str = "HM450",
         sample_type: str = "Primary Tumor",
         auth_token: str | None = None,
+        max_files: int | None = None,
         url_opener: object | None = None,  # tests inject a fake opener
     ) -> None:
         self.project_id = project_id
@@ -305,6 +397,7 @@ class GDCBackend(MethylationBackend):
         self.platform = platform
         self.sample_type = sample_type
         self.auth_token = auth_token
+        self.max_files = max_files  # cap files for testing or quota control
         # `url_opener(url, data=None, headers={}) -> bytes`. Defaults to
         # `urllib.request.urlopen`. Tests pass a stub.
         self._opener = url_opener
@@ -385,7 +478,10 @@ class GDCBackend(MethylationBackend):
             return self._summaries_cache
 
         per_probe: dict[str, list[float | None]] = {}
-        for meta in self.list_files():
+        files = self.list_files()
+        if self.max_files is not None:
+            files = files[: self.max_files]
+        for meta in files:
             file_id = meta.get("file_id") or meta.get("id")
             if not file_id:
                 continue
@@ -416,11 +512,11 @@ class GDCBackend(MethylationBackend):
     # ---- export to LocalArrayBackend-compatible TSVs ----
 
     def export_summaries(self, output_path: str | Path) -> int:
-        """Write a per-probe summary TSV: probe_id, n, mean, q25, q75.
+        """Write a per-probe summary TSV: `probe_id, n, mean, q25, q75`.
 
-        The `score-cohort` CLI consumes a beta matrix, not a summary, so for
-        the LocalArrayBackend bridge use `export_betas_tsv` instead. This
-        helper exists for inspection / downstream stats.
+        This is the canonical post-fetch artifact — `LocalSummaryBackend`
+        consumes it directly. Pair with a probe annotation TSV (chrom + pos)
+        to drive `score-cohort --backend summary`.
         """
 
         summaries = self.build_summaries()
@@ -431,27 +527,6 @@ class GDCBackend(MethylationBackend):
                 f.write(f"{pid}\t{s.n_samples}\t"
                         f"{_or_na(s.mean)}\t{_or_na(s.q25)}\t{_or_na(s.q75)}\n")
         return len(summaries)
-
-    # ---- MethylationBackend interface ----
-
-    def probes(self) -> Iterable[ProbeRecord]:
-        """Probe coordinates aren't returned by the GDC `/files` endpoint;
-        callers should pair this backend with an externally provided probe
-        annotation TSV (the GDC manifest for HM450/EPIC annotations is the
-        canonical source). Returning empty here forces the cohort layer to
-        rely on a separate annotation file."""
-
-        return []
-
-    def tumor_summary(self, probe_id: str) -> BetaSummary | None:
-        if self.sample_type != "Primary Tumor":
-            return None
-        return self.build_summaries().get(probe_id)
-
-    def normal_summary(self, probe_id: str) -> BetaSummary | None:
-        if self.sample_type != "Solid Tissue Normal":
-            return None
-        return self.build_summaries().get(probe_id)
 
 
 # Map our short platform identifiers to GDC's expected strings.
