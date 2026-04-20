@@ -139,12 +139,26 @@ def evaluate_ranking(
             precision_at_k=None, recall_at_k=None, roc_auc=None,
         )
 
-    pairs.sort(key=lambda t: t[1], reverse=True)
+    # Deterministic ordering: primary sort score desc, secondary candidate_id
+    # asc. Without the secondary key, Python's stable sort leaves tied
+    # candidates in input (stream) order — P@K then becomes
+    # serialization-order dependent, which is a real contract bug: the same
+    # score distribution with a different input order can give different
+    # P@K. Tie-break by candidate_id gives a reproducible ordering that does
+    # not depend on the producer.
+    pairs.sort(key=lambda t: (-t[1], t[0]))
     k = min(top_k, n_total)
     top_k_positives = sum(1 for _, _, is_pos in pairs[:k] if is_pos)
     precision = top_k_positives / k
     recall = top_k_positives / n_pos
     auc = _roc_auc_mann_whitney(pairs)
+
+    # Tie-band size at the K-th position: count records whose score equals the
+    # cutoff score. When > 1, top-K membership is partially determined by the
+    # secondary key, not by the primary score — a published P@K value should
+    # be read with that caveat.
+    cutoff_score = pairs[k - 1][1]
+    tie_band_size = sum(1 for _, s, _ in pairs if s == cutoff_score)
 
     return BenchmarkResult(
         cohort_name=cohort_name,
@@ -154,6 +168,7 @@ def evaluate_ranking(
         precision_at_k=precision,
         recall_at_k=recall,
         roc_auc=auc,
+        tie_band_size_at_k=tie_band_size,
     )
 
 

@@ -307,3 +307,52 @@ def test_evaluate_missing_score_policy_validated():
             [_scored("p1", 0.5)], {"p1"}, cohort_name="T", top_k=1,
             missing_score_policy="bogus",
         )
+
+
+# ---------- P1 regression: deterministic tie-break + tie_band_size ----------
+
+
+def test_evaluate_pak_does_not_depend_on_input_order_when_scores_tie():
+    """P1 regression — from the code-review comment:
+
+        with three candidates all scored 1.0, I reproduced P@1=1.0 when
+        the positive is first in the input and P@1=0.0 when the same
+        positive is last, while AUC correctly stays 0.5.
+
+    After the fix, the secondary sort by candidate_id must make P@1 the
+    same regardless of stream order."""
+    p = _scored("apos", 1.0)
+    n1 = _scored("bneg", 1.0)
+    n2 = _scored("cneg", 1.0)
+
+    r_pos_first = evaluate_ranking(
+        [p, n1, n2], {"apos"}, cohort_name="T", top_k=1,
+    )
+    r_pos_last = evaluate_ranking(
+        [n1, n2, p], {"apos"}, cohort_name="T", top_k=1,
+    )
+    r_pos_middle = evaluate_ranking(
+        [n1, p, n2], {"apos"}, cohort_name="T", top_k=1,
+    )
+
+    assert r_pos_first.precision_at_k == r_pos_last.precision_at_k
+    assert r_pos_last.precision_at_k == r_pos_middle.precision_at_k
+    # And with the cid tie-break "apos" < "bneg" < "cneg", the positive
+    # wins the tied top-1 deterministically.
+    assert r_pos_first.precision_at_k == pytest.approx(1.0)
+
+
+def test_evaluate_reports_tie_band_size_at_k():
+    """BenchmarkResult.tie_band_size_at_k must report how many records
+    share the K-th position's score. > 1 means P@K is tie-sensitive even
+    under a deterministic secondary key."""
+    # 5 candidates, all scored 1.0: whole set is one tied band.
+    scored = [_scored(cid, 1.0) for cid in ("a", "b", "c", "d", "e")]
+    r = evaluate_ranking(scored, {"a"}, cohort_name="T", top_k=3)
+    assert r.tie_band_size_at_k == 5
+    assert r.tie_break_policy == "candidate_id_asc"
+
+    # All distinct scores → no ties at the cutoff.
+    scored = [_scored(cid, float(i)) for i, cid in enumerate("abcde")]
+    r = evaluate_ranking(scored, {"a"}, cohort_name="T", top_k=3)
+    assert r.tie_band_size_at_k == 1

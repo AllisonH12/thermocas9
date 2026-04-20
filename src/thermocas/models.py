@@ -492,6 +492,50 @@ class ProbabilisticScore(BaseModel):
             )
         return self
 
+    @model_validator(mode="after")
+    def _composite_matches_factors_and_mode(self) -> ProbabilisticScore:
+        """`p_therapeutic_selectivity` must equal the factor product implied by
+        `mode`. Closes a real integrity gap: downstream ranking reads the
+        stored scalar, not the factors. Without this check a malformed JSONL
+        row or a future producer bug could silently change rankings while
+        still passing validation.
+
+        Comparison tolerance: `math.isclose` with `rel_tol=1e-9, abs_tol=1e-12`
+        — tight enough to catch real divergence, loose enough to tolerate the
+        float rounding path through JSON round-trip.
+        """
+
+        import math
+
+        if self.mode == "tumor_only":
+            expected = self.p_targetable_tumor * self.p_observation_trustworthy
+        elif self.mode == "tumor_plus_normal_protection":
+            expected = (
+                self.p_targetable_tumor
+                * self.p_protected_normal
+                * self.p_observation_trustworthy
+            )
+        elif self.mode == "tumor_plus_differential_protection":
+            # `_differential_fields_match_mode` has already run; p_diff is not None.
+            assert self.p_differential_protection is not None
+            expected = (
+                self.p_targetable_tumor
+                * self.p_differential_protection
+                * self.p_observation_trustworthy
+            )
+        else:  # pragma: no cover — exhaustive over ProbabilisticMode
+            raise ValueError(f"unknown mode for composite check: {self.mode!r}")
+
+        if not math.isclose(
+            self.p_therapeutic_selectivity, expected,
+            rel_tol=1e-9, abs_tol=1e-12,
+        ):
+            raise ValueError(
+                f"p_therapeutic_selectivity={self.p_therapeutic_selectivity!r} does not "
+                f"match the composite implied by mode={self.mode!r}: expected {expected!r}"
+            )
+        return self
+
 
 # ---------- cohort config ----------
 
@@ -625,6 +669,26 @@ class BenchmarkResult(BaseModel):
     roc_auc: float | None = Field(
         default=None, ge=0.0, le=1.0,
         description="Area under the ROC curve (Mann-Whitney U formulation)",
+    )
+    tie_band_size_at_k: int = Field(
+        default=0, ge=0,
+        description=(
+            "Number of records tied at the K-th position's score. When > 1, "
+            "top-K membership is not fully determined by score — "
+            "`precision_at_k` and `recall_at_k` are sensitive to whichever "
+            "secondary tie-break policy the benchmark applied (the shipped "
+            "implementation uses candidate_id lexicographic order). Read "
+            "P@K with caution when this is large relative to K."
+        ),
+    )
+    tie_break_policy: str = Field(
+        default="candidate_id_asc",
+        description=(
+            "Deterministic secondary sort key used inside tied score bands. "
+            "Default: `candidate_id_asc` — lexicographic ascending on "
+            "candidate_id. Recorded on the result so reviewers can verify "
+            "ranking determinism across runs."
+        ),
     )
 
 

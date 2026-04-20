@@ -1,1 +1,1 @@
-{"cohort_name":"GSE77348-differential-tight","n_total":2979997,"n_positives":970,"n_negatives":2979027,"held_out_chromosomes":[],"top_k":100,"precision_at_k":0.0,"recall_at_k":0.0,"roc_auc":0.7213449588616977}
+{"cohort_name":"GSE77348-differential-tight","n_total":2979997,"n_positives":970,"n_negatives":2979027,"held_out_chromosomes":[],"top_k":100,"precision_at_k":0.0,"recall_at_k":0.0,"roc_auc":0.7213449588616977,"tie_band_size_at_k":299,"tie_break_policy":"candidate_id_asc"}

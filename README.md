@@ -290,20 +290,23 @@ static-threshold assumption. **Wired in as V2.5**:
 `probabilistic_mode = "tumor_plus_differential_protection"` with
 `differential_delta = 0.2` (default). On the MCF-7/MCF-10A surrogate:
 
-| score axis | AUC loose | AUC tight | P@100 loose | P@100 tight |
-|---|---|---|---|---|
-| V2.5 `tumor_plus_differential_protection` (δ=0.2) | **0.705** | **0.721** | tie-fragile† | tie-fragile† |
-| V1 `final_score` | 0.657 | 0.628 | 0.040 | 0.030 |
-| V2 `tumor_only` | 0.733 | 0.770 | 0.000 | 0.000 |
+| score axis | AUC loose | AUC tight | P@100 loose | P@100 tight | tie_band@K |
+|---|---|---|---|---|---|
+| V2.5 `tumor_plus_differential_protection` (δ=0.2) | **0.705** | **0.721** | 0.000† | 0.000† | **299** |
+| V1 `final_score` | 0.657 | 0.628 | 0.040 | 0.030 | 1 |
+| V2 `tumor_only` | 0.733 | 0.770 | 0.000† | 0.000† | ≈500† |
 
-†On this surrogate, `n_samples = 3` causes `p_trust` to saturate at 0.095
-for all EXACT-evidence candidates. The top of the composite collapses to
-a ~519-record band tied at 0.095, so P@100 is determined by whichever
-secondary sort the benchmark uses. CLI stream-order tie-break reports
-P@100 0.010/0.000; candidate-id tie-break reports 0.100/0.100. This is
-a property of low-replicate cohorts, not a claim about V2.5. On richer
-cohorts where `n` ≫ 30, `p_trust` varies continuously and this tie band
-should dissolve.
+†**Tie-band at K.** On this `n=3` surrogate, `p_trust` saturates at 0.095
+for all EXACT-evidence candidates, so the top of any `p_trust`-multiplied
+composite collapses to a large tied band. `BenchmarkResult.tie_band_size_at_k`
+is now emitted on every result — when it's > 1 the reported P@K is
+determined by the deterministic secondary sort key
+(`tie_break_policy = "candidate_id_asc"`), not by the primary score.
+On V2.5 differential the top-100 cutoff sits inside a 299-record tied
+band, so P@100 here is uninterpretable as a target-discovery metric.
+V1 `final_score` is continuous-valued and has tie_band = 1 at K=100, so
+its P@100 is a real signal. On richer cohorts where `n` ≫ 30, `p_trust`
+varies continuously and this tied band should dissolve.
 
 **Bottom line:** V2.5 is a clean AUC improvement. It fixes the
 biological mis-specification of `p_protected_normal` (threshold → margin)

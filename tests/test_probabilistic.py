@@ -421,6 +421,61 @@ def test_probabilistic_score_non_differential_leaves_diff_fields_none():
         assert ps.differential_delta is None
 
 
+def test_probabilistic_score_rejects_composite_mismatch():
+    """P2 regression: a ProbabilisticScore whose stored `p_therapeutic_selectivity`
+    does not equal the factor product implied by `mode` must fail validation.
+    Downstream ranking reads the stored scalar, so a silent mismatch would
+    change rankings while still passing Pydantic.
+
+    Reproduces the concrete failure case from the P2 review comment."""
+    from pydantic import ValidationError
+
+    from thermocas.models import ProbabilisticScore
+
+    # mode=differential, factors imply 0.8*0.9*0.5 = 0.36 but stored = 0.01
+    with pytest.raises(ValidationError, match="does not match the composite"):
+        ProbabilisticScore(
+            candidate_id="x", cohort_name="c",
+            mode="tumor_plus_differential_protection",
+            p_targetable_tumor=0.8, p_protected_normal=0.5,
+            p_observation_trustworthy=0.5,
+            p_differential_protection=0.9, differential_delta=0.2,
+            p_therapeutic_selectivity=0.01,
+        )
+    # Same for tumor_only
+    with pytest.raises(ValidationError, match="does not match the composite"):
+        ProbabilisticScore(
+            candidate_id="x", cohort_name="c",
+            mode="tumor_only",
+            p_targetable_tumor=0.4, p_protected_normal=0.0,
+            p_observation_trustworthy=0.5,
+            p_therapeutic_selectivity=0.99,  # expected 0.2
+        )
+    # And for tumor_plus_normal_protection
+    with pytest.raises(ValidationError, match="does not match the composite"):
+        ProbabilisticScore(
+            candidate_id="x", cohort_name="c",
+            mode="tumor_plus_normal_protection",
+            p_targetable_tumor=0.6, p_protected_normal=0.6,
+            p_observation_trustworthy=0.5,
+            p_therapeutic_selectivity=0.10,  # expected 0.18
+        )
+
+
+def test_probabilistic_score_accepts_consistent_composite_under_all_modes():
+    """Positive-path test for the composite validator: the emitted
+    ProbabilisticScore from `probabilistic_score` must always validate, under
+    every mode. Uses the same observation so the only thing that changes is
+    the composite arithmetic implied by mode."""
+    obs = _obs()
+    for mode in ("tumor_only", "tumor_plus_normal_protection",
+                 "tumor_plus_differential_protection"):
+        ps = probabilistic_score(obs, mode=mode)  # type: ignore[arg-type]
+        # Round-trip through JSON to exercise deserialization too.
+        from thermocas.models import ProbabilisticScore
+        ProbabilisticScore.model_validate_json(ps.model_dump_json())
+
+
 def test_probabilistic_score_rejects_inconsistent_diff_fields_at_validation():
     """A record claiming mode=differential without the diff audit fields, or
     vice versa, must fail validation — prevents malformed records from

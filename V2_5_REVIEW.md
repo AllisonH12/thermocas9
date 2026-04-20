@@ -152,12 +152,16 @@ a real ranking signal. That prediction is unvalidated.
   round-tripping through JSONL in either direction.
 - `ProbabilisticScore.p_therapeutic_selectivity` is a stored scalar, not
   a property — downstream consumers see the actual composite the mode
-  emitted. The validator does **not** re-derive `p_sel` from the factors
-  and verify consistency; i.e. a hand-constructed record with mode=
-  differential, `p_diff=0.5`, `p_targ=0.5`, `p_trust=0.5` but
-  `p_sel=0.9` would validate. This is a gap; fixing it would require
-  either making `p_sel` a computed field or adding a cross-field check.
-  Left for now because `probabilistic_score` is the only in-repo writer.
+  emitted. **Patched post-review (P2 fix):** the model now also carries a
+  `_composite_matches_factors_and_mode` validator that re-derives the
+  expected composite from the factors according to `mode` and rejects
+  records where the stored scalar does not match (tolerance
+  `rel_tol=1e-9, abs_tol=1e-12`). Reproduced the original P2 failure
+  case — `mode=differential, p_targ=0.8, p_diff=0.9, p_trust=0.5,
+  p_sel=0.01` — and confirmed it now raises at construction. Positive
+  path test round-trips every mode through `model_dump_json` →
+  `model_validate_json`. Closes the integrity gap that would otherwise
+  let a malformed JSONL row silently change downstream ranking.
 - `CohortConfig.differential_delta: float = 0.2` (ge=0.0, le=1.0).
   `extra="forbid"` continues to reject unknown keys, so V2.5 cannot
   silently absorb a typo.
@@ -202,22 +206,39 @@ Not covered (acknowledged gaps):
 - The benchmark's tie-handling is not asserted — a regression could
   silently change P@K on tied bands.
 
-### 4.6 Benchmark harness — tie handling
+### 4.6 Benchmark harness — tie handling (patched post-review)
 
-Not modified in V2.5. `evaluate_ranking` does
-`pairs.sort(key=lambda t: t[1], reverse=True)` — stable sort, ties
-preserve insertion order, which is the stream order from the JSONL. This
-is deterministic but not principled on saturated cohorts. Follow-ups the
-reviewer (user) called out:
+**Status: the P1 bug is fixed.** A subsequent code-review pass demonstrated
+that under the original `pairs.sort(key=lambda t: t[1], reverse=True)`,
+a single positive with three tied candidates swings from P@1=1.0 to
+P@1=0.0 depending purely on input order — a real contract bug. Two
+changes shipped:
 
-- report tie-band size at the score cutoff on every `BenchmarkResult`
+- `evaluate_ranking` now sorts by `(-score, candidate_id)` — deterministic
+  secondary ordering by candidate_id ascending. Same scores in any input
+  order produce the same P@K.
+- `BenchmarkResult` gains `tie_band_size_at_k: int` and
+  `tie_break_policy: str`. On every result, the number of records tied
+  at the K-th position's score is reported explicitly. When > 1, P@K is
+  partially determined by the secondary key, and readers should scale
+  their interpretation accordingly.
+
+On the V2.5 surrogate benchmark, `tie_band_size_at_k = 299` at K=100.
+That is the honest read of the earlier "tie-fragile" caveat: nearly
+three times K's worth of candidates are tied at the cutoff score, and
+the headline P@100 is a function of the tie-break, not of the model.
+V1 `final_score` on the same cohort reports `tie_band_size_at_k = 1`
+at K=100 — its P@K is a real signal.
+
+Remaining follow-ups:
+
 - optionally emit a P@K range (min/max over tied subsets) when the top-K
-  boundary falls inside a tied band
-- optionally allow a deterministic secondary key (e.g. `final_score`)
-  as an explicit tie-break
+  boundary falls inside a tied band — strictly informational, not
+  required for the contract to be correct
+- consider offering a configurable secondary key (e.g. `final_score`) as
+  an alternate tie-break policy
 
-None shipped in this patch. They are the right next engineering step
-before any stronger public V2.5 claim.
+Neither is a blocker.
 
 ---
 
