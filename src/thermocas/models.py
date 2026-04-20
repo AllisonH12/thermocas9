@@ -496,11 +496,20 @@ class PanCancerAggregate(BaseModel):
             "Lower = pan-cancer recurrent."
         ),
     )
-    normal_risk_max: float | None = Field(
+    normal_protection_max: float | None = Field(
         default=None,
         description=(
-            "Max beta_normal_mean across cohorts at this candidate. "
-            "Higher = better protection in normal tissue; None when no cohort observed."
+            "Max β_normal_mean across observed cohorts. **Best-case** protection: "
+            "the cohort where normal tissue is most methylated (least exposed). "
+            "Use `normal_protection_min` for the worst-case / pan-cancer risk view."
+        ),
+    )
+    normal_protection_min: float | None = Field(
+        default=None,
+        description=(
+            "Min β_normal_mean across observed cohorts. **Worst-case** protection: "
+            "the cohort where normal tissue is *least* methylated (most exposed to "
+            "off-tumor editing). The honest pan-cancer risk metric."
         ),
     )
 

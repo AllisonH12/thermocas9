@@ -55,10 +55,17 @@ def aggregate(
         for sc in scored_iter:
             cid = sc.candidate.candidate_id
             by_candidate.setdefault(cid, {})[cohort_name] = sc
-            candidate_meta.setdefault(
-                cid,
-                (sc.candidate.chrom, sc.candidate.critical_c_pos, sc.candidate.pam_family),
-            )
+            meta = (sc.candidate.chrom, sc.candidate.critical_c_pos, sc.candidate.pam_family)
+            existing = candidate_meta.setdefault(cid, meta)
+            if existing != meta:
+                # Same candidate_id, different (chrom, pos, family) across input
+                # JSONL files. This indicates the cohort runs were built from
+                # incompatible catalogs; silently merging would emit a
+                # mislabeled pan-cancer record. Fail fast.
+                raise ValueError(
+                    f"candidate_id {cid!r} has conflicting metadata across cohorts: "
+                    f"{existing} vs {meta} (cohorts likely scored against different catalogs)"
+                )
 
     # deterministic emission
     for cid in sorted(by_candidate, key=lambda c: candidate_meta[c]):
@@ -80,7 +87,8 @@ def aggregate(
         pan_score = statistics.fmean(observed_scores.values()) if n_observed else 0.0
         recurrence = (n_high / n_observed) if n_observed else 0.0
         exclusivity = statistics.pstdev(observed_scores.values()) if n_observed >= 2 else 0.0
-        normal_risk_max = max(normal_means) if normal_means else None
+        normal_protection_max = max(normal_means) if normal_means else None
+        normal_protection_min = min(normal_means) if normal_means else None
 
         yield PanCancerAggregate(
             candidate_id=cid,
@@ -93,7 +101,8 @@ def aggregate(
             pan_cancer_score=pan_score,
             recurrence=recurrence,
             exclusivity=exclusivity,
-            normal_risk_max=normal_risk_max,
+            normal_protection_max=normal_protection_max,
+            normal_protection_min=normal_protection_min,
         )
 
 

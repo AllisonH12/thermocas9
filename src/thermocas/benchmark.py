@@ -167,6 +167,15 @@ def _extract_score(sc: ScoredCandidate, field: str) -> float | None:
         return sc.probabilistic.p_therapeutic_selectivity if sc.probabilistic else None
     if field == "spacer_final_score":
         return sc.spacer.final_score if sc.spacer else None
+    if field == "naive_selectivity":
+        # Baseline ablation: pure (β_normal − β_tumor) signal, with no quantile
+        # term, no confidence weighting, no penalties. If this beats
+        # `final_score` on a benchmark, the framework's machinery isn't adding
+        # value — every additional layer should be auditable against this.
+        obs = sc.observation
+        if obs.beta_tumor_mean is None or obs.beta_normal_mean is None:
+            return None
+        return obs.beta_normal_mean - obs.beta_tumor_mean
     raise ValueError(f"unknown score_field: {field!r}")
 
 

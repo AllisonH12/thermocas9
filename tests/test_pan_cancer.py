@@ -74,7 +74,48 @@ def test_aggregate_basic_metrics():
     assert a.recurrence == pytest.approx(1.0)
     assert a.pan_cancer_score == pytest.approx((1.5 + 1.0) / 2)
     assert a.exclusivity > 0  # two cohorts → nonzero stdev
-    assert a.normal_risk_max is not None and a.normal_risk_max == pytest.approx(0.80)
+    # Best-case + worst-case protection across cohorts. Both BRCA and LUAD here
+    # carry β_normal_mean=0.80, so max == min == 0.80.
+    assert a.normal_protection_max is not None and a.normal_protection_max == pytest.approx(0.80)
+    assert a.normal_protection_min is not None and a.normal_protection_min == pytest.approx(0.80)
+
+
+def _scored_with_normal(cid: str, cohort: str, score: float, beta_normal: float) -> ScoredCandidate:
+    """Variant that lets the test set per-cohort β_normal explicitly."""
+    sc = _scored(cid, cohort, score)
+    obs = sc.observation.model_copy(update={
+        "beta_normal_mean": beta_normal,
+        "beta_normal_q25": max(0.0, beta_normal - 0.05),
+        "beta_normal_q75": min(1.0, beta_normal + 0.05),
+    })
+    return sc.model_copy(update={"observation": obs})
+
+
+def test_aggregate_reports_both_best_and_worst_normal_protection():
+    """Regression: the V3.1 rename adds normal_protection_min so users get the
+    worst-case (= pan-cancer risk) view, not just the best-case."""
+
+    cohorts = {
+        "BRCA": [_scored_with_normal("c_500", "BRCA", 1.0, 0.90)],
+        "LUAD": [_scored_with_normal("c_500", "LUAD", 1.0, 0.10)],
+    }
+    a = next(iter(aggregate(cohorts, high_score_threshold=0.5)))
+    assert a.normal_protection_max == pytest.approx(0.90)  # best-case
+    assert a.normal_protection_min == pytest.approx(0.10)  # worst-case (the risk view)
+
+
+def test_aggregate_rejects_metadata_mismatch():
+    """Regression: same candidate_id with different (chrom, pos, family) used
+    to silently merge with first-wins metadata, mislabeling the output."""
+
+    sc1 = _scored("same", "BRCA", 1.0)
+    sc2 = _scored("same", "LUAD", 1.0)
+    sc2 = sc2.model_copy(update={
+        "candidate": sc2.candidate.model_copy(update={"chrom": "chr2", "critical_c_pos": 999}),
+    })
+    cohorts = {"BRCA": [sc1], "LUAD": [sc2]}
+    with pytest.raises(ValueError, match="conflicting metadata"):
+        list(aggregate(cohorts))
 
 
 def test_aggregate_handles_only_unobserved():
@@ -88,7 +129,8 @@ def test_aggregate_handles_only_unobserved():
     assert a.n_cohorts_observed == 0
     assert a.pan_cancer_score == 0.0
     assert a.recurrence == 0.0
-    assert a.normal_risk_max is None
+    assert a.normal_protection_max is None
+    assert a.normal_protection_min is None
 
 
 def test_aggregate_emits_in_deterministic_order():

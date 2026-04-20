@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from thermocas.cli import main
 from thermocas.io import read_jsonl
 from thermocas.models import CandidateSite, PanCancerAggregate, ScoredCandidate
@@ -255,6 +257,16 @@ def test_cli_score_cohort_summary_backend_requires_summary_inputs(tmp_path: Path
     ])
     assert rc == 1
     assert "summary backend requires" in capsys.readouterr().err
+
+
+def test_cli_inspect_top_zero_is_rejected_by_argparse(tmp_path: Path, capsys):
+    """Regression: --top 0 used to crash with `IndexError: list index out of range`
+    on an empty heap. argparse now rejects ≤0 with a clean error (SystemExit 2)."""
+    out = _write(tmp_path / "tiny.jsonl", '{"x": 1}\n')
+    with pytest.raises(SystemExit) as exc_info:
+        main(["inspect", str(out), "--top", "0"])
+    assert exc_info.value.code == 2
+    assert "expected integer >= 1" in capsys.readouterr().err
 
 
 def test_cli_inspect_reads_gzipped_jsonl(tmp_path: Path, capsys):

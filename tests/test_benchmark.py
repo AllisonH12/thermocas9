@@ -267,6 +267,40 @@ def test_evaluate_missing_score_error_raises():
         )
 
 
+def test_evaluate_naive_selectivity_score():
+    """V3.1 — naive ablation: rank by (β_normal - β_tumor) only."""
+    # Build two scored candidates with different methylation patterns.
+    def _scored_with_methylation(cid, fs, bt_mean, bn_mean):
+        sc = _scored(cid, fs)
+        obs = sc.observation.model_copy(update={
+            "beta_tumor_mean": bt_mean,
+            "beta_normal_mean": bn_mean,
+        })
+        return sc.model_copy(update={"observation": obs})
+
+    p1 = _scored_with_methylation("p1", 0.5, 0.05, 0.85)  # naive = 0.80
+    n1 = _scored_with_methylation("n1", 0.5, 0.50, 0.55)  # naive = 0.05
+    r = evaluate_ranking(
+        [p1, n1], {"p1"}, cohort_name="T", top_k=1,
+        score_field="naive_selectivity",
+    )
+    assert r.precision_at_k == pytest.approx(1.0)
+    assert r.roc_auc == pytest.approx(1.0)
+
+
+def test_evaluate_naive_selectivity_returns_none_for_unobserved():
+    obs = MethylationObservation(
+        candidate_id="x", cohort_name="T", evidence_class=EvidenceClass.UNOBSERVED,
+    )
+    sc = _scored("x", 0.0).model_copy(update={"observation": obs})
+    r = evaluate_ranking(
+        [sc], {"x"}, cohort_name="T", top_k=1,
+        score_field="naive_selectivity",
+        missing_score_policy="drop",
+    )
+    assert r.n_total == 0
+
+
 def test_evaluate_missing_score_policy_validated():
     with pytest.raises(ValueError, match="missing_score_policy"):
         evaluate_ranking(

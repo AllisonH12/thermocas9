@@ -48,6 +48,28 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
 
+def _positive_int(value: str) -> int:
+    """argparse `type=` for an integer ≥ 1."""
+    try:
+        v = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected integer, got {value!r}") from None
+    if v < 1:
+        raise argparse.ArgumentTypeError(f"expected integer >= 1, got {v}")
+    return v
+
+
+def _nonneg_int(value: str) -> int:
+    """argparse `type=` for an integer ≥ 0."""
+    try:
+        v = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected integer, got {value!r}") from None
+    if v < 0:
+        raise argparse.ArgumentTypeError(f"expected integer >= 0, got {v}")
+    return v
+
+
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="thermocas",
@@ -122,9 +144,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help="V3 — pretty-print summary stats for any JSONL artifact (catalog / scored / aggregate).",
     )
     ip.add_argument("file", type=Path, help="JSONL file produced by another subcommand")
-    ip.add_argument("--top", type=int, default=10,
-                    help="Show top-N records by score (default: 10)")
-    ip.add_argument("--head", type=int, default=0,
+    ip.add_argument("--top", type=_positive_int, default=10,
+                    help="Show top-N records by score (default: 10, must be >=1)")
+    ip.add_argument("--head", type=_nonneg_int, default=0,
                     help="Show first N raw records instead of top-N by score")
     ip.set_defaults(func=_cmd_inspect)
 
@@ -141,8 +163,11 @@ def _build_parser() -> argparse.ArgumentParser:
                     help="Label written into the BenchmarkResult.cohort_name field")
     bn.add_argument("--top-k", type=int, default=10)
     bn.add_argument("--score-field", default="final_score",
-                    choices=["final_score", "p_therapeutic_selectivity", "spacer_final_score"],
-                    help="Which scalar to rank by (V2 probabilistic / V3 spacer also supported)")
+                    choices=["final_score", "p_therapeutic_selectivity",
+                             "spacer_final_score", "naive_selectivity"],
+                    help="Which scalar to rank by. naive_selectivity = β_normal − β_tumor "
+                         "(baseline ablation: if this matches final_score's AUC, the "
+                         "framework's machinery isn't adding value).")
     bn.add_argument("--missing-score-policy", default="rank_last",
                     choices=["rank_last", "drop", "error"],
                     help="How to handle candidates lacking the requested sub-score "

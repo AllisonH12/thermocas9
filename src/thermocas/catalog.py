@@ -167,23 +167,23 @@ def stream_catalog(
     """Same as `build_catalog` but yields candidates lazily, one chromosome at a time.
 
     Use for genome-scale builds where holding the entire candidate list in memory
-    is undesirable. Pair with `io.write_jsonl` to stream straight to disk.
+    is undesirable. Pair with `io.write_jsonl` to stream straight to disk —
+    memory stays O(longest_chromosome), independent of total candidate count.
+
+    `candidate_id` is `{chrom}:{critical_c_pos}{strand}:{family}`. Because PAM
+    family names are validated unique by `PamModel`, that key is already unique
+    given the (chrom, pos, strand) triple, so `stream_catalog` does not retain
+    a `seen_ids` set — that earlier defensive state grew with the candidate
+    count and broke the streaming contract on whole-genome builds.
     """
 
-    seen_ids: set[str] = set()
     for chrom, seq in iter_fasta(fasta_path):
         seq = seq.upper()
         n = len(seq)
         for match in find_pam_matches(seq, pam_model):
             if region_filter is not None and not region_filter(chrom, match.critical_c_pos):
                 continue
-            base_id = f"{chrom}:{match.critical_c_pos}{match.strand.value}:{match.family}"
-            cid = base_id
-            suffix = 1
-            while cid in seen_ids:
-                cid = f"{base_id}:{suffix}"
-                suffix += 1
-            seen_ids.add(cid)
+            cid = f"{chrom}:{match.critical_c_pos}{match.strand.value}:{match.family}"
 
             yield CandidateSite(
                 candidate_id=cid,
