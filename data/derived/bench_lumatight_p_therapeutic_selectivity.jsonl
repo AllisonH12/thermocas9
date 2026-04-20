@@ -1,0 +1,1 @@
+{"cohort_name":"LumA-full/tight / p_therapeutic_selectivity","n_total":2979997,"n_positives":970,"n_negatives":2979027,"held_out_chromosomes":[],"top_k":100,"precision_at_k":0.01,"recall_at_k":0.0010309278350515464,"roc_auc":0.4501506468144918}
