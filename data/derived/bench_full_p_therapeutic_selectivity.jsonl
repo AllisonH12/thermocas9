@@ -1,0 +1,1 @@
+{"cohort_name":"BRCA-full / p_therapeutic_selectivity","n_total":2979997,"n_positives":1687,"n_negatives":2978310,"held_out_chromosomes":[],"top_k":100,"precision_at_k":0.01,"recall_at_k":0.0005927682276229994,"roc_auc":0.5543408213046002}
