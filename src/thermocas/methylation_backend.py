@@ -421,6 +421,16 @@ class GDCBackend:
     # ---- low-level HTTP ----
 
     def _http(self, url: str, body: bytes | None = None) -> bytes:
+        """One HTTP call with retries for transient failures.
+
+        GDC's /data endpoint occasionally times out on individual file
+        downloads — bare urllib.urlopen with a 60s timeout was killing
+        long-running gdc-fetch jobs after a single transient hiccup. We retry
+        up to 3 times with exponential backoff + bump the per-call timeout
+        to 300s so streaming a ~13 MB file over a slow link succeeds.
+        """
+
+        import time
         import urllib.request
 
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
@@ -428,9 +438,23 @@ class GDCBackend:
             headers["X-Auth-Token"] = self.auth_token
         if self._opener is not None:
             return self._opener(url, body, headers)  # type: ignore[misc]
-        req = urllib.request.Request(url, data=body, headers=headers, method="POST" if body else "GET")
-        with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310 — GDC is HTTPS
-            return resp.read()
+
+        last_err: Exception | None = None
+        for attempt in range(3):
+            try:
+                req = urllib.request.Request(
+                    url, data=body, headers=headers,
+                    method="POST" if body else "GET",
+                )
+                with urllib.request.urlopen(req, timeout=300) as resp:  # noqa: S310 — GDC is HTTPS
+                    return resp.read()
+            except (TimeoutError, OSError) as e:
+                last_err = e
+                if attempt < 2:
+                    time.sleep(2 ** attempt)  # 1s, then 2s
+                    continue
+                raise
+        raise RuntimeError("unreachable") from last_err
 
     # ---- file listing ----
 
