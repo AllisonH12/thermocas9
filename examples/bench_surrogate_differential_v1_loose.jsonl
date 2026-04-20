@@ -1,0 +1,1 @@
+{"cohort_name":"GSE77348-v1final-loose","n_total":2979997,"n_positives":1687,"n_negatives":2978310,"held_out_chromosomes":[],"top_k":100,"precision_at_k":0.04,"recall_at_k":0.0023710729104919974,"roc_auc":0.6572297251710384}

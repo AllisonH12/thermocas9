@@ -1,0 +1,1 @@
+{"cohort_name":"GSE77348-differential-loose","n_total":2979997,"n_positives":1687,"n_negatives":2978310,"held_out_chromosomes":[],"top_k":100,"precision_at_k":0.01,"recall_at_k":0.0005927682276229994,"roc_auc":0.7052466075427773}

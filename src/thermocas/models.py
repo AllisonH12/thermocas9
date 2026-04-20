@@ -400,18 +400,24 @@ class SpacerScore(BaseModel):
 # ---------- probabilistic (V2) ----------
 
 
-ProbabilisticMode = Literal["tumor_only", "tumor_plus_normal_protection"]
+ProbabilisticMode = Literal[
+    "tumor_only",
+    "tumor_plus_normal_protection",
+    "tumor_plus_differential_protection",
+]
 
 
 class ProbabilisticScore(BaseModel):
     """V2 probabilistic decomposition: each factor is a probability in [0, 1].
 
-    Per-candidate output. All three factors are always emitted for auditability.
-    Whether `p_protected_normal` participates in `p_therapeutic_selectivity`
-    depends on `mode`:
+    Per-candidate output. The three core factors (p_targ, p_prot, p_trust) are
+    always emitted for auditability. Which combination drives
+    `p_therapeutic_selectivity` depends on `mode`:
 
-      * `tumor_only`                    : p_sel = p_targ × p_trust
-      * `tumor_plus_normal_protection`  : p_sel = p_targ × p_prot × p_trust
+      * `tumor_only`                          : p_sel = p_targ × p_trust
+      * `tumor_plus_normal_protection`        : p_sel = p_targ × p_prot × p_trust
+      * `tumor_plus_differential_protection`  : p_sel = p_targ × p_diff × p_trust
+        (experimental V2.5 — differential protection with a configurable margin)
 
     `tumor_only` is the framework default because `p_protected_normal` encodes
     `P(β_normal > 0.5)`, which is anti-predictive on cohorts where the normal
@@ -420,6 +426,13 @@ class ProbabilisticScore(BaseModel):
     ablation AUC 0.384 for p_prot alone). Opt into
     `tumor_plus_normal_protection` per cohort only when the normal biology
     actually supports the assumption.
+
+    `tumor_plus_differential_protection` is the V2.5 experimental mode: replaces
+    the threshold-based p_prot with `P(β_normal − β_tumor > δ)` via a normal
+    approximation on tumor/normal summary statistics. On the MCF-7/MCF-10A
+    surrogate it beats V1 final_score on both AUC and P@100 at δ=0.2; for
+    other cohorts the improvement has not yet been validated, so this mode
+    stays opt-in.
     """
 
     candidate_id: str
@@ -432,12 +445,50 @@ class ProbabilisticScore(BaseModel):
     p_protected_normal: float = Field(ge=0.0, le=1.0)
     p_observation_trustworthy: float = Field(ge=0.0, le=1.0)
 
+    p_differential_protection: float | None = Field(
+        default=None, ge=0.0, le=1.0,
+        description=(
+            "V2.5 experimental factor: P(β_normal − β_tumor > differential_delta) "
+            "under a normal approximation. Populated only when mode is "
+            "`tumor_plus_differential_protection`; None otherwise."
+        ),
+    )
+    differential_delta: float | None = Field(
+        default=None, ge=0.0, le=1.0,
+        description=(
+            "The δ used to compute p_differential_protection. Populated only "
+            "when mode is `tumor_plus_differential_protection`; None otherwise."
+        ),
+    )
+
     p_therapeutic_selectivity: float = Field(
         ge=0.0, le=1.0,
         description="Composite score computed at scoring time according to `mode`. "
                     "Stored (not a property) so downstream tools see the actual value "
                     "without needing to know the mode.",
     )
+
+    @model_validator(mode="after")
+    def _differential_fields_match_mode(self) -> ProbabilisticScore:
+        """`p_differential_protection` and `differential_delta` must be populated
+        iff mode is `tumor_plus_differential_protection`. This keeps records
+        self-describing — a reviewer can tell by reading one row whether V2.5
+        math was in effect."""
+
+        differential_mode = self.mode == "tumor_plus_differential_protection"
+        has_p_diff = self.p_differential_protection is not None
+        has_delta = self.differential_delta is not None
+        if differential_mode and not (has_p_diff and has_delta):
+            raise ValueError(
+                "mode=tumor_plus_differential_protection requires both "
+                "p_differential_protection and differential_delta to be set"
+            )
+        if not differential_mode and (has_p_diff or has_delta):
+            raise ValueError(
+                "p_differential_protection/differential_delta may only be set "
+                "when mode=tumor_plus_differential_protection"
+            )
+        return self
 
 
 # ---------- cohort config ----------
@@ -598,6 +649,12 @@ class CohortConfig(BaseModel):
     # V2.4 — which factors participate in the probabilistic composite.
     # Default `tumor_only` because Phase 5b ablation showed p_protected_normal
     # inverts on cohorts where the normal comparator doesn't systematically
-    # methylate target promoters. Opt into tumor_plus_normal_protection per
-    # cohort only when the biology supports the assumption.
+    # methylate target promoters. Opt into tumor_plus_normal_protection or
+    # tumor_plus_differential_protection per cohort only when the biology
+    # (or the empirical benchmark) supports the assumption.
     probabilistic_mode: ProbabilisticMode = "tumor_only"
+
+    # V2.5 — δ margin for `tumor_plus_differential_protection`. Only consulted
+    # when probabilistic_mode = "tumor_plus_differential_protection"; ignored
+    # otherwise. Default 0.2 matches the offline experiment's sweet spot.
+    differential_delta: float = Field(default=0.2, ge=0.0, le=1.0)

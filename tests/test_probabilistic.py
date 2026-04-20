@@ -301,3 +301,131 @@ def test_probabilistic_score_unknown_mode_rejected():
 def test_probabilistic_score_zero_for_unobserved():
     ps = probabilistic_score(_obs(evidence=EvidenceClass.UNOBSERVED))
     assert ps.p_therapeutic_selectivity == 0.0
+
+
+# ---------- V2.5 — differential-protection mode contract ----------
+
+
+def _selective_obs() -> MethylationObservation:
+    """Observation with a clear β_n − β_t gap — normal-mean 0.85, tumor-mean 0.05."""
+    return _obs(
+        bt_mean=0.05, bt_q25=0.02, bt_q75=0.10,
+        bn_mean=0.85, bn_q25=0.78, bn_q75=0.92,
+    )
+
+
+def test_p_differential_protection_increases_with_gap():
+    """Observation with a larger normal-vs-tumor gap must have higher p_diff."""
+    from thermocas.probabilistic import p_differential_protection
+
+    small_gap = _obs(bt_mean=0.40, bt_q25=0.35, bt_q75=0.45,
+                     bn_mean=0.50, bn_q25=0.45, bn_q75=0.55)
+    big_gap = _obs(bt_mean=0.05, bt_q25=0.02, bt_q75=0.08,
+                   bn_mean=0.95, bn_q25=0.92, bn_q75=0.98)
+
+    assert p_differential_protection(small_gap, delta=0.2) < p_differential_protection(big_gap, delta=0.2)
+
+
+def test_p_differential_protection_zero_when_either_side_missing():
+    """No fabrication from one-sided data — return 0 if tumor or normal mean is None."""
+    from thermocas.probabilistic import p_differential_protection
+    obs_no_normal = MethylationObservation(
+        candidate_id="x", cohort_name="c",
+        evidence_class=EvidenceClass.EXACT, evidence_distance_bp=0, probe_id="cg001",
+        beta_tumor_mean=0.1, beta_tumor_q25=0.08, beta_tumor_q75=0.12,
+        n_samples_tumor=100, n_samples_normal=0,
+    )
+    assert p_differential_protection(obs_no_normal, delta=0.2) == 0.0
+
+
+def test_probabilistic_score_differential_mode_differs_from_tumor_only():
+    """V2.5 mode must produce a different composite than tumor_only when the
+    normal-tumor gap is near the δ margin (so p_diff ≠ 1) — confirms the new
+    factor is actually on the score path, not dropped."""
+    # gap ≈ 0.10, δ = 0.2  → p_diff ≪ 1, composite must shrink vs tumor_only
+    obs = _obs(bt_mean=0.40, bt_q25=0.35, bt_q75=0.45,
+               bn_mean=0.50, bn_q25=0.45, bn_q75=0.55)
+    t = probabilistic_score(obs, mode="tumor_only")
+    d = probabilistic_score(obs, mode="tumor_plus_differential_protection",
+                            differential_delta=0.2)
+    assert d.mode == "tumor_plus_differential_protection"
+    # differential composite must be strictly less than tumor_only here
+    assert d.p_therapeutic_selectivity < t.p_therapeutic_selectivity
+    assert d.p_differential_protection is not None
+    assert d.differential_delta is not None
+    assert 0.0 < d.p_differential_protection < 1.0
+
+
+def test_probabilistic_score_differential_records_delta():
+    """The configured δ must appear on the emitted record so reviewers can
+    tell which margin was in effect without consulting cohort config."""
+    obs = _selective_obs()
+    d = probabilistic_score(obs, mode="tumor_plus_differential_protection",
+                            differential_delta=0.35)
+    assert d.differential_delta == pytest.approx(0.35)
+
+
+def test_probabilistic_score_differential_higher_delta_is_stricter():
+    """Higher δ = stricter criterion = smaller p_diff = smaller composite
+    (p_targ and p_trust unchanged across δ)."""
+    obs = _selective_obs()
+    d_small = probabilistic_score(obs, mode="tumor_plus_differential_protection",
+                                  differential_delta=0.1)
+    d_big = probabilistic_score(obs, mode="tumor_plus_differential_protection",
+                                differential_delta=0.6)
+    assert d_big.p_differential_protection < d_small.p_differential_protection
+    assert d_big.p_therapeutic_selectivity < d_small.p_therapeutic_selectivity
+
+
+def test_probabilistic_score_differential_composite_formula():
+    """V2.5 composite must be exactly p_targ × p_diff × p_trust — no silent
+    extra factors."""
+    obs = _selective_obs()
+    d = probabilistic_score(obs, mode="tumor_plus_differential_protection",
+                            differential_delta=0.2)
+    expected = (
+        d.p_targetable_tumor
+        * d.p_differential_protection
+        * d.p_observation_trustworthy
+    )
+    assert d.p_therapeutic_selectivity == pytest.approx(expected)
+
+
+def test_probabilistic_score_non_differential_leaves_diff_fields_none():
+    """tumor_only / tumor_plus_normal_protection must NOT populate the
+    differential audit fields — keeps record interpretation unambiguous."""
+    obs = _selective_obs()
+    for mode in ("tumor_only", "tumor_plus_normal_protection"):
+        ps = probabilistic_score(obs, mode=mode)  # type: ignore[arg-type]
+        assert ps.p_differential_protection is None
+        assert ps.differential_delta is None
+
+
+def test_probabilistic_score_rejects_inconsistent_diff_fields_at_validation():
+    """A record claiming mode=differential without the diff audit fields, or
+    vice versa, must fail validation — prevents malformed records from
+    round-tripping through JSONL."""
+    from pydantic import ValidationError
+
+    from thermocas.models import ProbabilisticScore
+
+    with pytest.raises(ValidationError):
+        ProbabilisticScore(
+            candidate_id="x", cohort_name="c",
+            mode="tumor_plus_differential_protection",
+            p_targetable_tumor=0.5, p_protected_normal=0.5,
+            p_observation_trustworthy=0.5,
+            p_therapeutic_selectivity=0.125,
+            # missing p_differential_protection and differential_delta
+        )
+
+    with pytest.raises(ValidationError):
+        ProbabilisticScore(
+            candidate_id="x", cohort_name="c",
+            mode="tumor_only",
+            p_targetable_tumor=0.5, p_protected_normal=0.5,
+            p_observation_trustworthy=0.5,
+            p_therapeutic_selectivity=0.25,
+            p_differential_protection=0.8,  # not allowed in tumor_only
+            differential_delta=0.2,
+        )

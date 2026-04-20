@@ -16,3 +16,8 @@ results/*.csv
 results/*.parquet
 results/*.png
 .DS_Store
+
+# Large per-session scored surrogates — not suitable for git (>100MB each).
+# Existing committed scored_surrogate*.jsonl predate this rule and remain
+# in history; for new artifacts, re-derive with scripts/.
+data/derived/scored_surrogate_differential.jsonl

@@ -230,6 +230,22 @@ selectivity_score
 
 quantile separation rewards clean class separation, not just shifts in mean.
 
+## Recommended score axis
+
+For **target-list generation** (producing a ranked shortlist of candidate
+ThermoCas9 targets for downstream wet-lab validation), use the V1 composite:
+
+```bash
+thermocas benchmark ... --score-field final_score ...
+```
+
+V1 `final_score` is the recommended discovery ranking. Its top-100 is
+dominated by genuine differential-methylation candidates (β_tumor ≈ 0,
+β_normal ≈ 1) — the Roth et al. target pattern. V2 probabilistic modes are
+**analysis axes**, not target-discovery axes: they give higher global AUC
+on surrogate benchmarks but their top-100 tails contain always-unmethylated
+loci that are not cancer-selective. See the next section for the ablation.
+
 ## Limitations and caveats
 
 ### V2 scoring modes (`probabilistic_mode`)
@@ -237,10 +253,11 @@ quantile separation rewards clean class separation, not just shifts in mean.
 The cohort YAML's `probabilistic_mode` controls which factors enter the
 probabilistic composite `p_therapeutic_selectivity`:
 
-| mode | composite | when to use |
+| mode | composite | suitable for |
 |---|---|---|
-| `tumor_only` (default) | `p_targ × p_trust` | cohorts where the normal comparator does NOT systematically methylate target promoters (TCGA adjacent-normal bulk, and surprisingly MCF-10A for gene-body probes) |
-| `tumor_plus_normal_protection` | `p_targ × p_prot × p_trust` | opt-in when normal biology genuinely supports `P(β_normal > 0.5)` as a protection signal |
+| `tumor_only` (default) | `p_targ × p_trust` | **analysis / global ranking only** — improves AUC on the surrogate, but top-100 is not cancer-selective (see below). Do NOT use alone for target-list generation. |
+| `tumor_plus_normal_protection` | `p_targ × p_prot × p_trust` | opt-in; known anti-predictive on TCGA-BRCA bulk and inverted on the MCF-7/MCF-10A surrogate. Retained for audit. |
+| `tumor_plus_differential_protection` (V2.5) | `p_targ × p_diff × p_trust` where `p_diff = P(β_n − β_t > δ)` | **experimental**; requires `differential_delta` (default 0.2). First mode that beats V1 `final_score` on global AUC *and* target-discovery tail — validated on the MCF-7/MCF-10A surrogate only. |
 
 Both modes emit `p_targetable_tumor`, `p_protected_normal`, and
 `p_observation_trustworthy` for auditability — the `mode` field on
@@ -250,23 +267,41 @@ drove the decision.
 **Phase 5 ablation result on the MCF-7 vs MCF-10A surrogate (GSE77348,
 NOT the Roth samples):**
 
-| score axis | AUC (loose) | AUC (tight) |
-|---|---|---|
-| `p_targ` alone | 0.683 | 0.717 |
-| `v1_final` | 0.657 | 0.628 |
-| `naive_selectivity` (β_normal − β_tumor) | 0.608 | 0.571 |
-| `p_targ × p_prot` (ablation) | 0.503 | 0.488 |
-| `p_prot` alone | **0.384** | **0.343** (inverted) |
+| score axis | AUC (loose) | AUC (tight) | P@100 (tight) |
+|---|---|---|---|
+| `v2_tumor_only` (p_targ × p_trust) | **0.733** | **0.770** | **0** |
+| `p_targ` alone | 0.683 | 0.717 | — |
+| `v1_final` | 0.657 | 0.628 | > 0 (Roth-pattern top-10) |
+| `naive_selectivity` (β_normal − β_tumor) | 0.608 | 0.571 | — |
+| `p_targ × p_prot` (ablation) | 0.503 | 0.488 | — |
+| `p_prot` alone | 0.384 | 0.343 (inverted) | — |
 
 `p_protected_normal` is anti-predictive. Its multiplicative composition
-with `p_targ` destroys the signal. `tumor_only` mode avoids this.
+with `p_targ` destroys the signal. `tumor_only` mode avoids this, but
+its top-100 collapses onto candidates where both tumor AND normal are
+low-methylated (always-unmethylated loci, not cancer-selective) — AUC
+and P@100 diverge. **This is why `V1 final_score` remains the recommended
+discovery ranking, and `tumor_only` is framed as an analysis-only axis.**
 
-**Known trade-off:** `tumor_only` gives higher AUC but its top-100 is
-dominated by candidates where both tumor AND normal are low-methylated
-(always-unmethylated loci, not cancer-selective). For Roth-style target
-discovery where *differential* matters, a future differential-based mode
-(`P(β_normal − β_tumor > δ)` rather than the threshold-based `p_prot`)
-is the natural next step. Not yet implemented.
+A differential-based `p_prot` (`P(β_normal − β_tumor > δ)` rather than
+the threshold-based `P(β_normal > 0.5)`) is the natural next step for
+restoring the missing selectivity signal without reintroducing the
+static-threshold assumption. **Wired in as V2.5**:
+`probabilistic_mode = "tumor_plus_differential_protection"` with
+`differential_delta = 0.2` (default). On the MCF-7/MCF-10A surrogate:
+
+| score axis | AUC loose | AUC tight |
+|---|---|---|
+| V2.5 `tumor_plus_differential_protection` (δ=0.2) | **0.705** | **0.721** |
+| V1 `final_score` | 0.657 | 0.628 |
+| V2 `tumor_only` | 0.733 | 0.770 (but P@100=0) |
+
+V2.5 beats V1 on AUC while restoring target-discovery signal that
+`tumor_only` lost. Note that P@100 on low-`n` cohorts (surrogate `n=3`)
+is sensitive to rank-ties caused by `p_trust` saturation; on richer
+cohorts (TCGA `n`≈800) this tie band dissolves. Validated on one
+surrogate cohort only — treat as experimental until cell-line matched
+benchmarks land.
 
 ### The V2 probabilistic `P(protected_normal)` factor encodes an assumption
 

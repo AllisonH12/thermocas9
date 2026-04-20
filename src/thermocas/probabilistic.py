@@ -51,6 +51,15 @@ _IQR_TO_STDEV = 1.349
 DEFAULT_UNMETHYLATED_THRESHOLD = 0.30
 DEFAULT_METHYLATED_THRESHOLD = 0.50
 
+#: V2.5 default differential margin (P(β_n − β_t > δ)). Matches the sweet
+#: spot from the offline sweep on the MCF-7/MCF-10A surrogate.
+DEFAULT_DIFFERENTIAL_DELTA = 0.2
+
+#: V2.5 floor on per-side σ when deriving σ_Δ from IQRs. Prevents σ_Δ from
+#: collapsing to zero at boundary β-values (where IQR==0 is common) and keeps
+#: the normal-approximation well-defined for every observation.
+DEFAULT_DIFFERENTIAL_SIGMA_FLOOR = 0.05
+
 #: Default per-EvidenceClass trust ceiling. With enough samples,
 #: P(trustworthy) saturates at this value.
 _TRUST_BASE: dict[EvidenceClass, float] = {
@@ -102,6 +111,46 @@ def p_protected_normal(
     )
 
 
+def p_differential_protection(
+    obs: MethylationObservation,
+    delta: float = DEFAULT_DIFFERENTIAL_DELTA,
+    sigma_floor: float = DEFAULT_DIFFERENTIAL_SIGMA_FLOOR,
+) -> float:
+    """V2.5 — `P(β_normal − β_tumor > δ)` under an independent-normal approximation.
+
+    Replaces the threshold-based `p_protected_normal` (which encodes the
+    *biologically-specialized* assumption that normal tissue is methylated
+    above 0.5) with a differential factor that makes no static-threshold
+    claim about the normal side — it asks only whether the normal-vs-tumor
+    gap exceeds δ.
+
+    Model:
+        σ_k ≈ IQR_k / 1.349 (normal approximation to the β-value spread)
+        σ_Δ = sqrt(max(σ_t, floor)² + max(σ_n, floor)²)
+        P(Δ > δ) = 1 − Φ((δ − (μ_n − μ_t)) / σ_Δ)
+
+    Returns 0 when either side lacks a mean — no fabrication of signal from
+    one-sided data.
+    """
+
+    mu_t = obs.beta_tumor_mean
+    mu_n = obs.beta_normal_mean
+    if mu_t is None or mu_n is None:
+        return 0.0
+
+    q25_t = obs.beta_tumor_q25
+    q75_t = obs.beta_tumor_q75
+    q25_n = obs.beta_normal_q25
+    q75_n = obs.beta_normal_q75
+
+    sigma_t = (q75_t - q25_t) / _IQR_TO_STDEV if (q25_t is not None and q75_t is not None) else 0.0
+    sigma_n = (q75_n - q25_n) / _IQR_TO_STDEV if (q25_n is not None and q75_n is not None) else 0.0
+    floor = max(0.0, sigma_floor)
+    sigma_sq = max(sigma_t, floor) ** 2 + max(sigma_n, floor) ** 2
+    z = (delta - (mu_n - mu_t)) / math.sqrt(sigma_sq)
+    return 0.5 * (1.0 - math.erf(z / math.sqrt(2.0)))
+
+
 def p_observation_trustworthy(
     obs: MethylationObservation,
     ramp_n: int = DEFAULT_TRUST_RAMP_N,
@@ -128,28 +177,37 @@ def probabilistic_score(
     unmethylated_threshold: float = DEFAULT_UNMETHYLATED_THRESHOLD,
     methylated_threshold: float = DEFAULT_METHYLATED_THRESHOLD,
     trust_ramp_n: int = DEFAULT_TRUST_RAMP_N,
+    differential_delta: float = DEFAULT_DIFFERENTIAL_DELTA,
 ) -> ProbabilisticScore:
-    """Compose the three factors into a `ProbabilisticScore`.
+    """Compose the three (or four) factors into a `ProbabilisticScore`.
 
     Pure function — no IO, deterministic given inputs. Suitable for direct
     unit testing and vectorized application across genome-wide candidates.
 
     Args:
         mode: which factors participate in the composite. See
-            `ProbabilisticScore.mode` for the two supported policies.
-            Default `tumor_only` — safer because p_protected_normal inverts
-            on cohorts where the normal comparator doesn't methylate
-            target promoters.
+            `ProbabilisticScore.mode` for supported policies. Default
+            `tumor_only` — safer because p_protected_normal inverts on
+            cohorts where the normal comparator doesn't methylate target
+            promoters.
+        differential_delta: margin for `tumor_plus_differential_protection`.
+            Ignored by the other modes.
     """
 
     p_t = p_targetable_tumor(obs, unmethylated_threshold)
     p_p = p_protected_normal(obs, methylated_threshold)
     p_r = p_observation_trustworthy(obs, trust_ramp_n)
+    p_diff: float | None = None
+    delta_recorded: float | None = None
 
     if mode == "tumor_only":
         p_sel = p_t * p_r
     elif mode == "tumor_plus_normal_protection":
         p_sel = p_t * p_p * p_r
+    elif mode == "tumor_plus_differential_protection":
+        p_diff = p_differential_protection(obs, differential_delta)
+        delta_recorded = differential_delta
+        p_sel = p_t * p_diff * p_r
     else:
         raise ValueError(f"unknown probabilistic_mode: {mode!r}")
 
@@ -160,6 +218,8 @@ def probabilistic_score(
         p_targetable_tumor=p_t,
         p_protected_normal=p_p,
         p_observation_trustworthy=p_r,
+        p_differential_protection=p_diff,
+        differential_delta=delta_recorded,
         p_therapeutic_selectivity=p_sel,
     )
 
