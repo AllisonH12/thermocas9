@@ -356,3 +356,33 @@ def test_evaluate_reports_tie_band_size_at_k():
     scored = [_scored(cid, float(i)) for i, cid in enumerate("abcde")]
     r = evaluate_ranking(scored, {"a"}, cohort_name="T", top_k=3)
     assert r.tie_band_size_at_k == 1
+
+
+def test_evaluate_pak_min_max_bounds_tie_band_uncertainty():
+    """P@K min/max must bracket the observed P@K and collapse to it when
+    there is no tie band at the cutoff. Demonstrates the reporting
+    contract: the [min, max] interval is the tie-band-aware uncertainty."""
+    # 5 candidates all tied; 2 positives. K=3.
+    # band_pos=2, k_band=3, drop_slots=2.
+    # min: top-K positives = 0 + max(0, 2-2) = 0 → P@3 = 0.000
+    # max: top-K positives = 0 + min(2, 3) = 2 → P@3 = 0.667
+    scored = [_scored(cid, 1.0) for cid in ("a", "b", "c", "d", "e")]
+    r = evaluate_ranking(scored, {"a", "b"}, cohort_name="T", top_k=3)
+    assert r.tie_band_size_at_k == 5
+    assert r.precision_at_k_min == pytest.approx(0.0)
+    assert r.precision_at_k_max == pytest.approx(2.0 / 3.0)
+    # Observed P@K must lie in [min, max].
+    assert r.precision_at_k_min <= r.precision_at_k <= r.precision_at_k_max
+    # Recall has denominator = n_pos = 2.
+    assert r.recall_at_k_min == pytest.approx(0.0)
+    assert r.recall_at_k_max == pytest.approx(1.0)
+
+
+def test_evaluate_pak_min_max_collapse_on_no_tie():
+    """With distinct scores, the tie band at the cutoff is size 1,
+    so P@K_min == P@K == P@K_max."""
+    scored = [_scored(cid, float(i)) for i, cid in enumerate("abcde")]
+    r = evaluate_ranking(scored, {"e", "d"}, cohort_name="T", top_k=3)
+    assert r.tie_band_size_at_k == 1
+    assert r.precision_at_k_min == r.precision_at_k == r.precision_at_k_max
+    assert r.recall_at_k_min == r.recall_at_k == r.recall_at_k_max

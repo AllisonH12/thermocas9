@@ -291,6 +291,62 @@ def test_cli_inspect_reads_gzipped_jsonl(tmp_path: Path, capsys):
     assert "1 records (CandidateSite)" in captured
 
 
+def test_cli_inspect_tie_break_matches_evaluate_ranking(tmp_path: Path, capsys):
+    """Regression [P2]: inspect's top-K on ScoredCandidate JSONL used a
+    bounded heap whose tuple comparison kept lex-larger candidate_ids on
+    tied scores — the opposite of `evaluate_ranking`, which is
+    `candidate_id` ascending.
+
+    With three tied candidates a, b, c at the same final_score and
+    --top 2, inspect must print ['a', 'b'], not ['c', 'b'].
+    """
+    import json
+
+    # Three minimal ScoredCandidate records, all at final_score 1.0.
+    # (We build them as plain dicts matching the model shape.)
+    def rec(cid: str, score: float) -> str:
+        return json.dumps({
+            "candidate": {
+                "candidate_id": cid, "chrom": "chr1", "critical_c_pos": 10,
+                "strand": "+", "pam": "ACGTCGA", "pam_family": "NNNNCGA",
+                "is_cpg_pam": True, "local_seq_100bp": "",
+                "nearest_gene": None, "regulatory_context": None,
+            },
+            "observation": {
+                "candidate_id": cid, "cohort_name": "T",
+                "evidence_class": "exact", "evidence_distance_bp": 0,
+                "probe_id": "cg001",
+                "beta_tumor_mean": 0.05, "beta_tumor_q25": 0.02, "beta_tumor_q75": 0.10,
+                "n_samples_tumor": 400,
+                "beta_normal_mean": 0.85, "beta_normal_q25": 0.78, "beta_normal_q75": 0.92,
+                "n_samples_normal": 80,
+            },
+            "components": {
+                "sequence_score": 1.0, "selectivity_score": 1.0,
+                "confidence_score": 1.0, "heterogeneity_penalty": 0.0,
+                "low_coverage_penalty": 0.0,
+            },
+            "final_score": score,
+            "probabilistic": None, "spacer": None,
+        })
+
+    out = tmp_path / "tied.jsonl"
+    out.write_text("\n".join(rec(c, 1.0) for c in ("a", "b", "c")) + "\n")
+
+    rc = main(["inspect", str(out), "--top", "2"])
+    assert rc == 0
+    printed = capsys.readouterr().out
+    # `a` and `b` should appear in the output; `c` should NOT.
+    # (Using a loose check — exact layout can change with formatting.)
+    lines = [ln for ln in printed.splitlines() if ln.startswith("     1  ") or ln.startswith("     2  ")]
+    assert len(lines) == 2
+    assert " a " in lines[0] or lines[0].split()[1] == "a", lines
+    assert " b " in lines[1] or lines[1].split()[1] == "b", lines
+    # Explicit anti-check: `c` must not be present in the emitted top-2 block.
+    top_block = "\n".join(lines)
+    assert " c " not in top_block and "  c  " not in top_block, top_block
+
+
 def test_cli_gdc_backend_rejected_in_score_cohort(tmp_path: Path, capsys):
     """V2 — score-cohort still rejects --backend gdc; users should run gdc-fetch first."""
     catalog = _write(tmp_path / "catalog.jsonl", "")

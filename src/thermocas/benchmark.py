@@ -160,6 +160,33 @@ def evaluate_ranking(
     cutoff_score = pairs[k - 1][1]
     tie_band_size = sum(1 for _, s, _ in pairs if s == cutoff_score)
 
+    # Adversarial tie-break bounds.
+    #
+    # The top-K cutoff slices the tied band into a "keep" region (inside the
+    # top-K) of size `k_band` and a "drop" region (just outside) of size
+    # `tie_band_size - k_band`. Some of the tied-band records are positives
+    # (`band_pos`); the actual observed P@K depends on which of those
+    # positives the tiebreak put on each side. Under adversarial re-break:
+    #
+    #   min: push as many tied positives as possible OUT of top-K
+    #        → top-K positives = committed_pos + max(0, band_pos - drop_slots)
+    #   max: pull as many tied positives as possible INTO top-K
+    #        → top-K positives = committed_pos + min(band_pos, k_band)
+    #
+    # When tie_band_size == 1, min == max == precision_at_k exactly.
+    band_pos = sum(1 for _, s, is_pos in pairs if s == cutoff_score and is_pos)
+    k_band = sum(1 for _, s, _ in pairs[:k] if s == cutoff_score)
+    drop_slots = tie_band_size - k_band
+    committed_pos = top_k_positives - sum(
+        1 for _, s, is_pos in pairs[:k] if s == cutoff_score and is_pos
+    )
+    min_pos = committed_pos + max(0, band_pos - drop_slots)
+    max_pos = committed_pos + min(band_pos, k_band)
+    precision_min = min_pos / k
+    precision_max = max_pos / k
+    recall_min = min_pos / n_pos
+    recall_max = max_pos / n_pos
+
     return BenchmarkResult(
         cohort_name=cohort_name,
         n_total=n_total, n_positives=n_pos, n_negatives=n_neg,
@@ -169,6 +196,10 @@ def evaluate_ranking(
         recall_at_k=recall,
         roc_auc=auc,
         tie_band_size_at_k=tie_band_size,
+        precision_at_k_min=precision_min,
+        precision_at_k_max=precision_max,
+        recall_at_k_min=recall_min,
+        recall_at_k_max=recall_max,
     )
 
 

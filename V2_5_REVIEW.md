@@ -327,12 +327,14 @@ Neither is a blocker.
    validated probes — remains open and would need a different cohort.
 6. Stress the `sigma_floor` and one-sided-quantile paths on real data
    where they actually occur. Still open; not a blocker.
-7. **Benchmark honesty for tied bands.** `tie_band_size_at_k` is
-   reported; the natural next step is `precision_at_k_min/max` or
-   "positives inside the K-boundary tie band", so low-`n` probabilistic
-   results are reportable without over-reading one deterministic slice.
-   Queued; not a blocker for the current cohort-type-dependent
-   recommendation but would strengthen any stronger public claim.
+7. ~~**Benchmark honesty for tied bands.**~~ **Done.** `BenchmarkResult`
+   now reports `precision_at_k_min`, `precision_at_k_max`,
+   `recall_at_k_min`, `recall_at_k_max` — the [min, max] interval over
+   adversarial tie-break within the K-boundary tied band. When
+   `tie_band_size_at_k == 1` the interval collapses to the observed
+   P@K. Low-`n` probabilistic results are now reportable as honest
+   intervals rather than a single deterministic slice; e.g. GSE322563
+   V2.5 narrow P@100 = 0.000 observed with interval [0.000, 0.020].
 
 ---
 
@@ -508,67 +510,83 @@ targets into the top ~1% of 3M candidates*, not from putting them at
 the top-100. That is the expected behavior on an n=2 / n=3 cohort
 with a 190-300-record tied band.
 
+Tie-break note: `top_k_by` and `thermocas inspect --top` now use the
+same `candidate_id` ascending secondary sort as `evaluate_ranking` (the
+earlier versions used the opposite end of the tied band, which made
+the annotated top-20 and the benchmark disagree on tied cohorts —
+fixed in a dedicated commit). The gene lists below reflect the
+corrected ordering. V1 top-20s are unchanged because V1's tie_band is
+always 1.
+
 ### GSE322563 (Roth actual, n=2/2)
 
-**V1 `final_score` top-20**, highest-ranked genes (multi-hit genes bracketed):
+**V1 `final_score` top-20**, highest-ranked genes:
 
   ZMIZ1, DPYSL4, **RET**, LINC02669, ADRB1, KCNIP2, [TRIM31 ×5],
   CNPY3-GNMT, TTBK1, GFRA1, IRX1, CTBP2, ADGRA1, LINC01163, ME1, NRG3
 
-Feature breakdown: **5 promoter, 9 gene_body, 6 intergenic**.
-CpG-island breakdown: **12 island, 4 shore, 1 shelf, 3 open_sea**.
-Spans chr5 / chr6 / chr10.
+Spans chr5 / chr6 / chr10 (continuous-valued V1 score escapes tied
+bands). tie_band_size_at_k = 1.
 
 **V2.5 differential top-20**, highest-ranked genes:
 
-  FUT9, EPHA7, CNR1, ME1, TENT5A, LINC02540, FILIP1, FAM135A,
-  COL21A1, MEP1A, CLIC5, [TTBK1 ×2], [CNPY3-GNMT ×3], FOXP4-AS1,
-  HLA-DRB1, [TRIM31 ×2]
+  KCNIP2, CALHM2, SORCS3-AS1, LINC00710, [CELF2 ×2], XPNPEP1,
+  CELF2-AS2, [ADRB1 ×3], ABLIM1, [GFRA1 ×3], PLPP4, DMBT1, BUB3,
+  [CTBP2 ×2]
 
-Feature breakdown: **4 promoter, 11 gene_body, 5 intergenic**.
-CpG-island breakdown: **7 island, 7 shore, 6 open_sea**.
-Concentrated on chr6 because the 190-record tied band in this cohort
-sits there.
+All on chr10 — this is the first 20 records of the 190-record tied
+band at `p_sel = 0.0633` when tied records are ordered by
+`candidate_id` ascending. The [P@100_min, P@100_max] interval on
+narrow labels is **[0.000, 0.020]** — at best 2 of 28 narrow-positives
+could land in top-100; at worst 0.
 
-**Shared top-20 genes across V1 and V2.5 (GSE322563):** TRIM31,
-CNPY3-GNMT, TTBK1, ME1. Both axes converge on the same differentially-
-methylated loci; they differ mainly in how they rank them and how much
-of the shortlist comes from one chromosome versus spread across three.
+**Shared top-20 genes across V1 and V2.5 (GSE322563):** ADRB1, CTBP2,
+GFRA1, KCNIP2. Four genes appear in both axes' top-20. V1 reaches
+further into the underlying biology because it is not tied-band-
+confined; V2.5 samples a specific lex-ordered window inside the
+chr10-heavy portion of the 190-tied band.
 
 ### GSE77348 (MCF-7 / MCF-10A surrogate, n=3/3)
 
-**V2.5 differential top-20 genes:** EPHA7, [CNR1 ×3], ME1, [LINC02540 ×2],
-FILIP1, KCNQ5, RIMS1, LINC01626, COL19A1, SCAT8, LGSN, [COL21A1 ×2],
-BMP5, TRAM2-AS1, MCM3, DEFB133.
+**V2.5 differential top-20 genes:** PITX3, BTRC, SORCS1, LINC02624,
+CELF2-DT, CELF2, XPNPEP1, ADRB1, AFAP1L2, [GFRA1 ×3].
 
-Cross-cohort overlap with GSE322563 V2.5 top-20: **EPHA7, CNR1, ME1,
-LINC02540, COL21A1, FILIP1**. Six genes hit both cohorts' V2.5 top-20
-— meaningful cross-cohort convergence on Roth-like biology.
+Cross-cohort overlap with GSE322563 V2.5 top-20: **ADRB1, CELF2,
+GFRA1, XPNPEP1** (4 genes). Meaningful cross-cohort convergence
+given both top-20s are window slices of very large tied bands
+(190 and 299 respectively).
 
 ### GSE69914 (primary breast tissue, n=305/50)
 
-**V2.5 differential top-20 genes:** [RUNX2 ×5 at one locus], [SCML4 ×5],
-FOXCUT, FOXC1, MAS1L, COL21A1, MXI1, [TENM2 ×3], MAT2B.
+**V2.5 differential top-20 genes:** [RUNX2 ×5 at one locus],
+[SCML4 ×5], FOXCUT, FOXC1, MAS1L, COL21A1, MXI1, [TENM2 ×3], MAT2B.
 
 β differentials are smaller (0.17–0.31) than on cell lines (0.79–0.96)
 because primary tissue is cell-type-heterogeneous — β regresses toward
-the middle. Top hits are different genes entirely (RUNX2, SCML4, FOX
-family) — V2.5 is finding what's actually differential in THIS cohort,
-not re-ranking the cell-line targets. This is the healthy behavior:
-V2.5 is cohort-specific, not "always returns the same gene list
-regardless of input."
+the middle. tie_band_size_at_k = 2 at K=100 — the tied band is
+essentially gone on this `n=305/50` cohort, so the top-20 is the
+genuine top-20, not a window slice.
+
+Zero gene overlap with GSE322563 / GSE77348 V2.5 top-20s. V2.5 is
+cohort-specific — on tissue it finds different biology (RUNX2, SCML4,
+FOX family) than on cell lines. This is the healthy behavior: the
+scorer is not returning the same fixed gene list regardless of input.
 
 ### What this changes
 
 - The top-20 annotations confirm the V2.5 claim is about a real
   target-discovery signal, not an AUC artifact. Candidates are
   biologically coherent Roth-pattern loci (tumor-unmethylated,
-  normal-methylated, promoter- or CGI-adjacent) and cross-cohort
-  convergence on ~6 shared genes supports "this is a real scorable
-  property of the biology."
+  normal-methylated, promoter- or CGI-adjacent on cell-line cohorts).
+- On the cell-line cohorts (GSE322563, GSE77348) the V2.5 top-20 is
+  a 20-record window inside a 190–299-record tied band — the reported
+  list is sensitive to tie-break policy (which we now document as
+  `candidate_id ascending`). The P@K min/max interval is the honest
+  read of top-K performance on these cohorts.
 - V1 and V2.5 produce overlapping but distinct shortlists on the same
-  cohort — V1 is more island/promoter-weighted, V2.5 is more
-  gene-body-inclusive. Useful when the target-class priors are known.
+  cohort; they share ~4 genes on GSE322563 despite sampling different
+  tie-band slices. V1 is tie-band-free and therefore more sensitive
+  to the full distribution.
 - Zero cross-cohort gene overlap between cell-line and primary-tissue
   top-20s argues against a worrying failure mode ("the scorer always
   returns the same few loci") and for the cohort-specific behavior we

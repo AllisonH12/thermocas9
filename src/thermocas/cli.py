@@ -379,20 +379,26 @@ def _cmd_inspect(args: argparse.Namespace) -> int:
 
     n_total = 0
     if kind == "ScoredCandidate":
-        # heap of (score, tuple) so heapq.nlargest gives top-K by score.
-        # Use a bounded heap: O(top_k) memory.
-        heap: list[tuple[float, str, str, str]] = []
+        # Bounded min-heap of size args.top — we keep the K largest keys.
+        # Tie-break contract matches `evaluate_ranking`: score descending,
+        # candidate_id **ascending** within tied score bands. To invert the
+        # default lex-larger-wins tuple ordering on the secondary key, we
+        # store a byte-negated cid so tuple comparison treats lex-smaller
+        # cids as larger inside tied score bands.
+        heap: list[tuple[float, tuple[int, ...], str, str]] = []
         with _open_text(args.file, "rt") as f:
             for ln in f:
                 if not ln.strip():
                     continue
                 n_total += 1
                 r = json.loads(ln)
+                cid = r["candidate"]["candidate_id"]
+                cid_inv = tuple(-b for b in cid.encode("utf-8"))
                 key = (
                     r.get("final_score", 0.0),
-                    r["candidate"]["candidate_id"],
+                    cid_inv,
+                    cid,
                     r["observation"]["evidence_class"],
-                    r["candidate"]["candidate_id"],  # ignored; just for tuple uniqueness
                 )
                 if len(heap) < args.top:
                     heapq.heappush(heap, key)
@@ -402,7 +408,7 @@ def _cmd_inspect(args: argparse.Namespace) -> int:
         print(f"{args.file}: {n_total} records ({kind})")
         print(f"  top {len(top)} by final_score:")
         print(f"  {'rank':>4}  {'candidate_id':<48}  {'evidence':<14}  {'score':>8}")
-        for i, (score, cid, ec, _) in enumerate(top, 1):
+        for i, (score, _cid_inv, cid, ec) in enumerate(top, 1):
             print(f"  {i:>4}  {cid:<48}  {ec:<14}  {score:>8.3f}")
 
     elif kind == "PanCancerAggregate":

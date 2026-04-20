@@ -105,14 +105,16 @@ def annotate_gene(
     if not tx_list:
         return ("", 0, "intergenic")
 
-    # Collect overlapping transcripts (pos inside txStart..txEnd).
+    # Collect overlapping transcripts. UCSC genePred intervals are 0-indexed
+    # half-open: a tx at [tx_start, tx_end) covers `pos` iff
+    # tx_start <= pos < tx_end. Earlier failures of this function treated
+    # pos == tx_end as still inside, pulling boundary loci into gene_body.
     starts = [t[0] for t in tx_list]
     idx = bisect.bisect_right(starts, pos) - 1
     overlapping: list[tuple] = []
     j = idx
-    while j >= 0 and tx_list[j][1] >= pos:
-        # j's tx spans pos only if tx_end >= pos
-        if tx_list[j][0] <= pos <= tx_list[j][1]:
+    while j >= 0 and tx_list[j][1] > pos:
+        if tx_list[j][0] <= pos < tx_list[j][1]:
             overlapping.append(tx_list[j])
         j -= 1
 
@@ -165,22 +167,23 @@ def annotate_cgi(
     if not cgi_list:
         return ("open_sea", -1)
 
-    # Is pos inside any CGI?
+    # Is pos inside any CGI? UCSC CGI intervals are 0-indexed half-open;
+    # a CGI at [start, end) contains pos iff start <= pos < end.
     starts = [c[0] for c in cgi_list]
     idx = bisect.bisect_right(starts, pos) - 1
-    if idx >= 0 and cgi_list[idx][0] <= pos <= cgi_list[idx][1]:
+    if idx >= 0 and cgi_list[idx][0] <= pos < cgi_list[idx][1]:
         return ("island", 0)
 
     # Distance to nearest CGI boundary — check the two nearest intervals.
+    # `end` is exclusive, so positions at `>= end` are measured from `end`.
     cands: list[int] = []
     for j in (idx, idx + 1):
         if 0 <= j < len(cgi_list):
             s, e = cgi_list[j]
-            # closest boundary
             if pos < s:
                 cands.append(s - pos)
-            elif pos > e:
-                cands.append(pos - e)
+            elif pos >= e:
+                cands.append(pos - e + 1)
     if not cands:
         return ("open_sea", -1)
     d = min(cands)
@@ -199,13 +202,19 @@ def annotate_cgi(
 def top_k_by(score_field: str, scored_path: Path, k: int) -> list[dict]:
     """Return top-K ScoredCandidate records by the selected score field.
 
-    Tie-break is deterministic — same as evaluate_ranking: ascending by
-    candidate_id within tied score bands.
+    Tie-break is deterministic and matches `evaluate_ranking`: score
+    descending, candidate_id **ascending** within tied score bands.
+
+    Implementation note: a bounded min-heap keeps the K largest keys. To
+    make lex-smaller candidate_ids rank higher inside tied scores, we
+    invert each cid into a byte-negated tuple so that tuple comparison
+    of (score, cid_inv) puts smaller cids at the top — matching the
+    `(-score, cid)` ascending-pair sort in `evaluate_ranking`.
     """
     if score_field not in ("final_score", "p_therapeutic_selectivity"):
         raise ValueError(f"unsupported score_field: {score_field!r}")
 
-    heap: list[tuple[float, str, dict]] = []
+    heap: list[tuple[float, tuple[int, ...], str, dict]] = []
     with scored_path.open() as f:
         for line in f:
             r = json.loads(line)
@@ -217,20 +226,15 @@ def top_k_by(score_field: str, scored_path: Path, k: int) -> list[dict]:
                     continue
                 s = prob["p_therapeutic_selectivity"]
             cid = r["candidate"]["candidate_id"]
-            # Negate cid-like string via lex flip: heap min-pops smallest; we
-            # want to drop the worst. Use (score, -cid_rank) — simpler: store
-            # (score, reverse-cid) then compare tuples normally.
-            # Heap kept by (score, cid) with min-pop drops worst (score low,
-            # or tied-and-lex-high cid). That matches evaluate_ranking's
-            # cid-asc secondary tie-break.
-            key = (s, cid, r)
+            cid_inv = tuple(-b for b in cid.encode("utf-8"))
+            key = (s, cid_inv, cid, r)
             if len(heap) < k:
                 heapq.heappush(heap, key)
             elif key > heap[0]:
                 heapq.heapreplace(heap, key)
 
     heap.sort(reverse=True)
-    return [r for (_, _, r) in heap]
+    return [r for (_, _, _, r) in heap]
 
 
 # ---------- CLI ----------

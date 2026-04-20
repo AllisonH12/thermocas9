@@ -691,6 +691,33 @@ class BenchmarkResult(BaseModel):
         ),
     )
 
+    precision_at_k_min: float | None = Field(
+        default=None, ge=0.0, le=1.0,
+        description=(
+            "Worst-case `precision_at_k` under adversarial tie-break: if every "
+            "tied-band positive that *could* be pushed out of the top-K is "
+            "pushed out, how many positives remain in the top-K. Equals "
+            "`precision_at_k` when `tie_band_size_at_k == 1`. Read the "
+            "[min, max] interval as the tie-band-aware uncertainty on P@K."
+        ),
+    )
+    precision_at_k_max: float | None = Field(
+        default=None, ge=0.0, le=1.0,
+        description=(
+            "Best-case `precision_at_k` under adversarial tie-break: if every "
+            "tied-band positive is pulled into the top-K, up to the available "
+            "slots. Equals `precision_at_k` when `tie_band_size_at_k == 1`."
+        ),
+    )
+    recall_at_k_min: float | None = Field(
+        default=None, ge=0.0, le=1.0,
+        description="Worst-case `recall_at_k` counterpart to `precision_at_k_min`.",
+    )
+    recall_at_k_max: float | None = Field(
+        default=None, ge=0.0, le=1.0,
+        description="Best-case `recall_at_k` counterpart to `precision_at_k_max`.",
+    )
+
 
 class CohortConfig(BaseModel):
     """One cohort spec — the unit a Cohort Adapter consumes.
