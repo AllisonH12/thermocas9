@@ -326,6 +326,26 @@ def test_p_differential_protection_increases_with_gap():
     assert p_differential_protection(small_gap, delta=0.2) < p_differential_protection(big_gap, delta=0.2)
 
 
+def test_p_differential_protection_half_at_breakpoint():
+    """Under the normal approximation, when the observed gap equals δ exactly,
+    `P(Δ > δ)` must equal 0.5 — the defining "no-information" point of the
+    factor. Verifies the math, not a benchmark number."""
+    from thermocas.probabilistic import p_differential_protection
+
+    # symmetric spreads, gap = 0.20 = δ → z = 0 → p_diff = 0.5
+    obs = _obs(bt_mean=0.30, bt_q25=0.25, bt_q75=0.35,
+               bn_mean=0.50, bn_q25=0.45, bn_q75=0.55)
+    assert p_differential_protection(obs, delta=0.2) == pytest.approx(0.5, abs=1e-12)
+
+
+def test_p_differential_protection_unobserved_is_zero():
+    """UNOBSERVED observations carry no β values — p_diff must be exactly 0,
+    not some artifact of the normal approximation."""
+    from thermocas.probabilistic import p_differential_protection
+    obs = _obs(evidence=EvidenceClass.UNOBSERVED)
+    assert p_differential_protection(obs, delta=0.2) == 0.0
+
+
 def test_p_differential_protection_zero_when_either_side_missing():
     """No fabrication from one-sided data — return 0 if tumor or normal mean is None."""
     from thermocas.probabilistic import p_differential_protection

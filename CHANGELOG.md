@@ -4,6 +4,98 @@ All notable changes to the `thermocas` framework. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — V2.5 experimental (on `main`, not tagged)
+
+> Not a release. V2.5 ships as an opt-in mode on `main`. The stable default
+> remains v0.4.0 (`tumor_only`). V1 `final_score` is still the recommended
+> target-discovery ranking. See `V2_5_REVIEW.md` for the full self-review
+> including the rank-tie finding that argued against tagging.
+
+### Added
+
+- **V2.5 differential-protection probabilistic mode** (opt-in).
+  `probabilistic_mode: tumor_plus_differential_protection` on the cohort
+  YAML selects a new composite `p_sel = p_targ × p_diff × p_trust`, where
+  `p_diff = P(β_normal − β_tumor > δ)` is computed via an independent-normal
+  approximation on tumor/normal summary statistics. Replaces the
+  threshold-based `p_protected_normal` (which encoded a static
+  "normal-is-methylated-above-0.5" assumption and was empirically
+  anti-predictive on bulk comparators) with a differential factor that
+  makes no absolute claim about the normal side — it asks only whether
+  the normal-vs-tumor gap exceeds δ.
+- **`differential_delta`** (default `0.2`) added to `CohortConfig`. Only
+  consulted when the mode is `tumor_plus_differential_protection`.
+- **`ProbabilisticScore.p_differential_protection`** and
+  **`ProbabilisticScore.differential_delta`** fields — populated iff the
+  mode is differential; a Pydantic validator enforces the iff both ways
+  so malformed records cannot round-trip through JSONL.
+- **`p_differential_protection(obs, delta, sigma_floor=0.05)`** public
+  function in `thermocas.probabilistic`; exported from the top-level
+  package.
+- **`scripts/v2_5_differential_offline.py`** — the offline δ sweep that
+  motivated the mode. Reads `scored_surrogate_tumor_only.jsonl` and
+  reports AUC + P@100 for δ ∈ {0.2, 0.3, 0.4, 0.5} against both positive
+  sets; no package-code changes.
+
+### Empirical readout (MCF-7 vs MCF-10A surrogate, GSE77348 — NOT Roth)
+
+| axis | AUC loose | AUC tight | P@100 loose | P@100 tight |
+|---|---|---|---|---|
+| V2.5 `tumor_plus_differential_protection` (δ=0.2) | **0.705** | **0.721** | tie-fragile | tie-fragile |
+| V1 `final_score` | 0.657 | 0.628 | 0.040 | 0.030 |
+| V2 `tumor_only` | 0.733 | 0.770 | 0.000 | 0.000 |
+
+V2.5 is a clean AUC win over V1 (+0.048 loose, +0.093 tight). P@100 on
+this `n=3` surrogate is determined by whichever tie-break the benchmark
+uses: CLI stream-order gives 0.010/0.000, candidate-id tie-break gives
+0.100/0.100. The mode is not ready to be framed as a new production
+ranking default.
+
+### Tests
+
+- 197 → 199. Behavior-level contract tests cover mode dispatch, δ
+  configurability, strict monotonicity in δ, composite formula equals
+  `p_targ × p_diff × p_trust` exactly, audit-field consistency, YAML
+  round-trip, and `p_diff = 0.5` at the breakpoint (gap = δ).
+
+---
+
+## [0.4.0] — 2026-04-20 (V2.4 — `probabilistic_mode` config surface)
+
+### Added
+
+- **`probabilistic_mode` on `CohortConfig`** — explicit scoring policy
+  for the V2 composite, with two initial values:
+  - `tumor_only` (new default): `p_sel = p_targ × p_trust`
+  - `tumor_plus_normal_protection` (opt-in, preserved): `p_sel = p_targ × p_prot × p_trust`
+  The mode is recorded on every emitted `ProbabilisticScore` for
+  downstream auditability. No silent behavior change on YAMLs that didn't
+  specify a mode: they pick up the new `tumor_only` default, which
+  matches the V3.1 published guidance.
+- **Phase 5b factor ablation** (`scripts/phase5_v2_ablation.py`) —
+  localized V2's rank-metric failure to `p_protected_normal` rather than
+  to the multiplicative composition or to `p_trust`, by computing AUC for
+  each factor, pair, and full composite on the MCF-7/MCF-10A surrogate.
+  Results (loose AUC): `p_targ` 0.683, `v1_final` 0.657, `naive` 0.608,
+  `p_targ × p_prot` 0.503, `p_prot` alone 0.384 (inverted). Archived
+  at `data/derived/phase5_v2_ablation.txt`.
+
+### Changed
+
+- **Default probabilistic composite is `tumor_only`.** Cohorts that
+  expect the old `p_targ × p_prot × p_trust` behavior must now declare
+  `probabilistic_mode: tumor_plus_normal_protection` explicitly. The
+  rationale is documented in README §"V2 scoring modes" and in the
+  Phase 5b ablation report: `p_protected_normal` encodes
+  `P(β_normal > 0.5)`, which is anti-predictive on cohorts where the
+  normal comparator doesn't systematically methylate target promoters.
+
+### Tests
+
+- 182 → 197. New tests cover the mode-dispatch contract, that the mode
+  field round-trips on every `ProbabilisticScore`, and that cohort YAMLs
+  reject unknown mode strings at load time.
+
 ## [0.3.1] — 2026-04-20 (V3.1 — real-data validation + hardening)
 
 ### Added

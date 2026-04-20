@@ -257,7 +257,7 @@ probabilistic composite `p_therapeutic_selectivity`:
 |---|---|---|
 | `tumor_only` (default) | `p_targ × p_trust` | **analysis / global ranking only** — improves AUC on the surrogate, but top-100 is not cancer-selective (see below). Do NOT use alone for target-list generation. |
 | `tumor_plus_normal_protection` | `p_targ × p_prot × p_trust` | opt-in; known anti-predictive on TCGA-BRCA bulk and inverted on the MCF-7/MCF-10A surrogate. Retained for audit. |
-| `tumor_plus_differential_protection` (V2.5) | `p_targ × p_diff × p_trust` where `p_diff = P(β_n − β_t > δ)` | **experimental**; requires `differential_delta` (default 0.2). First mode that beats V1 `final_score` on global AUC *and* target-discovery tail — validated on the MCF-7/MCF-10A surrogate only. |
+| `tumor_plus_differential_protection` (V2.5) | `p_targ × p_diff × p_trust` where `p_diff = P(β_n − β_t > δ)` | **experimental**; requires `differential_delta` (default 0.2). Clean AUC improvement over V1 on the MCF-7/MCF-10A surrogate; P@100 gain is rank-tie-sensitive on low-`n` cohorts and not robustly demonstrated. Validated on one surrogate cohort only. |
 
 Both modes emit `p_targetable_tumor`, `p_protected_normal`, and
 `p_observation_trustworthy` for auditability — the `mode` field on
@@ -290,18 +290,32 @@ static-threshold assumption. **Wired in as V2.5**:
 `probabilistic_mode = "tumor_plus_differential_protection"` with
 `differential_delta = 0.2` (default). On the MCF-7/MCF-10A surrogate:
 
-| score axis | AUC loose | AUC tight |
-|---|---|---|
-| V2.5 `tumor_plus_differential_protection` (δ=0.2) | **0.705** | **0.721** |
-| V1 `final_score` | 0.657 | 0.628 |
-| V2 `tumor_only` | 0.733 | 0.770 (but P@100=0) |
+| score axis | AUC loose | AUC tight | P@100 loose | P@100 tight |
+|---|---|---|---|---|
+| V2.5 `tumor_plus_differential_protection` (δ=0.2) | **0.705** | **0.721** | tie-fragile† | tie-fragile† |
+| V1 `final_score` | 0.657 | 0.628 | 0.040 | 0.030 |
+| V2 `tumor_only` | 0.733 | 0.770 | 0.000 | 0.000 |
 
-V2.5 beats V1 on AUC while restoring target-discovery signal that
-`tumor_only` lost. Note that P@100 on low-`n` cohorts (surrogate `n=3`)
-is sensitive to rank-ties caused by `p_trust` saturation; on richer
-cohorts (TCGA `n`≈800) this tie band dissolves. Validated on one
-surrogate cohort only — treat as experimental until cell-line matched
-benchmarks land.
+†On this surrogate, `n_samples = 3` causes `p_trust` to saturate at 0.095
+for all EXACT-evidence candidates. The top of the composite collapses to
+a ~519-record band tied at 0.095, so P@100 is determined by whichever
+secondary sort the benchmark uses. CLI stream-order tie-break reports
+P@100 0.010/0.000; candidate-id tie-break reports 0.100/0.100. This is
+a property of low-replicate cohorts, not a claim about V2.5. On richer
+cohorts where `n` ≫ 30, `p_trust` varies continuously and this tie band
+should dissolve.
+
+**Bottom line:** V2.5 is a clean AUC improvement. It fixes the
+biological mis-specification of `p_protected_normal` (threshold → margin)
+and the architecture is sound. The target-discovery P@100 win observed
+offline (0.10 vs V1's 0.04) is rank-tie sensitive on this cohort and
+cannot be robustly claimed as a production ranking gain. `V1 final_score`
+remains the recommended discovery ranking until higher-replicate matched
+validation is available. This mode is experimental-on-main, not released.
+
+See [`V2_5_REVIEW.md`](V2_5_REVIEW.md) for the full self-review
+(math audit, code-level review, claims inventory, and the follow-up
+list that must land before V2.5 could become a released default).
 
 ### The V2 probabilistic `P(protected_normal)` factor encodes an assumption
 

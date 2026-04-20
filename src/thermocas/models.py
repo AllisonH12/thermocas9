@@ -430,9 +430,11 @@ class ProbabilisticScore(BaseModel):
     `tumor_plus_differential_protection` is the V2.5 experimental mode: replaces
     the threshold-based p_prot with `P(β_normal − β_tumor > δ)` via a normal
     approximation on tumor/normal summary statistics. On the MCF-7/MCF-10A
-    surrogate it beats V1 final_score on both AUC and P@100 at δ=0.2; for
-    other cohorts the improvement has not yet been validated, so this mode
-    stays opt-in.
+    surrogate at δ=0.2 it raises AUC from V1 0.657/0.628 to 0.705/0.721
+    (loose/tight); P@100 on that cohort is tie-band sensitive due to
+    p_trust saturation at n=3 and cannot be robustly claimed. Validated on
+    one surrogate cohort only; stays opt-in pending higher-n matched
+    validation.
     """
 
     candidate_id: str
