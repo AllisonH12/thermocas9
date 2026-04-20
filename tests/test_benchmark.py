@@ -1,0 +1,169 @@
+"""V3 — cross-validation benchmark tests."""
+
+from __future__ import annotations
+
+import pytest
+
+from thermocas.benchmark import evaluate_ranking, split_by_chrom
+from thermocas.models import (
+    CandidateSite,
+    EvidenceClass,
+    MethylationObservation,
+    ScoreComponents,
+    ScoredCandidate,
+    Strand,
+)
+
+
+def _candidate(cid: str, chrom: str = "chr1", pos: int = 100) -> CandidateSite:
+    return CandidateSite(
+        candidate_id=cid,
+        chrom=chrom,
+        critical_c_pos=pos,
+        strand=Strand.PLUS,
+        pam="ACGTCGA",
+        pam_family="NNNNCGA",
+        is_cpg_pam=True,
+    )
+
+
+def _scored(cid: str, score: float) -> ScoredCandidate:
+    cand = _candidate(cid)
+    obs = MethylationObservation(
+        candidate_id=cid, cohort_name="TEST",
+        evidence_class=EvidenceClass.EXACT,
+        evidence_distance_bp=0, probe_id="cg001",
+        beta_tumor_mean=0.05, beta_tumor_q25=0.02, beta_tumor_q75=0.10,
+        beta_normal_mean=0.85, beta_normal_q25=0.78, beta_normal_q75=0.92,
+        n_samples_tumor=400, n_samples_normal=80,
+    )
+    components = ScoreComponents(
+        sequence_score=1.0, selectivity_score=score, confidence_score=1.0,
+    )
+    return ScoredCandidate(
+        candidate=cand, observation=obs, components=components, final_score=score,
+    )
+
+
+# ---------- split_by_chrom ----------
+
+
+def test_split_by_chrom_basic():
+    cands = [
+        _candidate("a", chrom="chr1"),
+        _candidate("b", chrom="chr2"),
+        _candidate("c", chrom="chr1"),
+        _candidate("d", chrom="chrX"),
+    ]
+    train, test = split_by_chrom(cands, holdout_chroms={"chr2", "chrX"})
+    assert [c.candidate_id for c in train] == ["a", "c"]
+    assert [c.candidate_id for c in test] == ["b", "d"]
+
+
+def test_split_by_chrom_empty_holdout():
+    cands = [_candidate("a"), _candidate("b")]
+    train, test = split_by_chrom(cands, holdout_chroms=set())
+    assert len(train) == 2 and len(test) == 0
+
+
+def test_split_by_chrom_preserves_order():
+    cands = [_candidate(f"c{i}", chrom="chr1") for i in range(5)]
+    train, _ = split_by_chrom(cands, holdout_chroms=set())
+    assert [c.candidate_id for c in train] == ["c0", "c1", "c2", "c3", "c4"]
+
+
+# ---------- evaluate_ranking ----------
+
+
+def test_evaluate_perfect_ranking():
+    """Positives at the top → P@K = R@K = 1.0, AUC = 1.0."""
+    pos_ids = {"p1", "p2", "p3"}
+    scored = [
+        _scored("p1", 0.9), _scored("p2", 0.8), _scored("p3", 0.7),
+        _scored("n1", 0.3), _scored("n2", 0.2), _scored("n3", 0.1),
+    ]
+    r = evaluate_ranking(scored, pos_ids, cohort_name="T", top_k=3)
+    assert r.n_total == 6
+    assert r.n_positives == 3 and r.n_negatives == 3
+    assert r.precision_at_k == pytest.approx(1.0)
+    assert r.recall_at_k == pytest.approx(1.0)
+    assert r.roc_auc == pytest.approx(1.0)
+
+
+def test_evaluate_inverted_ranking():
+    """Positives at the bottom → P@K = R@K = 0, AUC = 0."""
+    pos_ids = {"p1", "p2", "p3"}
+    scored = [
+        _scored("n1", 0.9), _scored("n2", 0.8), _scored("n3", 0.7),
+        _scored("p1", 0.3), _scored("p2", 0.2), _scored("p3", 0.1),
+    ]
+    r = evaluate_ranking(scored, pos_ids, cohort_name="T", top_k=3)
+    assert r.precision_at_k == pytest.approx(0.0)
+    assert r.recall_at_k == pytest.approx(0.0)
+    assert r.roc_auc == pytest.approx(0.0)
+
+
+def test_evaluate_random_ranking_auc_is_half():
+    """Interleaved positives/negatives → AUC ≈ 0.5."""
+    pos_ids = {"p1", "p2"}
+    scored = [
+        _scored("p1", 0.9), _scored("n1", 0.8), _scored("p2", 0.7), _scored("n2", 0.6),
+    ]
+    # P@2 = 1/2 (one of top-2 is positive), R@2 = 1/2 (1 of 2 positives in top-2)
+    r = evaluate_ranking(scored, pos_ids, cohort_name="T", top_k=2)
+    assert r.precision_at_k == pytest.approx(0.5)
+    assert r.recall_at_k == pytest.approx(0.5)
+    # P(p>n): p1>n1, p1>n2, p2<n1, p2>n2 → 3/4 = 0.75
+    assert r.roc_auc == pytest.approx(0.75)
+
+
+def test_evaluate_handles_ties_via_half_credit():
+    """Tied scores between positive and negative contribute 0.5 to AUC."""
+    pos_ids = {"p1"}
+    scored = [_scored("p1", 0.5), _scored("n1", 0.5)]
+    r = evaluate_ranking(scored, pos_ids, cohort_name="T", top_k=1)
+    assert r.roc_auc == pytest.approx(0.5)
+
+
+def test_evaluate_returns_none_metrics_when_no_positives_in_set():
+    """Edge case: positives list has IDs not present in scored → metrics None."""
+    pos_ids = {"missing"}
+    scored = [_scored("n1", 0.5), _scored("n2", 0.3)]
+    r = evaluate_ranking(scored, pos_ids, cohort_name="T", top_k=1)
+    assert r.n_positives == 0
+    assert r.precision_at_k is None
+    assert r.recall_at_k is None
+    assert r.roc_auc is None
+
+
+def test_evaluate_top_k_clamped_to_n_total():
+    pos_ids = {"p1"}
+    scored = [_scored("p1", 0.5), _scored("n1", 0.3)]
+    r = evaluate_ranking(scored, pos_ids, cohort_name="T", top_k=100)
+    # P@K computed against k = min(100, 2) = 2 → 1/2
+    assert r.precision_at_k == pytest.approx(0.5)
+
+
+def test_evaluate_records_held_out_chromosomes():
+    pos_ids = {"p1"}
+    scored = [_scored("p1", 0.5)]
+    r = evaluate_ranking(
+        scored, pos_ids, cohort_name="T", top_k=1,
+        held_out_chromosomes=["chr1", "chr2"],
+    )
+    assert r.held_out_chromosomes == ["chr1", "chr2"]
+
+
+def test_evaluate_rejects_zero_top_k():
+    with pytest.raises(ValueError, match="top_k must be"):
+        evaluate_ranking([], set(), cohort_name="T", top_k=0)
+
+
+def test_evaluate_score_field_dispatch_unknown():
+    with pytest.raises(ValueError, match="unknown score_field"):
+        evaluate_ranking(
+            [_scored("p1", 0.5)],
+            {"p1"},
+            cohort_name="T", top_k=1,
+            score_field="bogus",
+        )

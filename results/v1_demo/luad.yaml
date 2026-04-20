@@ -1,0 +1,7 @@
+cohort:
+  name: LUAD
+  tumor_dataset: TCGA-LUAD
+  normal_dataset: TCGA-LUAD-normal
+  platform: HM450
+  min_samples_tumor: 5
+  min_samples_normal: 3

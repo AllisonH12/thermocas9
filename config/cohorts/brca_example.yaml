@@ -1,0 +1,26 @@
+# Example cohort configuration: TCGA Breast Invasive Carcinoma.
+# Resolved by a methylation backend (e.g., GDC) at runtime.
+
+cohort:
+  name: TCGA-BRCA
+  tumor_dataset: TCGA-BRCA
+  normal_dataset: TCGA-BRCA-normal
+  platform: HM450                  # HM450 | EPIC | RRBS | WGBS
+  subtype_field: PAM50             # optional
+  min_samples_tumor: 30
+  min_samples_normal: 10
+
+# Evidence-class boundaries (bp) from the critical PAM cytosine to nearest probe.
+# Override per cohort if probe density justifies it.
+evidence_thresholds:
+  exact_bp: 1                      # probe assays the exact CpG of the PAM cytosine
+  proximal_close_bp: 25            # probe within 25 bp
+  proximal_bp: 50                  # probe within 50 bp
+  regional_bp: 500                 # broader local context only
+
+# Penalties applied to candidates with weak data.
+penalties:
+  heterogeneity_iqr_threshold: 0.30   # IQR(beta_tumor) above this → penalty
+  heterogeneity_weight: 0.4
+  low_coverage_n_threshold: 30        # fewer than N tumor samples → penalty
+  low_coverage_weight: 0.3

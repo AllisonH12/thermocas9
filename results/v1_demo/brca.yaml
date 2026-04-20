@@ -1,0 +1,7 @@
+cohort:
+  name: BRCA
+  tumor_dataset: TCGA-BRCA
+  normal_dataset: TCGA-BRCA-normal
+  platform: HM450
+  min_samples_tumor: 5
+  min_samples_normal: 3

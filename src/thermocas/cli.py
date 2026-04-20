@@ -1,0 +1,441 @@
+"""`thermocas` CLI.
+
+Subcommands:
+
+    thermocas build-catalog --reference REF.fa --pam-model PAM.yaml --output catalog.jsonl
+    thermocas score-cohort  --catalog catalog.jsonl --cohort cohort.yaml \
+                            --backend local --probe-annotation A.tsv \
+                            --tumor-beta T.tsv --normal-beta N.tsv \
+                            --output scored.jsonl
+    thermocas aggregate     --scored COHORT1=scored1.jsonl COHORT2=scored2.jsonl ... \
+                            --output panatlas.jsonl
+
+Designed so each stage is restartable: every input/output is a file, every
+output is JSONL, no hidden global state.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+from thermocas import __version__
+from thermocas.catalog import stream_catalog
+from thermocas.cohort import score_cohort
+from thermocas.config import load_cohort_config
+from thermocas.io import read_jsonl, write_jsonl_atomic
+from thermocas.methylation_backend import LocalArrayBackend, MethylationBackend
+from thermocas.models import CandidateSite, CohortConfig, ScoredCandidate
+from thermocas.pam_model import PamModel
+from thermocas.pan_cancer import aggregate
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    if args.command is None:
+        parser.print_help()
+        return 0
+    try:
+        return args.func(args)
+    except Exception as e:
+        print(f"thermocas: error: {e}", file=sys.stderr)
+        return 1
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="thermocas",
+        description="Methylome-guided ThermoCas9 target-site discovery framework.",
+    )
+    p.add_argument("-V", "--version", action="version", version=f"thermocas {__version__}")
+    sub = p.add_subparsers(dest="command", metavar="<command>")
+
+    # build-catalog
+    bc = sub.add_parser(
+        "build-catalog",
+        help="Scan a reference FASTA for ThermoCas9-compatible PAM sites.",
+    )
+    bc.add_argument("--reference", required=True, type=Path,
+                    help="Reference genome FASTA (.fa, .fa.gz, .fasta, .fasta.gz)")
+    bc.add_argument("--pam-model", required=True, type=Path,
+                    help="YAML PAM model (e.g. config/pam_model.yaml)")
+    bc.add_argument("--output", required=True, type=Path,
+                    help="Output JSONL of CandidateSite records")
+    bc.set_defaults(func=_cmd_build_catalog)
+
+    # score-cohort
+    sc = sub.add_parser(
+        "score-cohort",
+        help="Score a candidate catalog against one cohort's methylation data.",
+    )
+    sc.add_argument("--catalog", required=True, type=Path,
+                    help="JSONL of CandidateSite records (from build-catalog)")
+    sc.add_argument("--cohort", required=True, type=Path,
+                    help="YAML cohort config (e.g. config/cohorts/brca_example.yaml)")
+    sc.add_argument("--pam-model", required=True, type=Path,
+                    help="YAML PAM model — must match the one used to build the catalog")
+    sc.add_argument("--backend", choices=["local", "gdc"], default="local")
+    sc.add_argument("--probe-annotation", type=Path,
+                    help="(local backend) TSV with probe_id, chrom, pos columns")
+    sc.add_argument("--tumor-beta", type=Path,
+                    help="(local backend) TSV beta matrix for the tumor cohort")
+    sc.add_argument("--normal-beta", type=Path,
+                    help="(local backend) TSV beta matrix for the normal cohort")
+    sc.add_argument("--sample-subtypes", type=Path,
+                    help=("(local backend, V2) optional TSV with sample_id, subtype "
+                          "columns. When provided, the tumor matrix is split into "
+                          "per-subtype submatrices and one output JSONL is written "
+                          "per subtype, with cohort_name = '<cohort>::<subtype>'."))
+    sc.add_argument("--probabilistic", action="store_true",
+                    help="V2 — also compute ProbabilisticScore for each candidate")
+    sc.add_argument("--spacer", action="store_true",
+                    help="V3 — also compute SpacerScore (gRNA design-quality "
+                         "heuristics on the 20-nt protospacer)")
+    sc.add_argument("--output", required=True, type=Path,
+                    help=("Output JSONL of ScoredCandidate records. With --sample-subtypes, "
+                          "this is treated as a *prefix* and one file is written per subtype: "
+                          "<output>.<subtype>.jsonl"))
+    sc.set_defaults(func=_cmd_score_cohort)
+
+    # inspect
+    ip = sub.add_parser(
+        "inspect",
+        help="V3 — pretty-print summary stats for any JSONL artifact (catalog / scored / aggregate).",
+    )
+    ip.add_argument("file", type=Path, help="JSONL file produced by another subcommand")
+    ip.add_argument("--top", type=int, default=10,
+                    help="Show top-N records by score (default: 10)")
+    ip.add_argument("--head", type=int, default=0,
+                    help="Show first N raw records instead of top-N by score")
+    ip.set_defaults(func=_cmd_inspect)
+
+    # benchmark
+    bn = sub.add_parser(
+        "benchmark",
+        help="V3 — evaluate ranking quality of a scored cohort against a positives list.",
+    )
+    bn.add_argument("--scored", required=True, type=Path,
+                    help="JSONL of ScoredCandidate (from score-cohort)")
+    bn.add_argument("--positives", required=True, type=Path,
+                    help="Text file with one candidate_id per line (ground-truth positives)")
+    bn.add_argument("--cohort-name", required=True,
+                    help="Label written into the BenchmarkResult.cohort_name field")
+    bn.add_argument("--top-k", type=int, default=10)
+    bn.add_argument("--score-field", default="final_score",
+                    choices=["final_score", "p_therapeutic_selectivity", "spacer_final_score"],
+                    help="Which scalar to rank by (V2 probabilistic / V3 spacer also supported)")
+    bn.add_argument("--held-out-chromosomes", nargs="*", default=[],
+                    help="Chromosomes excluded from training; recorded in the result")
+    bn.add_argument("--output", required=True, type=Path,
+                    help="Output JSONL containing one BenchmarkResult record")
+    bn.set_defaults(func=_cmd_benchmark)
+
+    # gdc-fetch
+    gd = sub.add_parser(
+        "gdc-fetch",
+        help="V2 — download a TCGA cohort from GDC and export "
+             "LocalArrayBackend-compatible TSVs.",
+    )
+    gd.add_argument("--project", required=True,
+                    help="GDC project_id, e.g. TCGA-BRCA")
+    gd.add_argument("--platform", default="HM450", choices=["HM450", "EPIC"])
+    gd.add_argument("--sample-type", default="both",
+                    choices=["both", "tumor", "normal"],
+                    help="Which sample side to fetch")
+    gd.add_argument("--cache-dir", required=True, type=Path,
+                    help="Directory for raw GDC file cache (re-used across runs)")
+    gd.add_argument("--output-dir", required=True, type=Path,
+                    help="Output directory for summary TSVs")
+    gd.set_defaults(func=_cmd_gdc_fetch)
+
+    # aggregate
+    agg = sub.add_parser(
+        "aggregate",
+        help="Aggregate per-cohort scored candidates into a pan-cancer atlas.",
+    )
+    agg.add_argument(
+        "--scored",
+        required=True,
+        nargs="+",
+        metavar="COHORT=PATH",
+        help="One or more COHORT_NAME=path/to/scored.jsonl pairs",
+    )
+    agg.add_argument("--high-score-threshold", type=float, default=0.30,
+                     help="Cohort-level final_score threshold for 'addressable' (default 0.30)")
+    agg.add_argument("--output", required=True, type=Path,
+                     help="Output JSONL of PanCancerAggregate records")
+    agg.set_defaults(func=_cmd_aggregate)
+
+    return p
+
+
+# ---------- command implementations ----------
+
+
+def _cmd_build_catalog(args: argparse.Namespace) -> int:
+    pam_model = PamModel.from_yaml(args.pam_model)
+    candidates = stream_catalog(args.reference, pam_model)
+    n = write_jsonl_atomic(args.output, candidates)
+    print(f"build-catalog: wrote {n} candidates → {args.output}")
+    return 0
+
+
+def _cmd_score_cohort(args: argparse.Namespace) -> int:
+    pam_model = PamModel.from_yaml(args.pam_model)
+    cohort = load_cohort_config(args.cohort)
+
+    if args.sample_subtypes is not None:
+        return _cmd_score_cohort_by_subtype(args, pam_model, cohort)
+
+    backend = _build_backend(args)
+    candidates = read_jsonl(args.catalog, CandidateSite)
+    scored = score_cohort(
+        candidates, backend, cohort, pam_model,
+        compute_probabilistic=args.probabilistic,
+        compute_spacer=args.spacer,
+    )
+    n = write_jsonl_atomic(args.output, scored)
+    extras = []
+    if args.probabilistic:
+        extras.append("probabilistic")
+    if args.spacer:
+        extras.append("spacer")
+    extras_str = f" (+ {', '.join(extras)})" if extras else ""
+    print(f"score-cohort[{cohort.name}]: wrote {n} scored candidates{extras_str} → {args.output}")
+    return 0
+
+
+def _cmd_score_cohort_by_subtype(
+    args: argparse.Namespace,
+    pam_model: PamModel,
+    cohort: CohortConfig,
+) -> int:
+    """V2 — fan out across subtypes, writing one JSONL per subtype."""
+
+    if args.backend != "local":
+        raise ValueError("--sample-subtypes is currently only supported for --backend local")
+    for required, val in (
+        ("--probe-annotation", args.probe_annotation),
+        ("--tumor-beta", args.tumor_beta),
+        ("--normal-beta", args.normal_beta),
+    ):
+        if val is None:
+            raise ValueError(f"--sample-subtypes requires {required}")
+
+    backends = LocalArrayBackend.split_by_subtype(
+        probe_annotation=args.probe_annotation,
+        tumor_beta=args.tumor_beta,
+        normal_beta=args.normal_beta,
+        sample_subtypes=args.sample_subtypes,
+    )
+
+    out_prefix = args.output
+    total = 0
+    extras_list: list[str] = []
+    if args.probabilistic:
+        extras_list.append("probabilistic")
+    if args.spacer:
+        extras_list.append("spacer")
+    extras_str = f" (+ {', '.join(extras_list)})" if extras_list else ""
+    for subtype, backend in sorted(backends.items()):
+        sub_cohort = cohort.model_copy(update={"name": f"{cohort.name}::{subtype}"})
+        candidates = read_jsonl(args.catalog, CandidateSite)
+        scored = score_cohort(
+            candidates, backend, sub_cohort, pam_model,
+            compute_probabilistic=args.probabilistic,
+            compute_spacer=args.spacer,
+        )
+        sub_out = out_prefix.with_name(f"{out_prefix.stem}.{subtype}{out_prefix.suffix}")
+        n = write_jsonl_atomic(sub_out, scored)
+        total += n
+        print(f"score-cohort[{sub_cohort.name}]: wrote {n} scored candidates{extras_str} → {sub_out}")
+    print(f"score-cohort[{cohort.name}]: {total} candidates across {len(backends)} subtype(s)")
+    return 0
+
+
+def _cmd_inspect(args: argparse.Namespace) -> int:
+    """V3 — print a quick summary of any JSONL artifact, auto-detecting the record type.
+
+    Detection peeks at the first record's keys: if it has a `candidate` field
+    we treat it as ScoredCandidate; if it has `n_cohorts_observed` we treat
+    it as PanCancerAggregate; if it has `precision_at_k` it's BenchmarkResult;
+    otherwise it's CandidateSite.
+    """
+
+    import json
+
+    with args.file.open() as f:
+        lines = [line.rstrip("\n") for line in f if line.strip()]
+
+    if not lines:
+        print(f"{args.file}: empty")
+        return 0
+
+    first = json.loads(lines[0])
+    if "candidate" in first and "components" in first:
+        kind = "ScoredCandidate"
+    elif "n_cohorts_observed" in first:
+        kind = "PanCancerAggregate"
+    elif "precision_at_k" in first:
+        kind = "BenchmarkResult"
+    elif "candidate_id" in first and "pam_family" in first:
+        kind = "CandidateSite"
+    else:
+        kind = "unknown"
+
+    print(f"{args.file}: {len(lines)} records ({kind})")
+
+    if args.head > 0:
+        for raw in lines[: args.head]:
+            print(raw)
+        return 0
+
+    if kind == "ScoredCandidate":
+        rows = [json.loads(line) for line in lines]
+        rows.sort(key=lambda r: r.get("final_score", 0), reverse=True)
+        print(f"  top {min(args.top, len(rows))} by final_score:")
+        print(f"  {'rank':>4}  {'candidate_id':<48}  {'evidence':<14}  {'score':>8}")
+        for i, r in enumerate(rows[: args.top], 1):
+            ec = r["observation"]["evidence_class"]
+            cid = r["candidate"]["candidate_id"]
+            print(f"  {i:>4}  {cid:<48}  {ec:<14}  {r['final_score']:>8.3f}")
+
+    elif kind == "PanCancerAggregate":
+        rows = [json.loads(line) for line in lines]
+        rows.sort(key=lambda r: r.get("pan_cancer_score", 0), reverse=True)
+        print(f"  top {min(args.top, len(rows))} by pan_cancer_score:")
+        print(f"  {'rank':>4}  {'candidate_id':<48}  {'obs':>4}  {'pan':>6}  {'recur':>6}")
+        for i, r in enumerate(rows[: args.top], 1):
+            print(f"  {i:>4}  {r['candidate_id']:<48}  "
+                  f"{r['n_cohorts_observed']:>4}  "
+                  f"{r['pan_cancer_score']:>6.3f}  {r['recurrence']:>6.2f}")
+
+    elif kind == "BenchmarkResult":
+        for raw in lines:
+            r = json.loads(raw)
+            print(f"  cohort={r['cohort_name']}  n={r['n_total']}  pos={r['n_positives']}  "
+                  f"P@{r['top_k']}={_fmt(r.get('precision_at_k'))}  "
+                  f"R@{r['top_k']}={_fmt(r.get('recall_at_k'))}  "
+                  f"AUC={_fmt(r.get('roc_auc'))}")
+
+    elif kind == "CandidateSite":
+        rows = [json.loads(line) for line in lines]
+        by_chrom: dict[str, int] = {}
+        by_family: dict[str, int] = {}
+        for r in rows:
+            by_chrom[r["chrom"]] = by_chrom.get(r["chrom"], 0) + 1
+            by_family[r["pam_family"]] = by_family.get(r["pam_family"], 0) + 1
+        print(f"  by chromosome: {dict(sorted(by_chrom.items()))}")
+        print(f"  by PAM family: {dict(sorted(by_family.items()))}")
+
+    return 0
+
+
+def _cmd_benchmark(args: argparse.Namespace) -> int:
+    """V3 — evaluate ranking quality against a positives list."""
+
+    from thermocas.benchmark import evaluate_ranking
+
+    positives = {
+        line.strip()
+        for line in args.positives.read_text().splitlines()
+        if line.strip() and not line.startswith("#")
+    }
+    if not positives:
+        raise ValueError(f"{args.positives}: no positive candidate_ids found")
+
+    scored = read_jsonl(args.scored, ScoredCandidate)
+    result = evaluate_ranking(
+        scored,
+        positives=positives,
+        cohort_name=args.cohort_name,
+        top_k=args.top_k,
+        held_out_chromosomes=list(args.held_out_chromosomes),
+        score_field=args.score_field,
+    )
+    write_jsonl_atomic(args.output, [result])
+    print(
+        f"benchmark[{args.cohort_name}]: n={result.n_total} "
+        f"pos={result.n_positives} → "
+        f"P@{result.top_k}={_fmt(result.precision_at_k)} "
+        f"R@{result.top_k}={_fmt(result.recall_at_k)} "
+        f"AUC={_fmt(result.roc_auc)} → {args.output}"
+    )
+    return 0
+
+
+def _fmt(v: float | None) -> str:
+    return f"{v:.3f}" if v is not None else "n/a"
+
+
+def _cmd_gdc_fetch(args: argparse.Namespace) -> int:
+    """V2 — download a cohort from GDC and export per-side summary TSVs."""
+
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    sides: list[tuple[str, str, str]] = []  # (label, sample_type, filename)
+    if args.sample_type in ("tumor", "both"):
+        sides.append(("tumor", "Primary Tumor", "tumor_summary.tsv"))
+    if args.sample_type in ("normal", "both"):
+        sides.append(("normal", "Solid Tissue Normal", "normal_summary.tsv"))
+
+    from thermocas.methylation_backend import GDCBackend
+    for label, sample_type, fname in sides:
+        backend = GDCBackend(
+            project_id=args.project,
+            cache_dir=args.cache_dir,
+            platform=args.platform,
+            sample_type=sample_type,
+        )
+        out = args.output_dir / fname
+        files = backend.list_files()
+        print(f"gdc-fetch[{args.project}/{label}]: {len(files)} files matched")
+        n = backend.export_summaries(out)
+        print(f"gdc-fetch[{args.project}/{label}]: wrote {n} probe summaries → {out}")
+    return 0
+
+
+def _cmd_aggregate(args: argparse.Namespace) -> int:
+    cohorts: dict[str, list[ScoredCandidate]] = {}
+    for spec in args.scored:
+        if "=" not in spec:
+            raise ValueError(
+                f"--scored entries must be COHORT=path; got {spec!r}"
+            )
+        name, path = spec.split("=", 1)
+        cohorts[name] = list(read_jsonl(Path(path), ScoredCandidate))
+
+    aggregates = aggregate(cohorts, high_score_threshold=args.high_score_threshold)
+    n = write_jsonl_atomic(args.output, aggregates)
+    print(f"aggregate: {len(cohorts)} cohort(s) → {n} candidates → {args.output}")
+    return 0
+
+
+def _build_backend(args: argparse.Namespace) -> MethylationBackend:
+    if args.backend == "local":
+        missing = [
+            name for name, val in (
+                ("--probe-annotation", args.probe_annotation),
+                ("--tumor-beta", args.tumor_beta),
+                ("--normal-beta", args.normal_beta),
+            ) if val is None
+        ]
+        if missing:
+            raise ValueError(f"local backend requires: {', '.join(missing)}")
+        return LocalArrayBackend(
+            probe_annotation=args.probe_annotation,
+            tumor_beta=args.tumor_beta,
+            normal_beta=args.normal_beta,
+        )
+    if args.backend == "gdc":
+        raise ValueError(
+            "gdc backend is not yet implemented. Download cohort with gdc-client "
+            "and use --backend local against the resulting TSVs. "
+            "See methylation_backend.GDCBackend for the intended interface."
+        )
+    raise ValueError(f"unknown backend: {args.backend}")
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

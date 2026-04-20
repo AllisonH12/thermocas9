@@ -1,0 +1,30 @@
+# ThermoCas9 PAM model.
+#
+# Sourced from Roth et al., Nature (2026). The fifth-position cytosine of the
+# 5'-NNNNCNR-3' PAM family is the methylation-sensing residue. CpG-containing
+# PAMs receive higher weight because mammalian methylation occurs predominantly
+# in CpG context.
+#
+# regex notes:
+#   - 7 nt motif, IUPAC + bracket character classes
+#   - the 5th position (1-indexed) MUST be C; methylation here gates editing
+#   - the 6th position determines CpG vs CpC family
+#   - the 7th position is constrained to a purine R = [AG] (Roth et al. report
+#     "C-G pair at position 5 with downstream purine R")
+#
+# critical_c_offset is 0-indexed within the matched PAM string.
+
+pam_families:
+  - name: NNNNCGA
+    description: "CpG-containing PAM, NNNNCGA — primary characterized variant"
+    regex: "[ACGT][ACGT][ACGT][ACGT]CG[AG]"
+    critical_c_offset: 4
+    is_cpg: true
+    weight: 1.0
+
+  - name: NNNNCCA
+    description: "CpC-containing PAM, NNNNCCA — secondary characterized variant"
+    regex: "[ACGT][ACGT][ACGT][ACGT]CC[AG]"
+    critical_c_offset: 4
+    is_cpg: false
+    weight: 0.9
