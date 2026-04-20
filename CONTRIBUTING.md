@@ -20,6 +20,25 @@ config/               # PAM model + cohort YAMLs
 data/  results/       # gitignored — local artifacts only
 ```
 
+### Reproducible artifacts vs primary data
+
+`data/derived/scored_*.jsonl` and `data/derived/catalog_*.jsonl` are
+**reproducible outputs**, not primary assets, and are intentionally
+gitignored. They are derivable from the committed summary TSVs
+(`data/derived/*_cohort/tumor_summary.tsv` +
+`data/derived/*_cohort/normal_summary.tsv` +
+`data/derived/*_cohort/probes.tsv`) plus the PAM model via:
+
+```bash
+thermocas build-catalog  ...   # regenerate the catalog JSONL
+thermocas score-cohort   ...   # regenerate a scored cohort JSONL
+```
+
+These artifacts were removed from git history via `git-filter-repo` on
+2026-04-20 to keep the repo small and cloneable; any reference to
+pre-rewrite commit SHAs is stale. If you have a local clone from before
+that rewrite, reclone rather than merge.
+
 ## Conventions
 
 - **Stdlib only** for the core framework (no numpy / scipy / pandas / requests).
