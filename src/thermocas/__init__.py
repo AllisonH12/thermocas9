@@ -3,7 +3,7 @@
 Roth et al., Nature 2026 — DOI 10.1038/s41586-026-10384-z.
 """
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 from thermocas.benchmark import evaluate_ranking, split_by_chrom
 from thermocas.catalog import CatalogStats, build_catalog, stream_catalog

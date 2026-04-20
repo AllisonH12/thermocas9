@@ -76,7 +76,12 @@ thermocas-framework/
 | **Cross-validation benchmark harness** (P@K, R@K, ROC-AUC)  | **V3 — implemented**                  |
 | **CLI: `--spacer`, `benchmark`, `inspect`**         | **V3 — implemented**                          |
 | Repo readiness (git, CHANGELOG, CI workflow)        | **V3 — implemented**                          |
-| End-to-end synthetic + CLI pipelines + tests | **144 tests** (in-process + CLI + mocked GDC + Beta math) |
+| End-to-end synthetic + CLI pipelines + tests        | **V3 — 144 tests**                            |
+| **Real-data validation** (TCGA-BRCA, 3 M candidates, 890 samples) | **V3.1 — implemented; AUC 0.66 on gene-targeted Roth positives** |
+| **Input integrity hardening** (16 reviewer-cycle fixes)           | **V3.1 — implemented**                        |
+| **Known-limitations documented** (V2 biology assumption, pan-cancer memory) | **V3.1 — implemented**              |
+| **V2 formulation review** (additive log-odds / cohort-typed prior) | deferred pending cell-line benchmark       |
+| End-to-end tests + real-data pipeline                             | **182 tests** (in-process + CLI + mocked GDC + Beta math + live GDC smoke) |
 
 ## Quickstart
 
@@ -210,6 +215,65 @@ selectivity_score
 ```
 
 quantile separation rewards clean class separation, not just shifts in mean.
+
+## Limitations and caveats
+
+### The V2 probabilistic `P(protected_normal)` factor encodes an assumption
+
+V2 probabilistic scoring decomposes therapeutic selectivity as
+
+    P(therapeutic_selectivity) = P(targetable_tumor)
+                               × P(protected_normal)
+                               × P(observation_trustworthy)
+
+and operationalizes each factor from per-probe methylation summaries. The
+**"protected_normal" factor asks whether the PAM-site cytosine is methylated
+in the normal comparator** — specifically `P(β_normal > 0.5)` under a Beta fit
+from `(mean, q25, q75)`. That question *assumes the target is methylated in
+normal tissue*.
+
+This assumption holds in the Roth et al. (Nature 2026) validation scheme,
+where MCF-10A is methylated at `ESR1` / `GATA3` promoters (the genes are
+silenced in non-tumorigenic mammary epithelium). **The assumption does NOT
+hold for TCGA-BRCA adjacent-normal bulk**, where most gene promoters of
+breast-expressed genes are already unmethylated. For that evaluation target,
+V2's `P(protected_normal)` systematically zeroes out on biologically-correct
+positives and the multiplicative composition underperforms the simpler
+`β_normal − β_tumor` baseline — on a Phase 4 TCGA-BRCA run against 1687
+gene-targeted positives, V1 `final_score` hit AUC 0.656 while V2
+`p_therapeutic_selectivity` hit 0.553 (worse than the naive differential at
+0.629).
+
+**Practical guidance:**
+
+| Normal comparator behavior | Recommended score axis |
+|---|---|
+| Normal tissue methylates the target (cell-line-specific: MCF-10A, HMEC, etc.) | V2 `p_therapeutic_selectivity` |
+| Normal tissue does not methylate the target (adjacent-normal bulk, expressed genes) | V1 `final_score` or `naive_selectivity` |
+| Unknown or mixed | V1 `final_score` |
+
+The code is mathematically correct; the V2 scoring axis is specialized to
+cell-line-style matched comparisons. Reformulating V2 (additive log-odds,
+weighted geometric mean, or a cohort-typed `normal_is_methylated` flag) is
+deferred until the cell-line-to-cell-line benchmark lands.
+
+### Pan-cancer aggregation is memory-bound
+
+`thermocas aggregate` groups ScoredCandidates across cohorts and emits in
+sorted (chrom, pos, family) order. Despite returning an iterator it **holds
+the entire atlas in memory** before the first record is yielded — peak cost
+is `O(N_candidates × N_cohorts)`. For 3M candidates × 10 cohorts this is
+~60 GB, not tractable in the current shape. True cohort-streaming k-way
+merge is deferred.
+
+### Positives selection is coordinate-system-sensitive
+
+Phase 3/4 benchmarks in this repo used the HM450 manifest (hg19) throughout,
+matched methylation by `probe_id` (build-agnostic), and selected positives by
+gene-symbol intersection (build-robust). The Roth paper reports target
+coordinates in hg38, so any benchmark that uses raw Roth `(chrom, pos)`
+tuples *directly* needs liftOver to hg19 first — or a full catalog rebuild
+against hg38.
 
 ## Citation
 
