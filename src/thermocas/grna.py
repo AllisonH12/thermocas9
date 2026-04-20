@@ -25,7 +25,7 @@ pulls the spacer down rather than averaging away.
 from __future__ import annotations
 
 from thermocas.catalog import LOCAL_CONTEXT_HALF_WIDTH
-from thermocas.models import CandidateSite, PamFamily, SpacerScore
+from thermocas.models import CandidateSite, PamFamily, SpacerScore, Strand
 from thermocas.pam_model import reverse_complement
 
 #: Length of the protospacer (Type II Cas9 = 20 nt).
@@ -61,10 +61,22 @@ def extract_spacer(
     if not seq or family.name != candidate.pam_family:
         return None
 
-    # Critical-C index inside local_seq_100bp: the catalog builder centers the
-    # window on critical_c_pos (clipped at chrom start), so for non-edge
-    # candidates the index is exactly LOCAL_CONTEXT_HALF_WIDTH.
-    critical_c_idx = min(candidate.critical_c_pos, LOCAL_CONTEXT_HALF_WIDTH)
+    # Critical-C index inside local_seq_100bp.
+    #
+    # The catalog builder slices `seq[max(0, ccp-50) : ccp+50]` on the forward
+    # strand. For a non-edge plus-strand candidate the critical-C therefore
+    # lands at index 50 (= LOCAL_CONTEXT_HALF_WIDTH); for chrom-edge plus
+    # candidates it lands at `min(ccp, 50)`.
+    #
+    # For minus-strand candidates the builder reverse-complements that forward
+    # window, which mirrors every index: the char that sat at forward index `i`
+    # in a window of length L now sits at index `L - 1 - i`. So the critical-C
+    # of a minus-strand candidate sits at `len(seq) - 1 - fwd_idx`.
+    fwd_idx = min(candidate.critical_c_pos, LOCAL_CONTEXT_HALF_WIDTH)
+    if candidate.strand == Strand.MINUS:
+        critical_c_idx = len(seq) - 1 - fwd_idx
+    else:
+        critical_c_idx = fwd_idx
     pam_start = critical_c_idx - family.critical_c_offset
 
     if pam_start < SPACER_LEN:

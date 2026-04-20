@@ -144,16 +144,20 @@ def _open_text(path: str | Path, mode: str) -> IO[str]:
 
 
 def write_jsonl_atomic(path: str | Path, records: Iterable[BaseModel]) -> int:
-    """Atomic JSONL writer: write to .tmp then os.replace.
+    """Atomic JSONL writer: write to a sibling tempfile, then `os.replace`.
 
-    Useful for CLI commands so a crashed run doesn't leave a partial output
-    that the next stage will silently consume.
+    The temp filename inserts `.tmp` BEFORE the final suffix
+    (`catalog.jsonl.gz` → `catalog.jsonl.tmp.gz`) so `_open_text` still
+    dispatches to gzip when the user requested a `.gz` output. Earlier
+    naïve `with_suffix(suffix + ".tmp")` produced `catalog.jsonl.gz.tmp`,
+    which `_open_text` saw as a plain-text suffix and wrote uncompressed —
+    leaving an unreadable file with a `.gz` extension after the rename.
     """
 
     import os
 
     p = Path(path)
-    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp = p.with_name(f"{p.stem}.tmp{p.suffix}")
     n = write_jsonl(tmp, records)
     os.replace(tmp, p)
     return n
@@ -170,14 +174,25 @@ def read_sample_subtypes(path: str | Path) -> dict[str, str]:
 
     Used by the V2 subtype-aware backend factory to split a single beta matrix
     into per-subtype submatrices (e.g. PAM50 LumA / LumB / Basal / HER2-enriched).
+
+    Conflicting duplicates are an error: a sample mapped to two different
+    subtypes silently routed into the wrong cohort under the previous
+    last-wins behavior. Identical duplicate rows (same sample, same subtype)
+    are tolerated since they're harmless.
     """
 
     out: dict[str, str] = {}
     for row in read_tsv(path):
         try:
-            out[row["sample_id"]] = row["subtype"]
+            sid, subtype = row["sample_id"], row["subtype"]
         except KeyError as e:
             raise ValueError(
                 f"{path}: expected columns sample_id, subtype — missing {e}"
             ) from e
+        if sid in out and out[sid] != subtype:
+            raise ValueError(
+                f"{path}: sample {sid!r} mapped to conflicting subtypes "
+                f"{out[sid]!r} and {subtype!r}"
+            )
+        out[sid] = subtype
     return out

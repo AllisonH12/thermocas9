@@ -257,6 +257,28 @@ def test_cli_score_cohort_summary_backend_requires_summary_inputs(tmp_path: Path
     assert "summary backend requires" in capsys.readouterr().err
 
 
+def test_cli_inspect_reads_gzipped_jsonl(tmp_path: Path, capsys):
+    """Regression: `_cmd_inspect` opened the file with Path.open() directly,
+    failing on .jsonl.gz with a UTF-8 decode error on the gzip header byte."""
+    import gzip
+    from thermocas.io import write_jsonl
+    from thermocas.models import CandidateSite, Strand
+
+    cand = CandidateSite(
+        candidate_id="x", chrom="chr1", critical_c_pos=10,
+        strand=Strand.PLUS, pam="ACGTCGA", pam_family="NNNNCGA", is_cpg_pam=True,
+    )
+    out = tmp_path / "tiny.jsonl.gz"
+    # write directly via gzip to be sure the file is *actually* gzipped
+    with gzip.open(out, "wt") as f:
+        f.write(cand.model_dump_json() + "\n")
+
+    rc = main(["inspect", str(out)])
+    assert rc == 0
+    captured = capsys.readouterr().out
+    assert "1 records (CandidateSite)" in captured
+
+
 def test_cli_gdc_backend_rejected_in_score_cohort(tmp_path: Path, capsys):
     """V2 — score-cohort still rejects --backend gdc; users should run gdc-fetch first."""
     catalog = _write(tmp_path / "catalog.jsonl", "")

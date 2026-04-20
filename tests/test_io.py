@@ -45,6 +45,25 @@ def test_jsonl_atomic_writes_then_replaces(tmp_path: Path):
     assert not (tmp_path / "candidates.jsonl.tmp").exists()
 
 
+def test_jsonl_atomic_writes_real_gzip_for_gz_outputs(tmp_path: Path):
+    """Regression: write_jsonl_atomic was renaming `.tmp` AFTER `.gz`, so the
+    temp file went through plain-text IO and the final `.gz` was uncompressed.
+    The fix inserts `.tmp` BEFORE the suffix so gzip dispatch works."""
+
+    import gzip
+
+    out = tmp_path / "candidates.jsonl.gz"
+    write_jsonl_atomic(out, [_candidate("a", 1), _candidate("b", 2)])
+    assert out.exists()
+    # File must actually be gzip — read with gzip.open and verify content.
+    with gzip.open(out, "rt") as f:
+        body = f.read()
+    assert body.count("\n") == 2
+    # And read_jsonl (which also goes through _open_text) must round-trip.
+    rows = list(read_jsonl(out, CandidateSite))
+    assert [r.candidate_id for r in rows] == ["a", "b"]
+
+
 def test_iter_fasta_handles_multiline_records(tmp_path: Path):
     fa = tmp_path / "tiny.fa"
     fa.write_text(">chr1 description here\nACGT\nACGT\n>chr2\nTTTT\n")

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from thermocas.models import Strand
 from thermocas.pam_model import PamModel, find_pam_matches, reverse_complement
 
@@ -60,6 +62,26 @@ def test_find_pam_matches_no_false_positives():
     # All-A sequence should match nothing
     matches = find_pam_matches("A" * 30, model)
     assert matches == []
+
+
+def test_pam_model_rejects_duplicate_family_names():
+    """Regression: duplicate family names silently rescore matches against the
+    first definition because find_pam_matches stores only the family name and
+    PamModel.get returns the first hit. Reject at load time."""
+
+    from pydantic import ValidationError
+
+    from thermocas.models import PamFamily
+
+    with pytest.raises(ValidationError, match="duplicate family names"):
+        PamModel(pam_families=[
+            PamFamily(name="DUP",
+                      regex="[ACGT][ACGT][ACGT][ACGT]CG[AG]",
+                      critical_c_offset=4, is_cpg=True, weight=1.0),
+            PamFamily(name="DUP",
+                      regex="[ACGT][ACGT][ACGT][ACGT]CC[AG]",
+                      critical_c_offset=4, is_cpg=False, weight=0.1),
+        ])
 
 
 def test_find_pam_matches_returns_overlapping_pams():

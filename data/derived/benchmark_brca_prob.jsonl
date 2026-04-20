@@ -1,0 +1,1 @@
+{"cohort_name":"TCGA-BRCA prob","n_total":2979997,"n_positives":27,"n_negatives":2979970,"held_out_chromosomes":[],"top_k":100,"precision_at_k":0.0,"recall_at_k":0.0,"roc_auc":0.4604153546661357}

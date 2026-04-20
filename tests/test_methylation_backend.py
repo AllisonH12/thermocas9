@@ -42,6 +42,23 @@ def test_summarize_single_sample_collapses():
     assert s.q25 == 0.42 and s.q75 == 0.42
 
 
+def test_summarize_quartiles_stay_in_observed_range_for_small_n():
+    """Regression: V3 method='exclusive' extrapolated outside [0.85, 0.90]
+    (q25=0.8375, q75=0.9125) for two-sample input — invented support that
+    never existed. The framework now uses 'inclusive' + a hard clamp to the
+    empirical sample range."""
+
+    s = _summarize("cg001", [0.85, 0.90])
+    assert s.q25 is not None and s.q75 is not None
+    assert 0.85 <= s.q25 <= 0.90
+    assert 0.85 <= s.q75 <= 0.90
+
+    s2 = _summarize("cg002", [0.05, 0.10])
+    assert s2.q25 is not None and s2.q75 is not None
+    assert 0.05 <= s2.q25 <= 0.10
+    assert 0.05 <= s2.q75 <= 0.10
+
+
 def test_local_array_backend_loads_and_summarizes(tmp_path: Path):
     probes = _write(
         tmp_path / "probes.tsv",

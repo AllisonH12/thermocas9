@@ -65,6 +65,13 @@ def _build_parser() -> argparse.ArgumentParser:
                     help="Reference genome FASTA (.fa, .fa.gz, .fasta, .fasta.gz)")
     bc.add_argument("--pam-model", required=True, type=Path,
                     help="YAML PAM model (e.g. config/pam_model.yaml)")
+    bc.add_argument("--probe-annotation", type=Path,
+                    help="Optional probe annotation TSV; when provided, only candidates "
+                         "within --probe-window-bp of an assayed probe are kept "
+                         "(drops most would-be UNOBSERVED candidates)")
+    bc.add_argument("--probe-window-bp", type=int, default=500,
+                    help="Maximum bp distance from a probe to keep a candidate "
+                         "(default 500, matching the V1 'regional' EvidenceClass cap)")
     bc.add_argument("--output", required=True, type=Path,
                     help="Output JSONL of CandidateSite records")
     bc.set_defaults(func=_cmd_build_catalog)
@@ -136,6 +143,11 @@ def _build_parser() -> argparse.ArgumentParser:
     bn.add_argument("--score-field", default="final_score",
                     choices=["final_score", "p_therapeutic_selectivity", "spacer_final_score"],
                     help="Which scalar to rank by (V2 probabilistic / V3 spacer also supported)")
+    bn.add_argument("--missing-score-policy", default="rank_last",
+                    choices=["rank_last", "drop", "error"],
+                    help="How to handle candidates lacking the requested sub-score "
+                         "(default: rank_last — they count toward n_total but never "
+                         "outrank a candidate that has the sub-score)")
     bn.add_argument("--held-out-chromosomes", nargs="*", default=[],
                     help="Chromosomes excluded from training; only candidates on "
                          "these chroms are evaluated unless --no-enforce-holdout")
@@ -150,7 +162,7 @@ def _build_parser() -> argparse.ArgumentParser:
     gd = sub.add_parser(
         "gdc-fetch",
         help="V2 — download a TCGA cohort from GDC and export "
-             "LocalArrayBackend-compatible TSVs.",
+             "LocalSummaryBackend-compatible per-probe summary TSVs.",
     )
     gd.add_argument("--project", required=True,
                     help="GDC project_id, e.g. TCGA-BRCA")
@@ -196,10 +208,19 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _cmd_build_catalog(args: argparse.Namespace) -> int:
+    from thermocas.catalog import probe_window_filter
+
     pam_model = PamModel.from_yaml(args.pam_model)
-    candidates = stream_catalog(args.reference, pam_model)
+    region_filter = None
+    if args.probe_annotation is not None:
+        region_filter = probe_window_filter(args.probe_annotation, args.probe_window_bp)
+    candidates = stream_catalog(args.reference, pam_model, region_filter=region_filter)
     n = write_jsonl_atomic(args.output, candidates)
-    print(f"build-catalog: wrote {n} candidates → {args.output}")
+    suffix = (
+        f" (probe-filtered, ±{args.probe_window_bp} bp)"
+        if region_filter is not None else ""
+    )
+    print(f"build-catalog: wrote {n} candidates{suffix} → {args.output}")
     return 0
 
 
@@ -279,22 +300,32 @@ def _cmd_score_cohort_by_subtype(
 def _cmd_inspect(args: argparse.Namespace) -> int:
     """V3 — print a quick summary of any JSONL artifact, auto-detecting the record type.
 
+    Streams the file: histograms run incrementally, top-N uses a heap so memory
+    stays O(N + top_k) regardless of artifact size. This matches the framework's
+    streaming design — `inspect` works on a 100 GB catalog without OOM.
+
     Detection peeks at the first record's keys: if it has a `candidate` field
     we treat it as ScoredCandidate; if it has `n_cohorts_observed` we treat
     it as PanCancerAggregate; if it has `precision_at_k` it's BenchmarkResult;
     otherwise it's CandidateSite.
     """
 
+    import heapq
     import json
 
-    with args.file.open() as f:
-        lines = [line.rstrip("\n") for line in f if line.strip()]
+    from thermocas.io import _open_text  # noqa: PLC0415
 
-    if not lines:
+    # First pass: detect the record type from the first non-empty line.
+    with _open_text(args.file, "rt") as f:
+        first_line = ""
+        for ln in f:
+            if ln.strip():
+                first_line = ln.strip()
+                break
+    if not first_line:
         print(f"{args.file}: empty")
         return 0
-
-    first = json.loads(lines[0])
+    first = json.loads(first_line)
     if "candidate" in first and "components" in first:
         kind = "ScoredCandidate"
     elif "n_cohorts_observed" in first:
@@ -306,50 +337,107 @@ def _cmd_inspect(args: argparse.Namespace) -> int:
     else:
         kind = "unknown"
 
-    print(f"{args.file}: {len(lines)} records ({kind})")
-
+    # Second pass: stream. For --head, stop after N lines.
     if args.head > 0:
-        for raw in lines[: args.head]:
-            print(raw)
+        # Don't even count the rest; just print the first N raw records.
+        with _open_text(args.file, "rt") as f:
+            count = 0
+            for ln in f:
+                if not ln.strip():
+                    continue
+                if count >= args.head:
+                    break
+                print(ln.rstrip())
+                count += 1
         return 0
 
+    n_total = 0
     if kind == "ScoredCandidate":
-        rows = [json.loads(line) for line in lines]
-        rows.sort(key=lambda r: r.get("final_score", 0), reverse=True)
-        print(f"  top {min(args.top, len(rows))} by final_score:")
+        # heap of (score, tuple) so heapq.nlargest gives top-K by score.
+        # Use a bounded heap: O(top_k) memory.
+        heap: list[tuple[float, str, str, str]] = []
+        with _open_text(args.file, "rt") as f:
+            for ln in f:
+                if not ln.strip():
+                    continue
+                n_total += 1
+                r = json.loads(ln)
+                key = (
+                    r.get("final_score", 0.0),
+                    r["candidate"]["candidate_id"],
+                    r["observation"]["evidence_class"],
+                    r["candidate"]["candidate_id"],  # ignored; just for tuple uniqueness
+                )
+                if len(heap) < args.top:
+                    heapq.heappush(heap, key)
+                elif key > heap[0]:
+                    heapq.heapreplace(heap, key)
+        top = sorted(heap, reverse=True)
+        print(f"{args.file}: {n_total} records ({kind})")
+        print(f"  top {len(top)} by final_score:")
         print(f"  {'rank':>4}  {'candidate_id':<48}  {'evidence':<14}  {'score':>8}")
-        for i, r in enumerate(rows[: args.top], 1):
-            ec = r["observation"]["evidence_class"]
-            cid = r["candidate"]["candidate_id"]
-            print(f"  {i:>4}  {cid:<48}  {ec:<14}  {r['final_score']:>8.3f}")
+        for i, (score, cid, ec, _) in enumerate(top, 1):
+            print(f"  {i:>4}  {cid:<48}  {ec:<14}  {score:>8.3f}")
 
     elif kind == "PanCancerAggregate":
-        rows = [json.loads(line) for line in lines]
-        rows.sort(key=lambda r: r.get("pan_cancer_score", 0), reverse=True)
-        print(f"  top {min(args.top, len(rows))} by pan_cancer_score:")
+        heap: list[tuple[float, str, int, float]] = []
+        with _open_text(args.file, "rt") as f:
+            for ln in f:
+                if not ln.strip():
+                    continue
+                n_total += 1
+                r = json.loads(ln)
+                key = (
+                    r.get("pan_cancer_score", 0.0),
+                    r["candidate_id"],
+                    r["n_cohorts_observed"],
+                    r["recurrence"],
+                )
+                if len(heap) < args.top:
+                    heapq.heappush(heap, key)
+                elif key > heap[0]:
+                    heapq.heapreplace(heap, key)
+        top = sorted(heap, reverse=True)
+        print(f"{args.file}: {n_total} records ({kind})")
+        print(f"  top {len(top)} by pan_cancer_score:")
         print(f"  {'rank':>4}  {'candidate_id':<48}  {'obs':>4}  {'pan':>6}  {'recur':>6}")
-        for i, r in enumerate(rows[: args.top], 1):
-            print(f"  {i:>4}  {r['candidate_id']:<48}  "
-                  f"{r['n_cohorts_observed']:>4}  "
-                  f"{r['pan_cancer_score']:>6.3f}  {r['recurrence']:>6.2f}")
+        for i, (pan, cid, obs, recur) in enumerate(top, 1):
+            print(f"  {i:>4}  {cid:<48}  {obs:>4}  {pan:>6.3f}  {recur:>6.2f}")
 
     elif kind == "BenchmarkResult":
-        for raw in lines:
-            r = json.loads(raw)
-            print(f"  cohort={r['cohort_name']}  n={r['n_total']}  pos={r['n_positives']}  "
-                  f"P@{r['top_k']}={_fmt(r.get('precision_at_k'))}  "
-                  f"R@{r['top_k']}={_fmt(r.get('recall_at_k'))}  "
-                  f"AUC={_fmt(r.get('roc_auc'))}")
+        # BenchmarkResult files are tiny (one record per cohort run); just print all.
+        print(f"{args.file}: ({kind})")
+        with _open_text(args.file, "rt") as f:
+            for ln in f:
+                if not ln.strip():
+                    continue
+                n_total += 1
+                r = json.loads(ln)
+                print(f"  cohort={r['cohort_name']}  n={r['n_total']}  pos={r['n_positives']}  "
+                      f"P@{r['top_k']}={_fmt(r.get('precision_at_k'))}  "
+                      f"R@{r['top_k']}={_fmt(r.get('recall_at_k'))}  "
+                      f"AUC={_fmt(r.get('roc_auc'))}")
 
     elif kind == "CandidateSite":
-        rows = [json.loads(line) for line in lines]
+        # Streaming histograms — O(distinct values) memory.
         by_chrom: dict[str, int] = {}
         by_family: dict[str, int] = {}
-        for r in rows:
-            by_chrom[r["chrom"]] = by_chrom.get(r["chrom"], 0) + 1
-            by_family[r["pam_family"]] = by_family.get(r["pam_family"], 0) + 1
+        with _open_text(args.file, "rt") as f:
+            for ln in f:
+                if not ln.strip():
+                    continue
+                n_total += 1
+                r = json.loads(ln)
+                by_chrom[r["chrom"]] = by_chrom.get(r["chrom"], 0) + 1
+                by_family[r["pam_family"]] = by_family.get(r["pam_family"], 0) + 1
+        print(f"{args.file}: {n_total} records ({kind})")
         print(f"  by chromosome: {dict(sorted(by_chrom.items()))}")
         print(f"  by PAM family: {dict(sorted(by_family.items()))}")
+    else:
+        # Unknown record type — just count.
+        with _open_text(args.file, "rt") as f:
+            n_total = sum(1 for ln in f if ln.strip())
+        print(f"{args.file}: {n_total} records ({kind})")
 
     return 0
 
@@ -376,6 +464,7 @@ def _cmd_benchmark(args: argparse.Namespace) -> int:
         held_out_chromosomes=list(args.held_out_chromosomes),
         enforce_holdout=not args.no_enforce_holdout,
         score_field=args.score_field,
+        missing_score_policy=args.missing_score_policy,
     )
     write_jsonl_atomic(args.output, [result])
     print(

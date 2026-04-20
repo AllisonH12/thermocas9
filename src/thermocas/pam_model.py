@@ -13,7 +13,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from thermocas.models import PamFamily, PamMatch, Strand
 
@@ -27,7 +27,13 @@ def reverse_complement(seq: str) -> str:
 
 
 class PamModel(BaseModel):
-    """Container for a configured set of ThermoCas9 PAM families."""
+    """Container for a configured set of ThermoCas9 PAM families.
+
+    Family names must be unique — `find_pam_matches` stores only the family's
+    name on each `PamMatch`, and `score_cohort` later resolves it through
+    `PamModel.get(name)`. Duplicate names would silently rescore some matches
+    against the wrong family weight, so the loader rejects them up front.
+    """
 
     pam_families: list[PamFamily]
 
@@ -36,6 +42,15 @@ class PamModel(BaseModel):
         with Path(path).open() as f:
             data = yaml.safe_load(f)
         return cls.model_validate(data)
+
+    @model_validator(mode="after")
+    def _unique_family_names(self) -> PamModel:
+        names = [f.name for f in self.pam_families]
+        if len(set(names)) != len(names):
+            from collections import Counter
+            duplicates = sorted(n for n, c in Counter(names).items() if c > 1)
+            raise ValueError(f"PamModel has duplicate family names: {duplicates}")
+        return self
 
     def get(self, name: str) -> PamFamily:
         for fam in self.pam_families:

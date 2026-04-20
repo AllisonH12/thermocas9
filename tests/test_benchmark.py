@@ -219,3 +219,57 @@ def test_evaluate_score_field_dispatch_unknown():
             cohort_name="T", top_k=1,
             score_field="bogus",
         )
+
+
+# ---------- missing-score policies ----------
+
+
+def test_evaluate_missing_score_rank_last_keeps_candidates_in_total():
+    """Regression: V3 score fields like spacer_final_score are missing on many
+    candidates. rank_last (the default) keeps them in n_total/n_positives, never
+    above a candidate that has the score. The pre-fix `drop` behavior silently
+    shrank the evaluation set."""
+
+    p1 = _scored("p1", 0.9)  # has final_score; spacer is None
+    n1 = _scored("n1", 0.5)  # has final_score; spacer is None
+    r = evaluate_ranking(
+        [p1, n1], {"p1"}, cohort_name="T", top_k=1,
+        score_field="spacer_final_score",
+    )
+    # Both candidates should count even though both lack spacer scores.
+    assert r.n_total == 2
+    assert r.n_positives == 1
+    assert r.n_negatives == 1
+    # AUC undefined here because both ranks tie at -inf → 0.5
+    assert r.roc_auc == pytest.approx(0.5)
+
+
+def test_evaluate_missing_score_drop_preserves_v30_behavior():
+    """Opt-in to the V3.0 behavior for backward-compat numerics."""
+    p1 = _scored("p1", 0.9)
+    r = evaluate_ranking(
+        [p1], {"p1"}, cohort_name="T", top_k=1,
+        score_field="spacer_final_score",
+        missing_score_policy="drop",
+    )
+    assert r.n_total == 0
+    assert r.n_positives == 0
+    assert r.precision_at_k is None
+
+
+def test_evaluate_missing_score_error_raises():
+    p1 = _scored("p1", 0.9)
+    with pytest.raises(ValueError, match="has no 'spacer_final_score'"):
+        evaluate_ranking(
+            [p1], {"p1"}, cohort_name="T", top_k=1,
+            score_field="spacer_final_score",
+            missing_score_policy="error",
+        )
+
+
+def test_evaluate_missing_score_policy_validated():
+    with pytest.raises(ValueError, match="missing_score_policy"):
+        evaluate_ranking(
+            [_scored("p1", 0.5)], {"p1"}, cohort_name="T", top_k=1,
+            missing_score_policy="bogus",
+        )

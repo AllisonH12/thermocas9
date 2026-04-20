@@ -80,12 +80,17 @@ def _summarize(probe_id: str, betas: list[float | None]) -> BetaSummary:
     if n < 2:
         # quantiles undefined for n < 2; fall back to point summary
         return BetaSummary(probe_id=probe_id, n_samples=n, mean=mean, q25=mean, q75=mean)
-    # statistics.quantiles uses exclusive method by default: returns 3 cuts at .25, .50, .75
-    qs = statistics.quantiles(clean, n=4, method="exclusive")
+    # `inclusive` (rather than exclusive) keeps quartiles within the empirical
+    # support — important for small subtype splits where exclusive quartile
+    # extrapolation invents methylation outside any observed sample.
+    qs = statistics.quantiles(clean, n=4, method="inclusive")
     q25, _q50, q75 = qs[0], qs[1], qs[2]
-    # clamp into [0, 1] to honor the model invariant; rounding errors can push slightly out
-    q25 = max(0.0, min(1.0, q25))
-    q75 = max(0.0, min(1.0, q75))
+    # Hard clamp to the observed sample range — defensive, since `inclusive`
+    # already keeps us inside but we want the invariant to hold even if the
+    # underlying stdlib changes its semantics.
+    obs_min, obs_max = min(clean), max(clean)
+    q25 = max(obs_min, min(obs_max, q25))
+    q75 = max(obs_min, min(obs_max, q75))
     mean = max(q25, min(q75, mean))  # ensure mean lies within [q25, q75]
     return BetaSummary(probe_id=probe_id, n_samples=n, mean=mean, q25=q25, q75=q75)
 

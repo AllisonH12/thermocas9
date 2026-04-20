@@ -286,6 +286,49 @@ def test_extract_spacer_returns_none_when_pam_not_at_expected_position():
     assert score_spacer(cand, _CGA_FAMILY) is None
 
 
+def test_extract_spacer_handles_minus_strand_candidates():
+    """Regression: catalog._local_context() reverse-complements minus-strand
+    windows, so the critical-C lands at index `len(seq)-1-fwd_idx`, not at
+    `min(critical_c_pos, 50)`. Earlier extract_spacer assumed plus-strand
+    indexing and silently dropped every minus-strand candidate."""
+
+    from pathlib import Path
+
+    from thermocas.catalog import build_catalog
+    from thermocas.models import Strand
+    from thermocas.pam_model import PamModel
+
+    REPO_ROOT = Path(__file__).resolve().parent.parent
+    pam_model = PamModel.from_yaml(REPO_ROOT / "config" / "pam_model.yaml")
+
+    # Single-chrom synthetic FASTA with both strands matchable.
+    # AAATCGACGTAAA on the forward strand contains the minus-strand NNNNCGA
+    # match (rev-comp of TCGACGT is ACGTCGA → NNNNCGA hits the minus strand).
+    # We pad it out to 200 bp so non-edge candidates exist.
+    import tempfile
+    with tempfile.NamedTemporaryFile("w", suffix=".fa", delete=False) as fh:
+        fh.write(">chr1\n" + "G" * 80 + "AAATCGACGTAAA" + "G" * 100 + "\n")
+        fa = Path(fh.name)
+    try:
+        candidates, _stats = build_catalog(fa, pam_model)
+    finally:
+        fa.unlink()
+
+    minus_cga = [
+        c for c in candidates
+        if c.pam_family == "NNNNCGA" and c.strand == Strand.MINUS
+    ]
+    assert minus_cga, "expected at least one minus-strand NNNNCGA candidate"
+
+    fam = pam_model.get("NNNNCGA")
+    extracted = [extract_spacer(c, fam) for c in minus_cga]
+    # At least one minus-strand candidate must produce a valid spacer.
+    assert any(s is not None and len(s) == SPACER_LEN for s in extracted), (
+        "minus-strand candidates all rejected — extract_spacer's anchor "
+        "formula is wrong for revcomp'd local contexts"
+    )
+
+
 def test_extract_spacer_rejects_family_mismatch():
     """Calling with a PamFamily whose name doesn't match the candidate's
     pam_family is a programmer bug; refuse rather than guess."""

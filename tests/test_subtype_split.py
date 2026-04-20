@@ -24,6 +24,27 @@ def test_read_sample_subtypes(tmp_path: Path):
     assert m == {"T1": "LumA", "T2": "LumB", "T3": "Basal", "T4": "LumA"}
 
 
+def test_read_sample_subtypes_rejects_conflicting_duplicates(tmp_path: Path):
+    """Regression: a sample mapped to two different subtypes used to silently
+    keep the last one and route that sample to the wrong cohort."""
+    p = _write(
+        tmp_path / "subtypes.tsv",
+        "sample_id\tsubtype\nS1\tLumA\nS2\tBasal\nS1\tLumB\n",
+    )
+    with pytest.raises(ValueError, match="conflicting subtypes"):
+        read_sample_subtypes(p)
+
+
+def test_read_sample_subtypes_tolerates_identical_duplicates(tmp_path: Path):
+    """Identical duplicate rows are harmless and must not raise."""
+    p = _write(
+        tmp_path / "subtypes.tsv",
+        "sample_id\tsubtype\nS1\tLumA\nS1\tLumA\nS2\tBasal\n",
+    )
+    m = read_sample_subtypes(p)
+    assert m == {"S1": "LumA", "S2": "Basal"}
+
+
 def test_read_sample_subtypes_rejects_missing_columns(tmp_path: Path):
     p = _write(tmp_path / "bad.tsv", "sample_id\tx\nT1\tLumA\n")
     with pytest.raises(ValueError, match="sample_id, subtype"):

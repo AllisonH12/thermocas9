@@ -66,6 +66,7 @@ def evaluate_ranking(
     held_out_chromosomes: list[str] | None = None,
     enforce_holdout: bool = True,
     score_field: str = "final_score",
+    missing_score_policy: str = "rank_last",
 ) -> BenchmarkResult:
     """Measure ranking quality of `scored` against a known-positives set.
 
@@ -85,11 +86,23 @@ def evaluate_ranking(
             recorded only as metadata.
         score_field: which scalar to rank by. Default is the deterministic
             `final_score`. Pass `"p_therapeutic_selectivity"` to rank by the
-            V2 probabilistic composite instead.
+            V2 probabilistic composite, or `"spacer_final_score"` for V3.
+        missing_score_policy: how to handle candidates that lack the requested
+            sub-score (e.g. ranking by `spacer_final_score` when `spacer=None`):
+              * `"rank_last"` (default) — assign −∞ so the candidate counts
+                toward `n_total` / `n_positives` / `n_negatives` but never
+                ranks above any candidate that *does* have the sub-score
+              * `"drop"` — silently exclude (the V3.0 behavior; preserves the
+                old numerics, hides "I don't know" candidates)
+              * `"error"` — raise on the first missing sub-score
     """
 
     if top_k < 1:
         raise ValueError("top_k must be >= 1")
+    if missing_score_policy not in {"rank_last", "drop", "error"}:
+        raise ValueError(
+            f"missing_score_policy must be rank_last|drop|error, got {missing_score_policy!r}"
+        )
 
     holdout_set: set[str] = set(held_out_chromosomes or [])
     if enforce_holdout and not holdout_set:
@@ -98,12 +111,19 @@ def evaluate_ranking(
         enforce_holdout = False
 
     pairs: list[tuple[str, float, bool]] = []
+    missing_sentinel = float("-inf")
     for sc in scored:
         if enforce_holdout and sc.candidate.chrom not in holdout_set:
             continue
         score = _extract_score(sc, score_field)
         if score is None:
-            continue
+            if missing_score_policy == "drop":
+                continue
+            if missing_score_policy == "error":
+                raise ValueError(
+                    f"candidate {sc.candidate.candidate_id} has no {score_field!r}"
+                )
+            score = missing_sentinel  # rank_last
         pairs.append((sc.candidate.candidate_id, score, sc.candidate.candidate_id in positives))
 
     n_total = len(pairs)
