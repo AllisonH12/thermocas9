@@ -232,6 +232,42 @@ quantile separation rewards clean class separation, not just shifts in mean.
 
 ## Limitations and caveats
 
+### V2 scoring modes (`probabilistic_mode`)
+
+The cohort YAML's `probabilistic_mode` controls which factors enter the
+probabilistic composite `p_therapeutic_selectivity`:
+
+| mode | composite | when to use |
+|---|---|---|
+| `tumor_only` (default) | `p_targ × p_trust` | cohorts where the normal comparator does NOT systematically methylate target promoters (TCGA adjacent-normal bulk, and surprisingly MCF-10A for gene-body probes) |
+| `tumor_plus_normal_protection` | `p_targ × p_prot × p_trust` | opt-in when normal biology genuinely supports `P(β_normal > 0.5)` as a protection signal |
+
+Both modes emit `p_targetable_tumor`, `p_protected_normal`, and
+`p_observation_trustworthy` for auditability — the `mode` field on
+`ProbabilisticScore` records which policy was in effect. The ablation below
+drove the decision.
+
+**Phase 5 ablation result on the MCF-7 vs MCF-10A surrogate (GSE77348,
+NOT the Roth samples):**
+
+| score axis | AUC (loose) | AUC (tight) |
+|---|---|---|
+| `p_targ` alone | 0.683 | 0.717 |
+| `v1_final` | 0.657 | 0.628 |
+| `naive_selectivity` (β_normal − β_tumor) | 0.608 | 0.571 |
+| `p_targ × p_prot` (ablation) | 0.503 | 0.488 |
+| `p_prot` alone | **0.384** | **0.343** (inverted) |
+
+`p_protected_normal` is anti-predictive. Its multiplicative composition
+with `p_targ` destroys the signal. `tumor_only` mode avoids this.
+
+**Known trade-off:** `tumor_only` gives higher AUC but its top-100 is
+dominated by candidates where both tumor AND normal are low-methylated
+(always-unmethylated loci, not cancer-selective). For Roth-style target
+discovery where *differential* matters, a future differential-based mode
+(`P(β_normal − β_tumor > δ)` rather than the threshold-based `p_prot`)
+is the natural next step. Not yet implemented.
+
 ### The V2 probabilistic `P(protected_normal)` factor encodes an assumption
 
 V2 probabilistic scoring decomposes therapeutic selectivity as

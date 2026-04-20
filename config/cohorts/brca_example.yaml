@@ -10,6 +10,13 @@ cohort:
   min_samples_tumor: 30
   min_samples_normal: 10
 
+  # V2.4 — which factors participate in the probabilistic composite.
+  #   tumor_only                   : p_sel = p_targ × p_trust (safer default)
+  #   tumor_plus_normal_protection : p_sel = p_targ × p_prot × p_trust
+  # See README §"Scoring modes" for guidance. `tumor_only` is recommended
+  # for TCGA adjacent-normal bulk — p_protected_normal inverts there.
+  probabilistic_mode: tumor_only
+
 # Evidence-class boundaries (bp) from the critical PAM cytosine to nearest probe.
 # Override per cohort if probe density justifies it.
 evidence_thresholds:

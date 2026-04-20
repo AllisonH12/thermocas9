@@ -172,7 +172,7 @@ def score_candidate(
     if compute_probabilistic:
         # local import to avoid a top-level circular dependency
         from thermocas.probabilistic import probabilistic_score
-        probabilistic = probabilistic_score(observation)
+        probabilistic = probabilistic_score(observation, mode=cohort.probabilistic_mode)
 
     spacer = None
     if compute_spacer:

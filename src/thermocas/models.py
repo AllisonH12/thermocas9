@@ -400,26 +400,44 @@ class SpacerScore(BaseModel):
 # ---------- probabilistic (V2) ----------
 
 
+ProbabilisticMode = Literal["tumor_only", "tumor_plus_normal_protection"]
+
+
 class ProbabilisticScore(BaseModel):
     """V2 probabilistic decomposition: each factor is a probability in [0, 1].
 
-    P(therapeutic_selectivity) = P(targetable_in_tumor)
-                               × P(protected_in_normal)
-                               × P(observation_trustworthy)
+    Per-candidate output. All three factors are always emitted for auditability.
+    Whether `p_protected_normal` participates in `p_therapeutic_selectivity`
+    depends on `mode`:
+
+      * `tumor_only`                    : p_sel = p_targ × p_trust
+      * `tumor_plus_normal_protection`  : p_sel = p_targ × p_prot × p_trust
+
+    `tumor_only` is the framework default because `p_protected_normal` encodes
+    `P(β_normal > 0.5)`, which is anti-predictive on cohorts where the normal
+    comparator doesn't systematically methylate target promoters (TCGA
+    adjacent-normal bulk, and even MCF-10A for gene-body probes — Phase 5b
+    ablation AUC 0.384 for p_prot alone). Opt into
+    `tumor_plus_normal_protection` per cohort only when the normal biology
+    actually supports the assumption.
     """
 
     candidate_id: str
     cohort_name: str
+    mode: ProbabilisticMode = Field(
+        description="Scoring policy — which factors participate in p_therapeutic_selectivity"
+    )
 
     p_targetable_tumor: float = Field(ge=0.0, le=1.0)
     p_protected_normal: float = Field(ge=0.0, le=1.0)
     p_observation_trustworthy: float = Field(ge=0.0, le=1.0)
 
-    @property
-    def p_therapeutic_selectivity(self) -> float:
-        return (
-            self.p_targetable_tumor * self.p_protected_normal * self.p_observation_trustworthy
-        )
+    p_therapeutic_selectivity: float = Field(
+        ge=0.0, le=1.0,
+        description="Composite score computed at scoring time according to `mode`. "
+                    "Stored (not a property) so downstream tools see the actual value "
+                    "without needing to know the mode.",
+    )
 
 
 # ---------- cohort config ----------
@@ -576,3 +594,10 @@ class CohortConfig(BaseModel):
     min_samples_normal: int = Field(default=10, ge=1)
     evidence_thresholds: EvidenceThresholds = EvidenceThresholds()
     penalties: Penalties = Penalties()
+
+    # V2.4 — which factors participate in the probabilistic composite.
+    # Default `tumor_only` because Phase 5b ablation showed p_protected_normal
+    # inverts on cohorts where the normal comparator doesn't systematically
+    # methylate target promoters. Opt into tumor_plus_normal_protection per
+    # cohort only when the biology supports the assumption.
+    probabilistic_mode: ProbabilisticMode = "tumor_only"

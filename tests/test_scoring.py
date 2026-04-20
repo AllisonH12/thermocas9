@@ -163,6 +163,34 @@ def test_score_candidate_rejects_id_mismatch():
         score_candidate(cand, obs, _family(), _cohort())
 
 
+def test_score_candidate_propagates_cohort_probabilistic_mode():
+    """V2.4 — cohort.probabilistic_mode flows through to the emitted record."""
+    cand = _candidate()
+    obs  = _high_selectivity_observation()
+    fam  = _family()
+
+    cohort_to = _cohort().model_copy(update={"probabilistic_mode": "tumor_only"})
+    sc_to = score_candidate(cand, obs, fam, cohort_to, compute_probabilistic=True)
+    assert sc_to.probabilistic is not None
+    assert sc_to.probabilistic.mode == "tumor_only"
+    # tumor_only: p_sel = p_targ × p_trust
+    prob = sc_to.probabilistic
+    expected_to = prob.p_targetable_tumor * prob.p_observation_trustworthy
+    assert prob.p_therapeutic_selectivity == pytest.approx(expected_to)
+
+    cohort_tp = _cohort().model_copy(update={"probabilistic_mode": "tumor_plus_normal_protection"})
+    sc_tp = score_candidate(cand, obs, fam, cohort_tp, compute_probabilistic=True)
+    assert sc_tp.probabilistic is not None
+    assert sc_tp.probabilistic.mode == "tumor_plus_normal_protection"
+    prob_tp = sc_tp.probabilistic
+    expected_tp = (
+        prob_tp.p_targetable_tumor
+        * prob_tp.p_protected_normal
+        * prob_tp.p_observation_trustworthy
+    )
+    assert prob_tp.p_therapeutic_selectivity == pytest.approx(expected_tp)
+
+
 def test_score_candidate_rejects_family_mismatch():
     cand = _candidate()
     obs = _high_selectivity_observation()

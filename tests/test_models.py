@@ -304,9 +304,11 @@ def test_scored_candidate_rejects_cross_cohort_probabilistic():
     bad_prob = ProbabilisticScore(
         candidate_id="x",
         cohort_name="LUAD",   # mismatched cohort
+        mode="tumor_only",
         p_targetable_tumor=0.9,
         p_protected_normal=0.9,
         p_observation_trustworthy=0.9,
+        p_therapeutic_selectivity=0.9 * 0.9,
     )
     components = ScoreComponents(sequence_score=1.0, selectivity_score=0.5, confidence_score=1.0)
     with pytest.raises(ValidationError, match="cohort_name must match"):
@@ -389,12 +391,31 @@ def test_penalties_have_sensible_bounds():
     assert p.low_coverage_n_threshold > 0
 
 
-def test_probabilistic_score_product():
+def test_probabilistic_score_stores_composite_and_mode():
+    """V2.4 — p_therapeutic_selectivity is now a stored field whose value
+    depends on `mode`. Callers MUST pass the precomputed composite; it's no
+    longer a property derived at read time."""
+
     ps = ProbabilisticScore(
         candidate_id="x",
         cohort_name="c",
+        mode="tumor_plus_normal_protection",
         p_targetable_tumor=0.9,
         p_protected_normal=0.8,
         p_observation_trustworthy=0.5,
+        p_therapeutic_selectivity=0.9 * 0.8 * 0.5,
     )
+    assert ps.mode == "tumor_plus_normal_protection"
     assert ps.p_therapeutic_selectivity == pytest.approx(0.9 * 0.8 * 0.5)
+
+    # tumor_only variant
+    ps2 = ProbabilisticScore(
+        candidate_id="x", cohort_name="c",
+        mode="tumor_only",
+        p_targetable_tumor=0.9,
+        p_protected_normal=0.8,
+        p_observation_trustworthy=0.5,
+        p_therapeutic_selectivity=0.9 * 0.5,
+    )
+    assert ps2.mode == "tumor_only"
+    assert ps2.p_therapeutic_selectivity == pytest.approx(0.9 * 0.5)

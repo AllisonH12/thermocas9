@@ -34,7 +34,12 @@ from __future__ import annotations
 
 import math
 
-from thermocas.models import EvidenceClass, MethylationObservation, ProbabilisticScore
+from thermocas.models import (
+    EvidenceClass,
+    MethylationObservation,
+    ProbabilisticMode,
+    ProbabilisticScore,
+)
 
 #: IQR → stdev factor for an approximately normal distribution. Used by the
 #: method-of-moments Beta fit. Real β-value distributions are rarely normal,
@@ -119,6 +124,7 @@ def p_observation_trustworthy(
 def probabilistic_score(
     obs: MethylationObservation,
     *,
+    mode: ProbabilisticMode = "tumor_only",
     unmethylated_threshold: float = DEFAULT_UNMETHYLATED_THRESHOLD,
     methylated_threshold: float = DEFAULT_METHYLATED_THRESHOLD,
     trust_ramp_n: int = DEFAULT_TRUST_RAMP_N,
@@ -127,14 +133,34 @@ def probabilistic_score(
 
     Pure function — no IO, deterministic given inputs. Suitable for direct
     unit testing and vectorized application across genome-wide candidates.
+
+    Args:
+        mode: which factors participate in the composite. See
+            `ProbabilisticScore.mode` for the two supported policies.
+            Default `tumor_only` — safer because p_protected_normal inverts
+            on cohorts where the normal comparator doesn't methylate
+            target promoters.
     """
+
+    p_t = p_targetable_tumor(obs, unmethylated_threshold)
+    p_p = p_protected_normal(obs, methylated_threshold)
+    p_r = p_observation_trustworthy(obs, trust_ramp_n)
+
+    if mode == "tumor_only":
+        p_sel = p_t * p_r
+    elif mode == "tumor_plus_normal_protection":
+        p_sel = p_t * p_p * p_r
+    else:
+        raise ValueError(f"unknown probabilistic_mode: {mode!r}")
 
     return ProbabilisticScore(
         candidate_id=obs.candidate_id,
         cohort_name=obs.cohort_name,
-        p_targetable_tumor=p_targetable_tumor(obs, unmethylated_threshold),
-        p_protected_normal=p_protected_normal(obs, methylated_threshold),
-        p_observation_trustworthy=p_observation_trustworthy(obs, trust_ramp_n),
+        mode=mode,
+        p_targetable_tumor=p_t,
+        p_protected_normal=p_p,
+        p_observation_trustworthy=p_r,
+        p_therapeutic_selectivity=p_sel,
     )
 
 

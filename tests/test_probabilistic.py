@@ -256,20 +256,46 @@ def test_p_observation_trustworthy_strict_ordering_by_evidence():
     assert weights == sorted(weights, reverse=True)
 
 
-def test_probabilistic_score_full_path():
-    """Composition into ProbabilisticScore + p_therapeutic_selectivity property."""
+def test_probabilistic_score_default_mode_is_tumor_only():
+    """V2.4 — default mode is `tumor_only`; p_protected_normal is emitted for
+    auditability but does NOT participate in p_therapeutic_selectivity.
+    p_sel = p_targ × p_trust."""
     obs = _obs()
     ps = probabilistic_score(obs)
-    assert ps.candidate_id == "x" and ps.cohort_name == "c"
+    assert ps.mode == "tumor_only"
     assert 0.0 < ps.p_targetable_tumor <= 1.0
-    assert 0.0 < ps.p_protected_normal <= 1.0
+    assert 0.0 < ps.p_protected_normal <= 1.0   # still emitted
     assert 0.0 < ps.p_observation_trustworthy <= 1.0
+    expected = ps.p_targetable_tumor * ps.p_observation_trustworthy
+    assert ps.p_therapeutic_selectivity == pytest.approx(expected)
+
+
+def test_probabilistic_score_tumor_plus_normal_protection_mode():
+    """Opt-in: p_sel = p_targ × p_prot × p_trust."""
+    obs = _obs()
+    ps = probabilistic_score(obs, mode="tumor_plus_normal_protection")
+    assert ps.mode == "tumor_plus_normal_protection"
     expected = (
         ps.p_targetable_tumor
         * ps.p_protected_normal
         * ps.p_observation_trustworthy
     )
     assert ps.p_therapeutic_selectivity == pytest.approx(expected)
+
+
+def test_probabilistic_score_mode_differs():
+    """The two modes must produce different composites when p_prot ≠ 1.0."""
+    obs = _obs(bn_mean=0.55, bn_q25=0.50, bn_q75=0.60)  # p_prot ~ moderate
+    t = probabilistic_score(obs, mode="tumor_only")
+    tp = probabilistic_score(obs, mode="tumor_plus_normal_protection")
+    # tumor_plus scales down by p_prot, so it must be ≤ tumor_only
+    assert tp.p_therapeutic_selectivity <= t.p_therapeutic_selectivity
+
+
+def test_probabilistic_score_unknown_mode_rejected():
+    from thermocas.probabilistic import probabilistic_score as ps_fn
+    with pytest.raises(ValueError, match="unknown probabilistic_mode"):
+        ps_fn(_obs(), mode="bogus")  # type: ignore[arg-type]
 
 
 def test_probabilistic_score_zero_for_unobserved():

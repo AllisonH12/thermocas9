@@ -3,7 +3,7 @@
 Roth et al., Nature 2026 — DOI 10.1038/s41586-026-10384-z.
 """
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 
 from thermocas.benchmark import evaluate_ranking, split_by_chrom
 from thermocas.catalog import CatalogStats, build_catalog, stream_catalog
@@ -38,6 +38,7 @@ from thermocas.models import (
     PamMatch,
     PanCancerAggregate,
     Penalties,
+    ProbabilisticMode,
     ProbabilisticScore,
     ScoreComponents,
     ScoredCandidate,
@@ -89,6 +90,7 @@ __all__ = [
     "PamModel",
     "PanCancerAggregate",
     "Penalties",
+    "ProbabilisticMode",
     "ProbabilisticScore",
     "ProbeRecord",
     "ScoreComponents",
