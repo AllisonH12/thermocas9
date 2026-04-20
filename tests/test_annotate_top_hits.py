@@ -58,6 +58,35 @@ def test_top_k_by_tie_break_is_candidate_id_ascending(tmp_path: Path):
     )
 
 
+def test_top_k_by_tie_break_handles_prefix_candidate_ids(tmp_path: Path):
+    """Regression: byte-negation of UTF-8 bytes does not invert Python's
+    native string ordering for prefix-related IDs (`a` < `ab` < `ac`).
+
+    With all three records tied and K=2, the shortlist must keep
+    `['a', 'ab']`, not `['ab', 'ac']`.
+    """
+
+    def rec(cid: str, score: float) -> dict:
+        return {
+            "candidate": {
+                "candidate_id": cid, "chrom": "chr1", "critical_c_pos": 10,
+                "strand": "+", "pam": "ACGTCGA", "pam_family": "NNNNCGA",
+                "is_cpg_pam": True, "local_seq_100bp": "",
+            },
+            "observation": {"candidate_id": cid, "cohort_name": "T",
+                            "evidence_class": "exact"},
+            "final_score": score,
+            "probabilistic": None,
+        }
+
+    jsonl = tmp_path / "tied_prefix.jsonl"
+    jsonl.write_text("\n".join(json.dumps(rec(c, 1.0)) for c in ("a", "ab", "ac")) + "\n")
+
+    out = annotate.top_k_by("final_score", jsonl, 2)
+    got = [r["candidate"]["candidate_id"] for r in out]
+    assert got == ["a", "ab"], got
+
+
 # ---------- annotate_gene half-open ----------
 
 
@@ -94,6 +123,23 @@ def test_annotate_gene_inside_is_gene_body():
     # pos 3000 is inside; 3000 - 1000 = 2000 bp from TSS → beyond 1 kb
     # promoter window → gene_body.
     _, _, feat = annotate.annotate_gene("chr1", 3000, tx_list)
+    assert feat == "gene_body"
+
+
+def test_annotate_gene_checks_long_earlier_transcript_overlap():
+    """Regression: tx_list is sorted by tx_start, not tx_end. A short
+    later-starting transcript can end before `pos` while an earlier-starting
+    long transcript still overlaps. The scan must not terminate early on the
+    short transcript's end coordinate.
+    """
+
+    tx_list = [
+        (100, 5000, "+", "LONG"),
+        (1000, 1100, "+", "SHORT_A"),
+        (1500, 1600, "+", "SHORT_B"),
+    ]
+    gene, _, feat = annotate.annotate_gene("chr1", 3000, tx_list)
+    assert gene == "LONG"
     assert feat == "gene_body"
 
 

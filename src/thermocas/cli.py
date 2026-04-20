@@ -379,37 +379,37 @@ def _cmd_inspect(args: argparse.Namespace) -> int:
 
     n_total = 0
     if kind == "ScoredCandidate":
-        # Bounded min-heap of size args.top — we keep the K largest keys.
-        # Tie-break contract matches `evaluate_ranking`: score descending,
-        # candidate_id **ascending** within tied score bands. To invert the
-        # default lex-larger-wins tuple ordering on the secondary key, we
-        # store a byte-negated cid so tuple comparison treats lex-smaller
-        # cids as larger inside tied score bands.
-        heap: list[tuple[float, tuple[int, ...], str, str]] = []
-        with _open_text(args.file, "rt") as f:
-            for ln in f:
-                if not ln.strip():
-                    continue
-                n_total += 1
-                r = json.loads(ln)
-                cid = r["candidate"]["candidate_id"]
-                cid_inv = tuple(-b for b in cid.encode("utf-8"))
-                key = (
-                    r.get("final_score", 0.0),
-                    cid_inv,
-                    cid,
-                    r["observation"]["evidence_class"],
-                )
-                if len(heap) < args.top:
-                    heapq.heappush(heap, key)
-                elif key > heap[0]:
-                    heapq.heapreplace(heap, key)
-        top = sorted(heap, reverse=True)
+        # Match `evaluate_ranking` exactly: final_score descending,
+        # candidate_id ascending inside ties. `heapq.nsmallest` preserves the
+        # same O(N log K) behavior while relying on Python's native string
+        # ordering, which correctly handles prefix relations like `a` < `ab`.
+        def _iter_scored():
+            nonlocal n_total
+            with _open_text(args.file, "rt") as f:
+                for ln in f:
+                    if not ln.strip():
+                        continue
+                    n_total += 1
+                    r = json.loads(ln)
+                    yield {
+                        "score": r.get("final_score", 0.0),
+                        "candidate_id": r["candidate"]["candidate_id"],
+                        "evidence": r["observation"]["evidence_class"],
+                    }
+
+        top = heapq.nsmallest(
+            args.top,
+            _iter_scored(),
+            key=lambda x: (-x["score"], x["candidate_id"]),
+        )
         print(f"{args.file}: {n_total} records ({kind})")
         print(f"  top {len(top)} by final_score:")
         print(f"  {'rank':>4}  {'candidate_id':<48}  {'evidence':<14}  {'score':>8}")
-        for i, (score, _cid_inv, cid, ec) in enumerate(top, 1):
-            print(f"  {i:>4}  {cid:<48}  {ec:<14}  {score:>8.3f}")
+        for i, row in enumerate(top, 1):
+            print(
+                f"  {i:>4}  {row['candidate_id']:<48}  "
+                f"{row['evidence']:<14}  {row['score']:>8.3f}"
+            )
 
     elif kind == "PanCancerAggregate":
         heap: list[tuple[float, str, int, float]] = []

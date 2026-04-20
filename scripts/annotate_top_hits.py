@@ -109,11 +109,16 @@ def annotate_gene(
     # half-open: a tx at [tx_start, tx_end) covers `pos` iff
     # tx_start <= pos < tx_end. Earlier failures of this function treated
     # pos == tx_end as still inside, pulling boundary loci into gene_body.
+    #
+    # Do NOT early-break on tx_end. The list is sorted by tx_start, not tx_end,
+    # so a short later-starting transcript can end before `pos` while an
+    # earlier-starting long transcript still overlaps. We have to scan every
+    # transcript whose start is <= pos.
     starts = [t[0] for t in tx_list]
     idx = bisect.bisect_right(starts, pos) - 1
     overlapping: list[tuple] = []
     j = idx
-    while j >= 0 and tx_list[j][1] > pos:
+    while j >= 0:
         if tx_list[j][0] <= pos < tx_list[j][1]:
             overlapping.append(tx_list[j])
         j -= 1
@@ -205,36 +210,36 @@ def top_k_by(score_field: str, scored_path: Path, k: int) -> list[dict]:
     Tie-break is deterministic and matches `evaluate_ranking`: score
     descending, candidate_id **ascending** within tied score bands.
 
-    Implementation note: a bounded min-heap keeps the K largest keys. To
-    make lex-smaller candidate_ids rank higher inside tied scores, we
-    invert each cid into a byte-negated tuple so that tuple comparison
-    of (score, cid_inv) puts smaller cids at the top — matching the
-    `(-score, cid)` ascending-pair sort in `evaluate_ranking`.
+    Implementation note: use `heapq.nsmallest` with the exact benchmark key
+    `(-score, candidate_id)`. This preserves the same ordering contract as
+    `evaluate_ranking`, including prefix-related candidate IDs like `a` < `ab`.
     """
     if score_field not in ("final_score", "p_therapeutic_selectivity"):
         raise ValueError(f"unsupported score_field: {score_field!r}")
 
-    heap: list[tuple[float, tuple[int, ...], str, dict]] = []
-    with scored_path.open() as f:
-        for line in f:
-            r = json.loads(line)
-            if score_field == "final_score":
-                s = r["final_score"]
-            else:
-                prob = r.get("probabilistic")
-                if not prob:
-                    continue
-                s = prob["p_therapeutic_selectivity"]
-            cid = r["candidate"]["candidate_id"]
-            cid_inv = tuple(-b for b in cid.encode("utf-8"))
-            key = (s, cid_inv, cid, r)
-            if len(heap) < k:
-                heapq.heappush(heap, key)
-            elif key > heap[0]:
-                heapq.heapreplace(heap, key)
+    def _iter_records():
+        with scored_path.open() as f:
+            for line in f:
+                r = json.loads(line)
+                if score_field == "final_score":
+                    score = r["final_score"]
+                else:
+                    prob = r.get("probabilistic")
+                    if not prob:
+                        continue
+                    score = prob["p_therapeutic_selectivity"]
+                yield {
+                    "record": r,
+                    "score": score,
+                    "candidate_id": r["candidate"]["candidate_id"],
+                }
 
-    heap.sort(reverse=True)
-    return [r for (_, _, _, r) in heap]
+    top = heapq.nsmallest(
+        k,
+        _iter_records(),
+        key=lambda x: (-x["score"], x["candidate_id"]),
+    )
+    return [x["record"] for x in top]
 
 
 # ---------- CLI ----------
