@@ -1,0 +1,9 @@
+cohort:
+  name: GSE69914-higher-n-differential
+  tumor_dataset: GSE69914-BreastCancer-status2
+  normal_dataset: GSE69914-HealthyNormal-status0
+  platform: HM450
+  min_samples_tumor: 30
+  min_samples_normal: 10
+  probabilistic_mode: tumor_plus_differential_protection
+  differential_delta: 0.2

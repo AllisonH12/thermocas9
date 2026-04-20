@@ -24,3 +24,6 @@ results/*.png
 # ../thermocas-framework-pre-rewrite.bundle (local byte-for-byte backup).
 data/derived/scored_*.jsonl
 data/derived/catalog_*.jsonl
+
+# Transient build logs from cohort builders.
+data/derived/*_build.log

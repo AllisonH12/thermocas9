@@ -232,19 +232,32 @@ quantile separation rewards clean class separation, not just shifts in mean.
 
 ## Recommended score axis
 
-For **target-list generation** (producing a ranked shortlist of candidate
-ThermoCas9 targets for downstream wet-lab validation), use the V1 composite:
+Axis choice depends on cohort type. We have benchmarks on three cohorts
+under a repaired positives list derived from the three Roth et al.
+Fig. 5d validated target coordinates (`EGFLAM T11`, `ESR1 T17`,
+`GATA3 T18`), lifted hg38 → hg19 and cross-checked against our per-probe
+β values:
+
+| cohort type | example | recommended axis | why |
+|---|---|---|---|
+| **matched cell-line / paper-comparable** | GSE322563 (Roth actual), GSE77348 (surrogate) | **V2.5 `tumor_plus_differential_protection`** | Highest AUC at every label granularity (validated / narrow / wide). Up to +0.17 AUC over V1 on the Roth-validated label set. |
+| **primary tumor tissue** | GSE69914 (n=305 / 50) | V2.5 **or** V1, with caveats | `tumor_only` has marginally higher AUC but its top-K is determined by tie-break (`tie_band ≈ 6,500`), not by score. V2.5 has clean tie-band (=2). V1 AUC collapses to ~0.44 on wide positives — worse than random. |
+| **any cohort, top-K stability priority** | — | V1 `final_score` as fallback | V1's continuous-valued score has `tie_band = 1` at every K. Safe to read P@K. |
 
 ```bash
+# cell-line / paper-comparable cohort:
+thermocas benchmark ... --score-field p_therapeutic_selectivity ...
+#                         (with probabilistic_mode: tumor_plus_differential_protection)
+
+# when you specifically need a clean top-K on any cohort:
 thermocas benchmark ... --score-field final_score ...
 ```
 
-V1 `final_score` is the recommended discovery ranking. Its top-100 is
-dominated by genuine differential-methylation candidates (β_tumor ≈ 0,
-β_normal ≈ 1) — the Roth et al. target pattern. V2 probabilistic modes are
-**analysis axes**, not target-discovery axes: they give higher global AUC
-on surrogate benchmarks but their top-100 tails contain always-unmethylated
-loci that are not cancer-selective. See the next section for the ablation.
+V2.5 is **not** an unconditional default. It is the recommended probabilistic
+mode for matched cell-line / paper-comparable biology, subject to low-`n`
+tie-band caveats documented in the next section. `tumor_only` stays
+framed as analysis-only. See `V2_5_REVIEW.md` §8 for the full 3-cohort
+× 3-label-set × 3-mode matrix.
 
 ## Limitations and caveats
 
@@ -255,9 +268,9 @@ probabilistic composite `p_therapeutic_selectivity`:
 
 | mode | composite | suitable for |
 |---|---|---|
-| `tumor_only` (default) | `p_targ × p_trust` | **analysis / global ranking only** — improves AUC on the surrogate, but top-100 is not cancer-selective (see below). Do NOT use alone for target-list generation. |
+| `tumor_only` (default) | `p_targ × p_trust` | **analysis-only** — competitive AUC on tissue, but tie_band at K=100 is 6,500+ on every cohort tested. Do NOT use for target-list generation. |
 | `tumor_plus_normal_protection` | `p_targ × p_prot × p_trust` | opt-in; known anti-predictive on TCGA-BRCA bulk and inverted on the MCF-7/MCF-10A surrogate. Retained for audit. |
-| `tumor_plus_differential_protection` (V2.5) | `p_targ × p_diff × p_trust` where `p_diff = P(β_n − β_t > δ)` | **experimental**; requires `differential_delta` (default 0.2). Clean AUC improvement over V1 on the MCF-7/MCF-10A surrogate; P@100 gain is rank-tie-sensitive on low-`n` cohorts and not robustly demonstrated. Validated on one surrogate cohort only. |
+| `tumor_plus_differential_protection` (V2.5) | `p_targ × p_diff × p_trust` where `p_diff = P(β_n − β_t > δ)` | **experimental**; requires `differential_delta` (default 0.2). Highest AUC among probabilistic axes on matched cell-line cohorts (GSE322563, GSE77348); tie_band scales correctly with `n` (190 at n=2 → 2 at n=305/50). Not the AUC leader on primary tissue cohorts (tumor_only is), but the only probabilistic axis whose top-K is usable there. |
 
 Both modes emit `p_targetable_tumor`, `p_protected_normal`, and
 `p_observation_trustworthy` for auditability — the `mode` field on
@@ -288,37 +301,69 @@ the threshold-based `P(β_normal > 0.5)`) is the natural next step for
 restoring the missing selectivity signal without reintroducing the
 static-threshold assumption. **Wired in as V2.5**:
 `probabilistic_mode = "tumor_plus_differential_protection"` with
-`differential_delta = 0.2` (default). On the MCF-7/MCF-10A surrogate:
+`differential_delta = 0.2` (default).
 
-| score axis | AUC loose | AUC tight | P@100 loose | P@100 tight | tie_band@K |
-|---|---|---|---|---|---|
-| V2.5 `tumor_plus_differential_protection` (δ=0.2) | **0.705** | **0.721** | 0.000† | 0.000† | **299** |
-| V1 `final_score` | 0.657 | 0.628 | 0.040 | 0.030 | 1 |
-| V2 `tumor_only` | 0.733 | 0.770 | 0.000† | 0.000† | ≈500† |
+#### Label-repair note (important)
 
-†**Tie-band at K.** On this `n=3` surrogate, `p_trust` saturates at 0.095
-for all EXACT-evidence candidates, so the top of any `p_trust`-multiplied
-composite collapses to a large tied band. `BenchmarkResult.tie_band_size_at_k`
-is now emitted on every result — when it's > 1 the reported P@K is
-determined by the deterministic secondary sort key
-(`tie_break_policy = "candidate_id_asc"`), not by the primary score.
-On V2.5 differential the top-100 cutoff sits inside a 299-record tied
-band, so P@100 here is uninterpretable as a target-discovery metric.
-V1 `final_score` is continuous-valued and has tie_band = 1 at K=100, so
-its P@100 is a real signal. On richer cohorts where `n` ≫ 30, `p_trust`
-varies continuously and this tied band should dissolve.
+An earlier `positives_tight.txt` benchmark set that selected Roth-gene
+HM450 probes by gene-symbol membership was **noisy supervision** on these
+cohorts. Diagnostic on GSE322563 showed only 23% of "Roth-gene"
+probes had `β_n − β_t > 0.2` on the actual Roth samples — most were
+gene-universe members, not validated target loci. Roth Fig. 5d names
+three exact validated target sites in hg38 (`EGFLAM T11`, `ESR1 T17`,
+`GATA3 T18`) which we lifted to hg19 and used to rebuild the positives
+files:
 
-**Bottom line:** V2.5 is a clean AUC improvement. It fixes the
-biological mis-specification of `p_protected_normal` (threshold → margin)
-and the architecture is sound. The target-discovery P@100 win observed
-offline (0.10 vs V1's 0.04) is rank-tie sensitive on this cohort and
-cannot be robustly claimed as a production ranking gain. `V1 final_score`
-remains the recommended discovery ranking until higher-replicate matched
-validation is available. This mode is experimental-on-main, not released.
+- `data/derived/positives_roth_validated.txt` — 3 candidate_ids, one per Roth target
+- `data/derived/positives_roth_narrow.txt` — 28 candidate_ids, NNNNCGA within ±50 bp
+- `data/derived/positives_roth_wide.txt` — 142 candidate_ids, NNNNCGA within ±500 bp
 
-See [`V2_5_REVIEW.md`](V2_5_REVIEW.md) for the full self-review
-(math audit, code-level review, claims inventory, and the follow-up
-list that must land before V2.5 could become a released default).
+Our per-probe β values at those three sites reproduce Roth's Fig. 5d
+β values exactly (EGFLAM 0.01/0.49, ESR1 0.07/0.94, GATA3 0.02/0.31),
+confirming the hg38 → hg19 liftover and the EPIC-v2 → HM450 probe
+intersect are both correct. Use these files as the primary supervision
+target; the older `positives_tight.txt` / `positives.txt` remain in the
+repo as auxiliary gene-universe labels but are not the authoritative
+benchmark.
+
+#### Cross-cohort matrix under repaired labels
+
+AUC (`tumor_only` → `differential` → `V1`) across all three cohorts:
+
+| cohort | regime | `n` | validated AUC | narrow AUC | wide AUC | V2.5 tie_band |
+|---|---|:---:|---|---|---|---:|
+| **GSE322563** | Roth cell lines | 2/2 | 0.928 / **0.990** / 0.821 | 0.886 / **0.942** / 0.884 | 0.871 / **0.910** / 0.768 | 190 |
+| **GSE77348** | MCF-7/MCF-10A surrogate | 3/3 | 0.912 / **0.982** / 0.968 | 0.911 / **0.983** / 0.969 | 0.887 / **0.949** / 0.931 | 299 |
+| **GSE69914** | primary tissue | 305/50 | **0.803** / 0.773 / 0.660 | **0.843** / 0.711 / 0.539 | **0.874** / 0.726 / 0.435 | **2** |
+
+Bold = best AUC in that row. `tumor_only` tie_band is 6,540–11,848 across
+all three cohorts — its top-K is never usable. `V1` tie_band is 1 on
+every cohort.
+
+Three findings:
+
+1. **V2.5 wins AUC on cell-line cohorts by clear margins.** The label
+   repair lifted V2.5 on GSE322563 from 0.694 → 0.990 (validated) and on
+   GSE77348 from 0.721 → 0.982. V1 improved similarly (0.541 → 0.821 on
+   GSE322563) — so both were being penalized by noise in the old
+   supervision target, but V2.5 penalized more.
+2. **On primary tissue, `tumor_only` has higher AUC but unusable top-K.**
+   V2.5 is the second-best AUC axis there and the only probabilistic
+   axis whose top-K is interpretable.
+3. **V2.5's tie_band behaves correctly with `n`.** 190 at n=2 → 299 at
+   n=3 → 2 at n=305/50. The `n`-saturation prediction from V2_5_REVIEW §3
+   holds exactly.
+
+**Bottom line.** V2.5 fixes the biological mis-specification of
+`p_protected_normal` (threshold → margin) and is the strongest
+probabilistic axis on matched cell-line cohorts, but it is not an
+unconditional default. V1 stays available as a continuous-score fallback
+with guaranteed top-K stability. `tumor_only` stays analysis-only. V2.5
+remains **experimental-on-main**, pending one more orthogonal
+generalization test on GSE68379.
+
+See [`V2_5_REVIEW.md`](V2_5_REVIEW.md) §8 for the full cross-cohort
+matrix and decision record.
 
 ### The V2 probabilistic `P(protected_normal)` factor encodes an assumption
 

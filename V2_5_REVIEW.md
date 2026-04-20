@@ -244,60 +244,146 @@ Neither is a blocker.
 
 ## 5. Claims inventory — what we can and cannot say
 
+*(Revised after the label repair and the three-cohort cross-check in §8.)*
+
 **Can say:**
 
-- V2.5 is a clean AUC improvement over V1 on the MCF-7/MCF-10A surrogate
-  (+0.048 loose, +0.093 tight).
+- V2.5 is the **highest-AUC probabilistic axis on matched cell-line cohorts**
+  at every label granularity tested. Under the repaired Roth-validated
+  positives, V2.5 AUC is 0.990 on GSE322563 validated (n=3 positives),
+  0.982 on GSE77348 validated — each at least +0.01 above V1 and at
+  least +0.05 above `tumor_only`.
 - V2.5 replaces a biologically mis-specified protection factor
   (`p_prot = P(β > 0.5)`, empirically anti-predictive) with a differential
   factor that makes no absolute-threshold assumption.
 - The composite, the validator, the YAML surface, and the downstream
-  records are internally consistent and contract-tested.
-- V2.5 is opt-in; the default remains `tumor_only`; V1 `final_score`
-  remains the recommended discovery ranking.
+  records are internally consistent and contract-tested. `ProbabilisticScore`
+  additionally now asserts composite = `p_targ × p_diff × p_trust` at
+  construction (P2 fix), so malformed JSONL cannot silently change rankings.
+- V2.5's tie_band behaves correctly with `n` — 190 at n=2 → 299 at n=3 →
+  2 at n=305/50 — confirming the `p_trust`-saturation prediction made
+  in §3 before the higher-`n` cohort was run. This is a prediction that
+  held without tuning after-the-fact.
+- V2.5 reproduces Roth's Fig. 5d β values exactly at the three validated
+  target sites (EGFLAM 0.01/0.49, ESR1 0.07/0.94, GATA3 0.02/0.31),
+  cross-checking the hg38 → hg19 liftover and the EPIC-v2 → HM450 probe
+  intersect.
+- V2.5 is opt-in. The default remains `tumor_only`. V1 `final_score`
+  remains the recommended continuous-score fallback for top-K stability
+  on any cohort type.
 
 **Cannot say:**
 
-- That V2.5 beats V1 on P@100 on this cohort. The apparent P@100 lead
-  is inside a 519-record tied band driven by `p_trust` saturation on
-  `n=3` summaries; tiebreak choice swings the reported value by an
-  order of magnitude.
-- That V2.5 is a production-ready ranking mode for target discovery.
-  That claim needs a higher-replicate matched cohort (MCF-7/MCF-10A
-  with `n` ≥ 30 per side, or a cell-line pair from a deeper series)
-  where `p_trust` does not saturate.
-- That V2.5 matches the Roth et al. validation scheme. The Roth paper
-  cites GSE32256, which resolves to a non-human series; authors have
-  been emailed and the actual accession is unknown.
+- That V2.5 is the universally best axis. On GSE69914 primary tissue
+  `tumor_only` has higher AUC at every label granularity (+0.03 on
+  validated, +0.13 on narrow, +0.15 on wide). `tumor_only`'s top-K is
+  unusable there (tie_band 6,540), so it wouldn't be the right choice
+  for target discovery, but on pure AUC it wins on tissue cohorts.
+- That V2.5 P@100 is competitive across cohorts. P@100 is dominated by
+  the tie band on all three cohorts; the only axis producing a real
+  top-K is V1. V2.5's value is in the continuous ranking above the tied
+  band, not in the top-100 slice per se.
+- That V2.5 generalizes to cohorts outside this test set. GSE68379
+  (Sanger cell-line panel, ~40 breast lines) is the remaining
+  orthogonal generalization test.
 
 ---
 
-## 6. What should happen before V2.5 can be released as default
+## 6. What should happen before V2.5 can be promoted to unconditional default
 
-1. **Higher-replicate matched cohort** where `p_trust` does not saturate.
-   The `n`-dependence predicts the tied band dissolves around `n ≥ 30`.
-2. **Benchmark tie-reporting.** `BenchmarkResult` gains a `tie_band_size`
-   and a P@K range. This is the single highest-leverage follow-up and
-   does not require new science.
-3. **Roth author response.** Confirms or rules out GSE32256 as the
-   source; unblocks whether "V2.5 is the paper-comparable validation
-   path" is defensible.
-4. **Second surrogate benchmark** on a different cell-line pair to rule
-   out MCF-7/MCF-10A-specific artifacts before any V2.5 release claim.
-5. **Stress the sigma_floor and one-sided-quantile paths** with real
-   data where those cases actually occur.
+*(Revised. The earlier list had six items; four are now resolved.)*
 
-None of these block the opt-in mode as-is on `main`. They block the
-stronger public claim.
+1. ~~**Higher-replicate matched cohort** where `p_trust` does not saturate.~~
+   **Done.** GSE69914 n=305/50 ran under all three label granularities.
+   Tie_band dissolved (2 at K=100) as predicted; V2.5 remains the
+   recommended probabilistic axis for top-K usability even though
+   `tumor_only` wins AUC on that cohort.
+2. ~~**Benchmark tie-reporting.**~~ **Done.** `BenchmarkResult`
+   now emits `tie_band_size_at_k` and `tie_break_policy` on every
+   result; `evaluate_ranking` uses a deterministic `candidate_id`
+   secondary sort (P1 fix).
+3. ~~**Roth author response** to confirm GSE accession.~~ **Done**
+   indirectly via the supplementary reporting summary: the correct
+   accession is `GSE322563` (main paper printed `GSE32256` — typo).
+   Ingested and benchmarked; β values match Fig. 5d at all three
+   validated sites.
+4. ~~**Benchmark label repair** to replace gene-universe positives with
+   validated target loci.~~ **Done.** Three new positives files
+   (`positives_roth_{validated,narrow,wide}.txt`) derived from Fig. 5d.
+5. **Second cell-line generalization cohort** — GSE68379 (Sanger GDSC,
+   ~40 breast lines on HM450). **Queued, not yet run.** This is the one
+   remaining item separating V2.5 from "promotion to recommended default
+   for cell-line regime" versus the current "recommended probabilistic
+   mode with cohort-type caveats."
+6. Stress the `sigma_floor` and one-sided-quantile paths on real data
+   where they actually occur. Still open; not a blocker.
 
 ---
 
 ## 7. Decision record
 
-- `v0.4.0` is the last stable release point. Default `probabilistic_mode`
-  is `tumor_only`.
-- V2.5 ships as opt-in on `main`. No tag, no release notes beyond this
-  document and the `[Unreleased]` CHANGELOG section.
-- README, CHANGELOG, model docstrings, and the README-linked practical
-  guidance all state the conservative position explicitly.
-- Follow-up engineering (tie reporting) is queued but not a blocker.
+- `v0.4.0` remains the stable release point. Default `probabilistic_mode`
+  is still `tumor_only`.
+- V2.5 remains experimental-on-main. Not tagged. README, CHANGELOG, and
+  model docstrings now recommend V2.5 for matched cell-line / paper-
+  comparable biology with explicit low-`n` tie-band caveats, while keeping
+  V1 as the continuous-score fallback.
+- Remaining blocker to promoting V2.5 to the recommended default on
+  cell-line cohorts: GSE68379 generalization run.
+- V2.5 cannot be promoted to a universal default under any of these
+  results — `tumor_only`'s tissue-AUC lead + V2.5's tissue-AUC shortfall
+  means there is no regime-agnostic winner. The framing stays
+  cohort-type-dependent.
+
+---
+
+## 8. Cross-cohort readout under repaired Roth-validated labels
+
+Three cohorts, three label granularities, three modes — AUC
+(`tumor_only` → `differential` → `V1`):
+
+| cohort | regime | `n`/side | validated | narrow | wide | V2.5 tie_band |
+|---|---|:---:|---|---|---|---:|
+| **GSE322563** | Roth cell lines | 2/2 | 0.928 / **0.990** / 0.821 | 0.886 / **0.942** / 0.884 | 0.871 / **0.910** / 0.768 | 190 |
+| **GSE77348** | MCF-7/MCF-10A surrogate | 3/3 | 0.912 / **0.982** / 0.968 | 0.911 / **0.983** / 0.969 | 0.887 / **0.949** / 0.931 | 299 |
+| **GSE69914** | primary tissue | 305/50 | **0.803** / 0.773 / 0.660 | **0.843** / 0.711 / 0.539 | **0.874** / 0.726 / 0.435 | **2** |
+
+Bold = best AUC in that row. `tumor_only` tie_band: 6,540 on GSE69914,
+10,005 on GSE322563, 11,848 on GSE77348 — unusable top-K everywhere.
+`V1` tie_band = 1 everywhere (continuous-valued).
+
+### What the matrix shows
+
+- **Cohort-type × mode interaction.** On cell-line cohorts: V2.5 >
+  `tumor_only` > V1. On tissue: `tumor_only` > V2.5 > V1. This is a
+  real interaction, not a label-window artifact: all three
+  granularities agree within each cohort.
+- **Label repair is the dominant source of headline-AUC movement.**
+  V2.5 on GSE322563 went from 0.694 (gene-universe tight) → 0.990
+  (validated). V1 went from 0.541 → 0.821. Both were being penalized;
+  V2.5 was being penalized more. The claim "V2.5 cleanly beats V1 on
+  the paper-comparable cohort" is a function of using the right
+  supervision target, not of the scoring math alone.
+- **V2.5's tie_band dissolves with `n` exactly as predicted.** The §3
+  prediction ("at `n ≳ 30`, `p_trust` stops saturating and the tied
+  band dissolves") has now been tested; at n=305/50 the tie_band is 2.
+  This is the single result that lets us drop the earlier blanket
+  tie-fragility caveat.
+- **`tumor_only`'s AUC-on-tissue lead is not a usable discovery signal.**
+  6,540 tied records at K=100 means the top-100 is determined by the
+  secondary sort, not the score. It is valuable only as a diagnostic
+  axis.
+- **V1 collapses on tissue.** AUC 0.435 on GSE69914 wide labels — worse
+  than random. V1 is the discovery axis where ranking stability
+  matters, but it is not the best AUC axis and its tissue AUC cannot
+  be defended.
+
+### Verdict
+
+V2.5 is now the recommended probabilistic axis on matched cell-line /
+paper-comparable cohorts. It is second-best on tissue but the only
+tissue axis with a usable top-K. It is not universally dominant; the
+framing stays cohort-type-dependent. One external generalization cohort
+(GSE68379, Sanger cell-line panel, HM450) remains queued as the last
+check before promoting V2.5 to the recommended default for cell-line
+regime.

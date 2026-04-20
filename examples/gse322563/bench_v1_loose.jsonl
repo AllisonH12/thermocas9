@@ -1,0 +1,1 @@
+{"cohort_name":"GSE322563-V1-loose","n_total":2979997,"n_positives":1687,"n_negatives":2978310,"held_out_chromosomes":[],"top_k":100,"precision_at_k":0.03,"recall_at_k":0.0017783046828689982,"roc_auc":0.5854919780743884,"tie_band_size_at_k":1,"tie_break_policy":"candidate_id_asc"}

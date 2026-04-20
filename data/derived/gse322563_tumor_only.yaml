@@ -1,0 +1,8 @@
+cohort:
+  name: GSE322563-Roth-tumor-only
+  tumor_dataset: GSE322563-MCF7
+  normal_dataset: GSE322563-MCF10A
+  platform: HM450     # intersect subset of EPIC v2 → HM450 canonical probes
+  min_samples_tumor: 2
+  min_samples_normal: 2
+  probabilistic_mode: tumor_only

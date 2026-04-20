@@ -37,26 +37,68 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   reports AUC + P@100 for δ ∈ {0.2, 0.3, 0.4, 0.5} against both positive
   sets; no package-code changes.
 
-### Empirical readout (MCF-7 vs MCF-10A surrogate, GSE77348 — NOT Roth)
+### Benchmark label repair + cross-cohort empirical readout
 
-| axis | AUC loose | AUC tight | P@100 loose | P@100 tight |
-|---|---|---|---|---|
-| V2.5 `tumor_plus_differential_protection` (δ=0.2) | **0.705** | **0.721** | tie-fragile | tie-fragile |
-| V1 `final_score` | 0.657 | 0.628 | 0.040 | 0.030 |
-| V2 `tumor_only` | 0.733 | 0.770 | 0.000 | 0.000 |
+**Label repair.** Roth Fig. 5d names three exact validated MCF-7/MCF-10A
+target sites (`EGFLAM T11`, `ESR1 T17`, `GATA3 T18`) in hg38. These were
+lifted to hg19 via Ensembl REST (`/map/human/GRCh38/.../GRCh37`) and
+used to build three new positives files:
 
-V2.5 is a clean AUC win over V1 (+0.048 loose, +0.093 tight). P@100 on
-this `n=3` surrogate is determined by whichever tie-break the benchmark
-uses: CLI stream-order gives 0.010/0.000, candidate-id tie-break gives
-0.100/0.100. The mode is not ready to be framed as a new production
-ranking default.
+- `positives_roth_validated.txt` — one candidate_id per target (n=3)
+- `positives_roth_narrow.txt` — NNNNCGA within ±50 bp (n=28)
+- `positives_roth_wide.txt` — NNNNCGA within ±500 bp (n=142)
+
+Our per-probe β values at the three target positions reproduce Roth's
+Fig. 5d β values exactly (EGFLAM 0.01/0.49, ESR1 0.07/0.94,
+GATA3 0.02/0.31) — cross-check confirming liftover + EPIC-v2 → HM450
+intersect are both correct.
+
+The earlier `positives_tight.txt` / `positives.txt` gene-symbol sets
+(970 / 1687 entries) are retained as auxiliary gene-universe labels but
+are no longer the authoritative supervision target: diagnostic on
+GSE322563 showed only 23% of "Roth-gene" probes have `β_n − β_t > 0.2`
+on the actual Roth samples.
+
+**Cross-cohort matrix under repaired labels.** AUC
+(`tumor_only` → `differential` → `V1`):
+
+| cohort | regime | `n`/side | validated | narrow | wide | V2.5 tie_band |
+|---|---|:---:|---|---|---|---:|
+| GSE322563 | Roth cell lines | 2/2 | 0.928 / **0.990** / 0.821 | 0.886 / **0.942** / 0.884 | 0.871 / **0.910** / 0.768 | 190 |
+| GSE77348 | MCF-7/MCF-10A surrogate | 3/3 | 0.912 / **0.982** / 0.968 | 0.911 / **0.983** / 0.969 | 0.887 / **0.949** / 0.931 | 299 |
+| GSE69914 | primary tissue | 305/50 | **0.803** / 0.773 / 0.660 | **0.843** / 0.711 / 0.539 | **0.874** / 0.726 / 0.435 | **2** |
+
+Bold = best AUC in that row. `tumor_only` tie_band is 6,540–11,848
+everywhere. `V1` tie_band is 1 everywhere.
+
+**Three findings:**
+
+1. V2.5 wins AUC on matched cell-line cohorts by clear margins. Label
+   repair lifted V2.5 on GSE322563 from 0.694 → 0.990 at validated;
+   V1 from 0.541 → 0.821. Both were hurt by the old noisy labels; V2.5
+   more so.
+2. On primary tissue, `tumor_only` has higher AUC but unusable top-K
+   (6,540-record tied band at K=100). V2.5 is second-best AUC and the
+   only probabilistic axis whose top-K is interpretable on tissue.
+3. V2.5's tie_band behaves correctly with `n`: 190 at n=2 → 299 at n=3
+   → 2 at n=305/50, confirming the `p_trust`-saturation prediction from
+   V2_5_REVIEW §3.
+
+**Doc framing.** V2.5 is now the recommended probabilistic mode for
+matched cell-line / paper-comparable biology, with low-`n` tie-band
+caveats. `tumor_only` stays analysis-only. V1 stays available as a
+continuous-score fallback for top-K stability across all cohort types.
+V2.5 is **not** promoted to unconditional default — that requires one
+more orthogonal generalization test (GSE68379 is queued).
 
 ### Tests
 
-- 197 → 199. Behavior-level contract tests cover mode dispatch, δ
+- 197 → 203. Behavior-level contract tests cover mode dispatch, δ
   configurability, strict monotonicity in δ, composite formula equals
   `p_targ × p_diff × p_trust` exactly, audit-field consistency, YAML
-  round-trip, and `p_diff = 0.5` at the breakpoint (gap = δ).
+  round-trip, `p_diff = 0.5` at the breakpoint, `ProbabilisticScore`
+  composite-consistency validator (P2 fix), and deterministic tie-break
+  + `tie_band_size_at_k` reporting in `evaluate_ranking` (P1 fix).
 
 ---
 

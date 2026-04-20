@@ -1,0 +1,1 @@
+{"cohort_name":"GSE69914-tumor_only-loose","n_total":2979997,"n_positives":1687,"n_negatives":2978310,"held_out_chromosomes":[],"top_k":100,"precision_at_k":0.0,"recall_at_k":0.0,"roc_auc":0.7422711592086024,"tie_band_size_at_k":6540,"tie_break_policy":"candidate_id_asc"}
