@@ -6,8 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [
-    { name = "Allison Huang" },
-    { name = "Thermocas9 Inc" },
+    { name = "Allison Huang", email = "allisonhmercer@gmail.com" },
 ]
 keywords = [
     "thermocas9",
