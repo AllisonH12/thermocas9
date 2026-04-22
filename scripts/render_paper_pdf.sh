@@ -97,6 +97,25 @@ if [ -z "$DOC_DATE" ]; then
     echo "WARNING: no **Date.** in $SRC and no memo-* tag on disk — falling back to wall-clock date $DOC_DATE; PDF will NOT be reproducible from this source." >&2
 fi
 
+# Export SOURCE_DATE_EPOCH from DOC_DATE so that Typst (and pandoc) embed a
+# reproducible PDF CreationDate/ModDate. Without this, every re-render writes
+# wall-clock timestamps into the PDF metadata, so two renders of the same
+# tagged source produce PDFs that diff at the metadata level even when their
+# rendered content is identical. With SOURCE_DATE_EPOCH set, Typst's
+# embedded timestamps are deterministic and the resulting PDFs are
+# byte-identical across re-renders. Verified: typst 0.14.2 + pandoc 3.9
+# honor this. Date is interpreted at 00:00:00 UTC of DOC_DATE.
+SOURCE_DATE_EPOCH="$(python3 -c "
+import datetime, sys
+y, m, d = (int(x) for x in '$DOC_DATE'.split('-'))
+print(int(datetime.datetime(y, m, d, tzinfo=datetime.timezone.utc).timestamp()))
+" 2>/dev/null)"
+if [ -z "$SOURCE_DATE_EPOCH" ]; then
+    echo "WARNING: could not derive SOURCE_DATE_EPOCH from DOC_DATE=$DOC_DATE — embedded PDF metadata will be wall-clock and PDF will not be byte-identical across re-renders." >&2
+else
+    export SOURCE_DATE_EPOCH
+fi
+
 # mktemp -t on macOS doesn't preserve the trailing .md, so pandoc can't
 # deduce the format from extension. Create a directory and put a .md
 # file inside it — portable and avoids the warning.
