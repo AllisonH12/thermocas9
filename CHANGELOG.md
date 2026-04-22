@@ -123,11 +123,17 @@ recommended-axis table is unchanged.
 ### Pan-cancer aggregation
 
 - New `aggregate_streaming(...)` (and `thermocas aggregate --streaming`)
-  performs a k-way merge over pre-sorted cohort JSONLs. Peak RAM is
-  `O(N_cohorts + N_unique_candidate_ids)` (a small `seen_cid → metadata`
-  map) versus the in-memory path's `O(N_candidates × N_cohorts)`. Both
-  paths now share the per-candidate emit logic and detect cross-cohort
-  metadata mismatches identically.
+  performs a k-way merge over pre-sorted cohort JSONLs. Candidate-side
+  memory grows in `N_unique_candidate_ids` (a small `seen_cid → metadata`
+  map, ~100 B per entry) rather than multiplying by `N_cohorts ×
+  sizeof(ScoredCandidate)` as in the in-memory path. Both paths share
+  the per-candidate emit logic; under valid input they produce
+  byte-identical output.
+- **Parity fix**: both `aggregate(...)` and `aggregate_streaming(...)`
+  now raise `ValueError` on an intra-cohort duplicate `candidate_id`
+  (previously: the in-memory path silently overwrote with the later
+  record, while the streaming path rejected — a contract divergence
+  under malformed input).
 - **Behavior change**: in-memory `aggregate(...)` emission order now
   breaks ties on `(chrom, pos, family)` by `candidate_id` ascending
   (previously: dict-insertion order, i.e. cohort-iteration-order

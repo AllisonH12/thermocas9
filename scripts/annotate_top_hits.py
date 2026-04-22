@@ -262,12 +262,13 @@ def annotate_repeat(
     """Return (in_repeat, repeat_class, repeat_family, repeat_name).
 
     UCSC rmsk intervals are 0-indexed half-open: a repeat at [start, end)
-    contains pos iff start <= pos < end. RepeatMasker output frequently
-    nests (a young SINE inserted inside an older LINE) and an outer
-    repeat's start can lie many entries earlier than the nearest-start
-    repeat. We therefore scan ALL earlier-starting candidates without an
-    early break — same shape as `annotate_gene`. First match in
-    backward-scan order wins, which means the innermost (largest-start)
+    contains pos iff start <= pos < end. rmsk intervals can nest or
+    overlap — RepeatMasker typically fragments an outer repeat at each
+    inner insertion, so deep nesting is uncommon in practice, but it is
+    not structurally forbidden. A defensive full backward scan costs
+    nothing at top-K and guarantees correctness regardless of track-
+    specific invariants. Same shape as `annotate_gene`. First match in
+    backward-scan order wins, so the innermost (largest-start)
     overlapping repeat is preferred — typically the most specific
     annotation a reader wants.
     """

@@ -153,6 +153,15 @@ def aggregate(
     for cohort_name, scored_iter in cohorts.items():
         for sc in scored_iter:
             cid = sc.candidate.candidate_id
+            # Intra-cohort duplicate: a malformed cohort JSONL emitting the
+            # same candidate_id twice for the same cohort used to silently
+            # overwrite with the later record via `.setdefault(cid, {})[name] = sc`.
+            # The streaming path rejects this; keep the two paths' malformed-
+            # input contracts in sync.
+            if cohort_name in by_candidate.get(cid, {}):
+                raise ValueError(
+                    f"cohort {cohort_name!r} contains duplicate candidate_id {cid!r}"
+                )
             by_candidate.setdefault(cid, {})[cohort_name] = sc
             meta = (sc.candidate.chrom, sc.candidate.critical_c_pos, sc.candidate.pam_family)
             existing = candidate_meta.setdefault(cid, meta)
@@ -187,14 +196,18 @@ def aggregate_streaming(
         JSONL before invoking this function.
 
     Memory characteristic:
-        O(N_cohorts + N_unique_candidate_ids). Only the head of each input
-        stream and the records for the current candidate group are held —
-        an order of magnitude smaller than the in-memory `aggregate()`,
-        which holds every ScoredCandidate × cohort_name pair. The
-        `O(N_unique_candidate_ids)` term comes from a `seen_cid → metadata`
-        map used to detect cross-cohort metadata mismatches (see below);
-        the per-entry payload is small (one cid string + one (chrom, pos,
-        family) 3-tuple), so this scales to the working catalog comfortably.
+        Candidate-side memory grows in `N_unique_candidate_ids` rather
+        than multiplying by `N_cohorts × sizeof(ScoredCandidate)`. The
+        streaming path holds:
+          - the head of each input stream (≤ N_cohorts records);
+          - the records for the current candidate group (≤ N_cohorts);
+          - a `seen_cid → (chrom, pos, family)` map used for cross-group
+            metadata-mismatch detection (~100 B per unique cid).
+        The in-memory `aggregate()` instead buffers every ScoredCandidate
+        into a `cid → cohort_name → ScoredCandidate` dict, so its peak
+        RAM scales as `N_unique_candidate_ids × N_cohorts × sizeof(
+        ScoredCandidate)` — fine for small cohorts, impractical at
+        genome scale.
 
     Args:
         sorted_cohorts: cohort_name → pre-sorted iterable of ScoredCandidate.
@@ -236,17 +249,19 @@ def aggregate_streaming(
         key=lambda t: t[0],
     )
 
+    # `current_key` is the 4-tuple (chrom, pos, family, candidate_id) that
+    # defines the current candidate group. key[0:3] gives (chrom, pos,
+    # family), so there's no need to track metadata in a separate variable.
     current_key: tuple[str, int, str, str] | None = None
     current_records: dict[str, ScoredCandidate] = {}
-    current_meta: tuple[str, int, str] | None = None
 
     # cid → first-seen (chrom, pos, family). Required to catch the case
     # where the same candidate_id appears in two cohorts with different
     # metadata: those records land in DIFFERENT merge groups (the merge
-    # key includes metadata), so the per-group consistency check alone
-    # would miss it. Without this map the streaming path would silently
-    # emit two PanCancerAggregate records both labeled with the same cid
-    # — a strictly weaker contract than the in-memory aggregator.
+    # key includes metadata), so per-group grouping alone would miss it.
+    # Without this map the streaming path would silently emit two
+    # PanCancerAggregate records both labeled with the same cid — a
+    # strictly weaker contract than the in-memory aggregator.
     seen_cid_meta: dict[str, tuple[str, int, str]] = {}
 
     def _check_seen(cid: str, meta: tuple[str, int, str]) -> None:
@@ -256,18 +271,12 @@ def aggregate_streaming(
     for key, name, sc in merged:
         if current_key is None:
             current_key = key
-            current_meta = (sc.candidate.chrom, sc.candidate.critical_c_pos,
-                            sc.candidate.pam_family)
         if key != current_key:
-            cid_prev = current_key[3]
-            assert current_meta is not None
             yield _build_aggregate(
-                cid_prev, current_meta[0], current_meta[1], current_meta[2],
+                current_key[3], current_key[0], current_key[1], current_key[2],
                 current_records, high_score_threshold,
             )
             current_key = key
-            current_meta = (sc.candidate.chrom, sc.candidate.critical_c_pos,
-                            sc.candidate.pam_family)
             current_records = {}
 
         cid = sc.candidate.candidate_id
@@ -284,10 +293,9 @@ def aggregate_streaming(
             )
         current_records[name] = sc
 
-    if current_records and current_key is not None and current_meta is not None:
-        cid_last = current_key[3]
+    if current_records and current_key is not None:
         yield _build_aggregate(
-            cid_last, current_meta[0], current_meta[1], current_meta[2],
+            current_key[3], current_key[0], current_key[1], current_key[2],
             current_records, high_score_threshold,
         )
 

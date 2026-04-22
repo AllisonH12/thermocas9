@@ -123,6 +123,41 @@ def test_aggregate_rejects_metadata_mismatch():
         list(aggregate(cohorts))
 
 
+def test_aggregate_rejects_intra_cohort_duplicate_candidate():
+    """Regression: a malformed cohort JSONL emitting the same candidate_id
+    twice for the same cohort used to silently overwrite with the later
+    record via `by_candidate.setdefault(cid, {})[name] = sc`. The streaming
+    aggregator rejects this; the in-memory path must reject it too so
+    both paths have the same contract under malformed input.
+    """
+
+    dup = [
+        _scored("c_100", "BRCA", 0.1),
+        _scored("c_100", "BRCA", 0.9),  # duplicate cid, same cohort
+    ]
+    with pytest.raises(ValueError, match="duplicate candidate_id"):
+        list(aggregate({"BRCA": dup}))
+
+
+def test_aggregate_tie_breaks_by_candidate_id_ascending():
+    """Regression: in-memory aggregate emission order now breaks
+    (chrom, pos, family) ties by candidate_id ascending. Previously the
+    order was dict-insertion-order (cohort-iteration-order dependent).
+    Construct two distinct candidate_ids at identical (chrom, pos, family)
+    and feed them in reverse-cid order — output must still be cid-ascending.
+    """
+
+    sc_z = _scored_at("z_cand", "chr1", 100, "BRCA", 0.6)
+    sc_a = _scored_at("a_cand", "chr1", 100, "BRCA", 0.6)
+    # Insertion order: z first, then a. If the old dict-insertion tie-break
+    # were still in effect, output would be ["z_cand", "a_cand"].
+    out = list(aggregate({"BRCA": [sc_z, sc_a]}))
+    cids = [a.candidate_id for a in out]
+    assert cids == ["a_cand", "z_cand"], (
+        f"expected cid-ascending tie-break, got {cids}"
+    )
+
+
 def test_aggregate_handles_only_unobserved():
     cohorts = {
         "BRCA": [_scored("c_200", "BRCA", 0.0, observed=False)],
