@@ -895,7 +895,7 @@ already invariant within tied score regions.
 # Given a clone of the repo:
 uv venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
-pytest                       # 215 tests, ~1 s
+pytest                       # 236 tests, ~1 s
 
 # Rebuild the catalog on chr5/6/10 (~2 min):
 thermocas build-catalog \

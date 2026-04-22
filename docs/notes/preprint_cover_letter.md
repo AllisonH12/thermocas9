@@ -21,14 +21,14 @@ We are submitting our manuscript, *"Differential-protection probabilistic scorin
 
 We present a differential-protection probabilistic scoring framework (V2.5) built around the composite
 `p_therapeutic_selectivity = p_targetable_tumor × p_differential_protection × p_observation_trustworthy`,
-where `p_differential_protection = P(β_normal − β_tumor > δ)` is computed via an independent-normal approximation on tumor/normal β summary statistics. The scorer is benchmarked on four public methylation cohorts (GSE322563 matched cell lines, GSE77348 independent cell-line surrogates, GSE69914 tumor–normal pairs, GSE68379 as out-of-distribution boundary) against a 3-tier positives set derived from the Roth paper's validated targets. We also ship:
+where `p_differential_protection = P(β_normal − β_tumor > δ)` is computed via an independent-normal approximation on tumor/normal β summary statistics. The scorer is benchmarked on four public methylation cohorts (GSE322563 matched cell lines as the independent primary endpoint, GSE77348 as the development cohort on which the differential threshold δ was tuned, GSE69914 tumor–normal pairs, GSE68379 as out-of-distribution boundary) against a 3-tier positives set derived from the Roth paper's validated targets. We also ship:
 
 - a `tumor_only` analysis-only path that avoids the β_normal prior when the normal arm is unreliable,
 - tie-band-aware Precision@K and Recall@K reporting (P@K_min, P@K_max, tie_band_size_at_k) so a reader cannot be misled by arbitrary tie-break choices,
 - an annotation pipeline that attaches nearest gene, CpG-island context, RepeatMasker overlap, and ENCODE DNase-HS cluster breadth to each shortlisted candidate, plus a Markdown companion to the TSV aimed at experimental collaborators,
 - a streaming k-way-merge pan-cancer aggregator with cross-cohort metadata-parity enforcement, so the framework scales to genome-scale atlas builds without loading every cohort into memory.
 
-Benchmarks, positives lists, scored JSONLs, figures, and tests are all committed at the immutable tag `memo-2026-04-22-c`; 236 unit tests pass.
+Benchmark `BenchmarkResult` JSONLs, positives lists, annotated top-20 TSV + Markdown shortlists, figures, and the test suite are all committed at the immutable tag `memo-2026-04-22-c`. The large per-cohort scored-candidate JSONLs (`data/derived/scored_*.jsonl`, tens of millions of records each) are gitignored but fully reproducible from the committed build scripts and cohort YAMLs — the exact `uv run` invocations are listed in the manuscript's reproducibility appendix. 236 unit tests pass.
 
 **What the paper does NOT claim.** We want to be explicit about scope. This is a *methods and benchmarking* paper on public data. It does not include prospective wet-lab validation of new target sites; the `thermocas` framework is an open educational research tool, not a clinical decision-support system. Per-site p-values are not reported because `p_observation_trustworthy` saturates by `EvidenceClass`, not continuously; what `p_therapeutic_selectivity` provides is a defensible *ranking axis*, not a hypothesis test.
 
