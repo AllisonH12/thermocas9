@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University.
 **Date.** 2026-04-21.
-**Code.** <https://github.com/AllisonH12/thermocas9> on `main` (the commit landing this revision of the manuscript; SHA in `git log -1 --format=%H PAPER.md`).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-21` (immutable pointer to the exact revision that produced this memo).
 **Status.** Technical memo from an educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z). The `thermocas` framework itself is maintained by Thermocas9 Inc.
 
 ---
@@ -830,7 +830,10 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. The stable-release V1 code is tagged `v0.4.0`. The V2.5 experimental mode, the P@K-interval benchmark contract, the top-hit annotation pipeline, this manuscript, and its committed benchmark and figure artifacts all live on `main`. To cite the exact revision that produced this memo, use `git log -1 --format=%H PAPER.md` in a fresh clone — that SHA pins every behavior and artifact the text references.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Two tags matter:
+  - `v0.4.0` — the stable-release V1 code. Default `probabilistic_mode` is `tumor_only`; V2.5 is not yet shipped at this tag.
+  - `memo-2026-04-21` — the exact revision that produced this memo, including the V2.5 experimental mode, the P@K-interval benchmark contract, the top-hit annotation pipeline, every table and figure in the text, and every committed benchmark artifact under `examples/`. An immutable pointer; resolve to a SHA with `git rev-parse memo-2026-04-21` in a fresh clone.
+  Development continues on `main` past the tagged memo revision; cite `memo-2026-04-21` when citing this document.
 - **Tests**: 215 passing under `uv run pytest -q`.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the committed per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
