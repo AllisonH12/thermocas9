@@ -1,8 +1,8 @@
 # thermocas: probabilistic ranking of methylation-protected ThermoCas9 target sites with tie-aware benchmarking
 
-**Allison Huang Mercer** · Columbia University · <allisonhmercer@gmail.com>
+**Allison Huang** · Columbia University · <allisonhmercer@gmail.com>
 
-Framework maintained by Thermocas9 Inc. Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-22-c`.
+Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-22-c`.
 
 ---
 
@@ -296,7 +296,7 @@ Two bodies of prior art are adjacent but non-overlapping. Generic CRISPR guide-s
 
 ## Competing interests
 
-The `thermocas` framework is maintained by Thermocas9 Inc. The author is affiliated with Columbia University.
+The author declares no competing interests.
 
 ## Acknowledgements
 

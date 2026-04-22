@@ -34,7 +34,7 @@ Benchmarks, positives lists, scored JSONLs, figures, and tests are all committed
 
 **Why we think this venue.** The paper's core contribution is methodological — a probabilistic scoring formulation, a benchmarking protocol with honest tie-band reporting, and an open framework with audit-level test coverage — rather than a biological discovery. The target-discovery problem it solves is of immediate interest to the small but growing methylation-sensitive-CRISPR community catalyzed by the Roth paper. We believe your readership is well-placed to evaluate the rigor of both the formulation and the benchmarking.
 
-**Competing interests.** The `thermocas` framework is maintained by Thermocas9 Inc. The author is affiliated with Columbia University.
+**Competing interests.** The author declares no competing interests.
 
 **Authorship & data availability.** Allison Huang is the sole author and corresponding author. All cohort data are from public GEO accessions (GSE322563, GSE77348, GSE69914, GSE68379); all derived artifacts, benchmarks, and scripts are in the linked repository at the tagged revision.
 
@@ -43,8 +43,8 @@ Benchmarks, positives lists, scored JSONLs, figures, and tests are all committed
 We appreciate your consideration.
 
 Sincerely,
-Allison Huang Mercer
-Columbia University · Thermocas9 Inc
+Allison Huang
+Columbia University
 <allisonhmercer@gmail.com>
 
 ---
@@ -62,5 +62,5 @@ Append before "Suggested reviewers":
 - **If submitting to bioRxiv only**: no cover letter is required. Use the first four paragraphs of the body as the bioRxiv abstract prompt and paste them into the summary field. The claim-narrowing paragraph ("What the paper does NOT claim") is especially useful here — bioRxiv readers see method papers from anonymous-ish accounts all the time, and explicit scope-limiting reads as professional, not defensive.
 - **Timing**: the Roth follow-up note (`roth_followup_2026-04-22.md`) carries more weight if it goes *after* the preprint is up, so readers of the follow-up can cite a Google Scholar result rather than a GitHub tag. Sequence: preprint first, Roth note second, same week.
 - **Tag-reference check before submission**: `git rev-parse memo-2026-04-22-c` must still resolve, and both `PAPER.md` and `MANUSCRIPT.md` citations must still read `memo-2026-04-22-c`. Do not let development on `main` implicitly move the reference.
-- **Reviewer suggestions**: the three fields listed under "Suggested reviewers" are generic by design — fill in specific names per venue from recent program committees / corresponding authors in each area. Avoid anyone with a Thermocas9 Inc affiliation.
+- **Reviewer suggestions**: the three fields listed under "Suggested reviewers" are generic by design — fill in specific names per venue from recent program committees / corresponding authors in each area.
 - **Revision checkpoint**: if this letter sits more than a week before submission, re-verify (a) the tag, (b) the test count (`uv run pytest -q`), and (c) the set of committed benchmark artifacts under `examples/`. Update the numbers if they've moved.

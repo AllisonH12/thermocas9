@@ -42,8 +42,8 @@ If it's useful, we're happy to share the scored JSONLs and the annotated shortli
 No action required. We just wanted you to know the EPIC v2 ingest is working and doesn't change the biological story you reported.
 
 Best,
-Allison Huang Mercer
-Columbia University · Thermocas9 Inc
+Allison Huang
+Columbia University
 <allisonhmercer@gmail.com>
 
 ---
