@@ -1,9 +1,13 @@
 # Preprint cover letter — draft
 
 **Status.** Draft. Edit and customize for the target venue before sending.
-**Submission target (primary).** bioRxiv (no cover letter required, but the framing below doubles as the abstract pitch).
-**Submission target (secondary, if pursuing peer review).** *Nature Methods* or *Genome Research* — both accept methods-framework submissions; *Nature Methods* is the higher-ceiling option but typically expects at least a modest prospective validation cohort. See the "for-*Nature Methods*" variant at the bottom.
-**Manuscript reference.** `PAPER.md` in <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-b`.
+**Submission ladder.**
+1. **bioRxiv** first (no cover letter required; the body below doubles as the preprint pitch). Free, citable, journal-compatible for most biomedical venues.
+2. **Bioinformatics (Oxford)** as the primary peer-reviewed target — scope is explicit about new computational methods compared to state of the art on real biological data, which fits.
+3. **Bioinformatics Advances** or **BMC Bioinformatics** as the acceptance-optimized backup (explicitly welcoming to benchmarked methods/software contributions without prospective-validation expectations).
+4. **The CRISPR Journal** only if a field-specific audience is preferred over broader computational-methods readership — narrower but higher topical familiarity.
+5. **Nature Methods** only if the smallest-possible prospective validation is added first (see variant section at the bottom). Without that, expect desk reject.
+**Manuscript reference.** `PAPER.md` (or `MANUSCRIPT.md` for the BA-reshaped version) in <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-b`.
 
 ---
 
@@ -39,9 +43,9 @@ Benchmarks, positives lists, scored JSONLs, figures, and tests are all committed
 We appreciate your consideration.
 
 Sincerely,
-Allison Huang
+Allison Huang Mercer
 Columbia University · Thermocas9 Inc
-<yh@dreamphones.ai>
+<allisonhmercer@gmail.com>
 
 ---
 

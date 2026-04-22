@@ -1,6 +1,6 @@
 # Differential-protection probabilistic scoring for methylome-guided ThermoCas9 target-site ranking
 
-**Author.** Allison Huang, Columbia University.
+**Author.** Allison Huang Mercer, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
 **Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-b` (immutable pointer to the exact revision that produced this memo; supersedes `memo-2026-04-22` with the post-self-review fixes — nested-repeat scan correctness, streaming-aggregator cross-cohort metadata parity, intra-cohort duplicate rejection — applied on top).
 **Status.** Technical memo from an educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z). The `thermocas` framework itself is maintained by Thermocas9 Inc.
