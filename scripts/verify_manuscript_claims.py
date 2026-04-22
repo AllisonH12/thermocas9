@@ -274,6 +274,109 @@ def check_artifact_counts(errors: list[str]) -> None:
         )
 
 
+def check_figure_captions(errors: list[str]) -> None:
+    """Extract each `**Figure N.**` block in MANUSCRIPT.md and cross-check
+    any italicized gene names / quoted tie_band values / quoted AUC values
+    against committed top-20 TSVs and bench JSONLs.
+
+    Rationale: every fabrication caught in the 2026-04-22 review cycle that
+    *wasn't* about a table value came from free-form prose in the figure
+    captions (fabricated 'four shared genes', non-existent 'MX1', misleading
+    'plus cohort-specific candidates'). A simple extract-and-cross-check pass
+    closes the class.
+    """
+    ms = MANUSCRIPT.read_text()
+
+    # Load the gene sets we might want to check caption lists against.
+    top20_tsvs = {
+        "GSE322563 HM450 V1": REPO / "examples/gse322563/top20_annotated_v1.tsv",
+        "GSE322563 HM450 V2.5": REPO / "examples/gse322563/top20_annotated_v25.tsv",
+        "GSE322563 native V2.5": REPO / "examples/gse322563_native_roth_labels/top20_annotated_v25.tsv",
+        "GSE77348 V2.5": REPO / "examples/gse77348_roth_labels/top20_annotated_v25.tsv",
+        "GSE69914 V2.5": REPO / "examples/gse69914/top20_annotated_v25.tsv",
+    }
+
+    def _genes(p: Path) -> list[str]:
+        with p.open() as f:
+            hdr = next(f).rstrip().split("\t")
+            gi = hdr.index("nearest_gene")
+            return [l.rstrip().split("\t")[gi] for l in f]
+
+    gene_sets = {name: set(_genes(p)) for name, p in top20_tsvs.items() if p.exists()}
+
+    # Extract each `**Figure N.**` block — caption starts at `**Figure N.**`
+    # and continues until the next top-level `---` or `## ` or `![`.
+    caption_blocks: list[tuple[int, str]] = []
+    for m in re.finditer(r"\*\*Figure\s+(\d+)\.\*\*", ms):
+        start = m.start()
+        # Find end: next figure embed, next section, or next horizontal rule.
+        end_candidates = [
+            ms.find("\n![", m.end()),
+            ms.find("\n## ", m.end()),
+            ms.find("\n### ", m.end()),
+            ms.find("\n---\n", m.end()),
+        ]
+        end_candidates = [e for e in end_candidates if e != -1]
+        end = min(end_candidates) if end_candidates else len(ms)
+        caption_blocks.append((int(m.group(1)), ms[start:end]))
+
+    # Per-caption checks.
+    hm = gene_sets.get("GSE322563 HM450 V2.5", set())
+    nat = gene_sets.get("GSE322563 native V2.5", set())
+    sur = gene_sets.get("GSE77348 V2.5", set())
+    tissue = gene_sets.get("GSE69914 V2.5", set())
+    shared_3 = hm & nat & sur
+
+    def _extract_genes(italic_run: str) -> list[str]:
+        return [t.strip() for t in italic_run.replace(",", " ").split()
+                if t.strip() and re.fullmatch(r"[A-Z][A-Z0-9_\-]+", t.strip())]
+
+    for fig_num, block in caption_blocks:
+        # For each italicized gene run, take the 160 chars BEFORE it in the
+        # block as local context — decide which gene set the caption is
+        # asserting against based on that local context alone, not the
+        # whole caption's word bag.
+        for m in re.finditer(r"\*([A-Z][A-Z0-9_\-.,\s]+?)\*", block):
+            italic_run = m.group(1)
+            tokens = _extract_genes(italic_run)
+            if not tokens:
+                continue
+            prior = block[max(0, m.start() - 160): m.start()].lower()
+
+            if "distinct nearest-gene symbols" in prior or "tissue" in prior.split(".")[-1]:
+                # Local context says this is the tissue-only list.
+                for tok in tokens:
+                    if tok not in tissue:
+                        errors.append(
+                            f"FIG {fig_num}: caption claims '{tok}' is in the "
+                            f"GSE69914 tissue top-20, but it is not in the "
+                            f"committed TSV (tissue top-20 has {len(tissue)} genes)."
+                        )
+            elif "all three" in prior or "all 3" in prior or "cross-laboratory convergence" in prior:
+                for tok in tokens:
+                    if tok not in shared_3:
+                        errors.append(
+                            f"FIG {fig_num}: caption claims '{tok}' is in all "
+                            f"three cell-line V2.5 top-20s, but the intersection "
+                            f"is {sorted(shared_3)}"
+                        )
+            # Otherwise: not a claim we check.
+
+        # Count claim: "exactly N distinct nearest-gene symbols" on the tissue cohort.
+        m_count = re.search(r"exactly\s+(\d+)\s+distinct\s+nearest-gene", block)
+        if m_count:
+            claimed = int(m_count.group(1))
+            actual = len(tissue)
+            if claimed != actual:
+                errors.append(
+                    f"FIG {fig_num}: caption says 'exactly {claimed} distinct "
+                    f"nearest-gene symbols' for the tissue cohort but the "
+                    f"committed top-20 TSV has {actual} distinct genes"
+                )
+
+    return
+
+
 def check_test_count(errors: list[str]) -> None:
     """Run pytest --collect-only and sum per-file counts. The `-q` summary
     line "N passed" is suppressed under subprocess capture in recent
@@ -318,6 +421,7 @@ def main() -> int:
     check_tumor_only_tie_band_range(errors)
     check_artifact_counts(errors)
     check_test_count(errors)
+    check_figure_captions(errors)
     # The AUC-in-tables scan is noisy; keep it opt-in.
     # check_table_auc_values(errors)
 

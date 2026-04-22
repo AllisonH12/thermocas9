@@ -2,7 +2,7 @@
 
 **Allison Huang** · Columbia University · <allisonhmercer@gmail.com>
 
-Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-22-g`.
+Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-22-h`.
 
 ---
 
@@ -14,7 +14,7 @@ Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-
 `p_therapeutic_selectivity = p_targetable_tumor × p_differential_protection × p_observation_trustworthy`,
 where `p_differential_protection = P(β_normal − β_tumor > δ)` is estimated by an independent-normal approximation on per-probe summary statistics (IQR-based σ estimate with a σ_floor = 0.05). We benchmark against three baselines — a literature-naive Δβ-only ranker, the deterministic V1 score, and a first-pass V2 `tumor_only` formulation — across four public methylation cohorts: GSE322563 (Roth's own MCF-7/MCF-10A EPIC v2 samples; primary endpoint), GSE77348 (development cohort on which δ was tuned), GSE69914 (305 sporadic breast tumors + 50 healthy-donor breast tissue samples — unpaired by design; adjacent-normal arms were excluded), and GSE68379 (Sanger breast cell-line panel paired with external healthy-donor normals — an out-of-distribution / cross-series boundary case). **On matched cell-line cohorts, Δβ-only is already a strong baseline** (validated AUC 0.96–0.97); V2.5's margin over it is consistently positive but small (+0.010 to +0.080 across all nine tier × path rows on GSE322563 (HM450 path + native EPIC v2 path) and GSE77348). **On tissue, Δβ-only collapses** (GSE69914 validated 0.591; 0.435–0.477 on narrow/wide), **V1 also degrades** (0.435–0.660 across tiers, at-chance on wide), and **V2.5 differential is the highest-AUC discovery axis** (0.711–0.773 across tiers, `tie_band@100 = 2`). The deprecated V2 `tumor_only` mode has the highest raw AUC on tissue (0.803–0.874) but `tie_band@100 = 6540` makes its top-K unusable — it is retained as a diagnostic, not a discovery axis. Both probabilistic axes invert correctly on the out-of-distribution boundary (GSE68379: Δβ 0.15–0.20; V2.5 < 0.5). V2.5 earns its complexity in three places: (i) highest-AUC discovery axis at every **non-boundary** cohort × tier combination tested — 12/12 rows across GSE322563 HM450, GSE322563 native, GSE77348, GSE69914; the GSE68379 out-of-distribution cohort correctly inverts for all axes and is reported separately; (ii) tie-band-honest top-K reporting (`precision_at_k_{min, max}` and `tie_band_size_at_k` on every BenchmarkResult); (iii) a probability-scale interpretation that lets downstream pipelines compose per-site scores with other probabilistic inputs. **The shipped recommendation is V1 as the stable-release default** (backward compatibility; `tie_band = 1` by construction regardless of cohort shape) **and V2.5 as the recommended research mode on all non-boundary cohort shapes tested (matched cell-line and tissue)**, with Δβ-only retained as a published baseline. The package adds a k-way-merge pan-cancer aggregator for genome-scale atlas builds and a per-candidate annotation pipeline (nearest gene, CpG-island context, RepeatMasker overlap, ENCODE DNase-HS cluster breadth) with a Markdown shortlist aimed at experimental collaborators.
 
-**Availability and implementation.** `thermocas` is open source at <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-g` for the version evaluated here. 236 unit tests pass under `uv run pytest -q`. Python 3.11+, BSD-3.
+**Availability and implementation.** `thermocas` is open source at <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-h` for the version evaluated here. 236 unit tests pass under `uv run pytest -q`. Python 3.11+, BSD-3.
 
 **Contact.** <allisonhmercer@gmail.com>
 
@@ -237,7 +237,7 @@ The formal SCREEN cCRE Registry is gated behind a JavaScript challenge on `scree
 
 ![Figure 3 · Top-20 gene presence per (axis × cohort)](docs/figures/fig3_topgene_heatmap.png)
 
-**Figure 3.** Tie-window-aware top-20 gene presence. Columns are per-cohort per-axis top-20 shortlists (ordered by the deterministic tie-break documented in §3.1); rows are the union of nearest-gene symbols sorted by cross-column presence. Column-header colors: **blue** = deterministic top-K under the current score distribution (`tie_band = 1` for V1, `tie_band = 2` for V2.5 on high-`n` tissue); **red** = top-K is a 20-record window inside a large tied band (`tie_band = 190`, `299`, `421` for V2.5 on low-`n` cell-line cohorts), so membership is the documented tie-break policy's choice, not the scorer's discrimination. Genes bolded in blue on the row labels are present in **all three** cell-line V2.5 shortlists (GSE322563 HM450, GSE322563 native, GSE77348) — cross-platform / cross-laboratory convergence gives two such genes: *CELF2* and *XPNPEP1*. **The tissue cohort (GSE69914 V2.5) has zero nearest-gene overlap with any of the three cell-line V2.5 shortlists** — its top-20 is an entirely distinct gene set (*COL21A1, FOXC1, FOXCUT, MAS1L, MAT2B, MXI1, RUNX2, SCML4, TENM2*, plus cohort-specific candidates). This is a direct visualization of the cell-line-vs-tissue biological shift that drives the AUC patterns in Figure 2.
+**Figure 3.** Tie-window-aware top-20 gene presence. Columns are per-cohort per-axis top-20 shortlists (ordered by the deterministic tie-break documented in §3.1); rows are the union of nearest-gene symbols sorted by cross-column presence. Column-header colors: **blue** = deterministic top-K under the current score distribution (`tie_band = 1` for V1, `tie_band = 2` for V2.5 on high-`n` tissue); **red** = top-K is a 20-record window inside a large tied band (`tie_band = 190`, `299`, `421` for V2.5 on low-`n` cell-line cohorts), so membership is the documented tie-break policy's choice, not the scorer's discrimination. Genes bolded in blue on the row labels are present in **all three** cell-line V2.5 shortlists (GSE322563 HM450, GSE322563 native, GSE77348) — cross-platform / cross-laboratory convergence gives two such genes: *CELF2* and *XPNPEP1*. **The tissue cohort (GSE69914 V2.5) has zero nearest-gene overlap with any of the three cell-line V2.5 shortlists** — its top-20 candidates map to exactly 9 distinct nearest-gene symbols (*COL21A1, FOXC1, FOXCUT, MAS1L, MAT2B, MXI1, RUNX2, SCML4, TENM2*), all of which are disjoint from every cell-line V2.5 top-20. This is a direct visualization of the cell-line-vs-tissue biological shift that drives the AUC patterns in Figure 2.
 
 ---
 
@@ -299,7 +299,7 @@ Two bodies of prior art are adjacent but non-overlapping. Generic CRISPR guide-s
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-g` for the exact revision evaluated here. BSD-3 licensed. `git rev-parse memo-2026-04-22-g` resolves to a SHA in a fresh clone. Supersedes prior same-day tags `-c`, `-d`, `-e` (see PAPER.md tag ledger for per-tag issues). A `scripts/verify_manuscript_claims.py` guard now enforces that every numeric claim in this document matches the committed bench JSONLs and the `src/thermocas/probabilistic.py` constants — run it before cutting any subsequent tag.
+- **Code**: <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-h` for the exact revision evaluated here. BSD-3 licensed. `git rev-parse memo-2026-04-22-h` resolves to a SHA in a fresh clone. Supersedes prior same-day tags `-c`, `-d`, `-e` (see PAPER.md tag ledger for per-tag issues). A `scripts/verify_manuscript_claims.py` guard now enforces that every numeric claim in this document matches the committed bench JSONLs and the `src/thermocas/probabilistic.py` constants — run it before cutting any subsequent tag.
 - **Tests**: 236 passing under `uv run pytest -q`.
 - **Cohorts**: public GEO series GSE322563, GSE77348, GSE69914, GSE68379. Build scripts in `scripts/build_gse*_cohort.py`.
 - **Reference annotations**: UCSC hg19 `refGene.txt.gz`, `cpgIslandExt.txt.gz`, `rmsk.txt.gz`, and `wgEncodeRegDnaseClusteredV3.txt.gz` (fetched on demand from hgdownload.soe.ucsc.edu).
@@ -319,7 +319,7 @@ This work would not exist without Roth et al.'s characterization of ThermoCas9 a
 
 ## Appendix A · Reproducibility
 
-From a fresh clone of the repository at `memo-2026-04-22-g`:
+From a fresh clone of the repository at `memo-2026-04-22-h`:
 
 ```bash
 # One-time env setup
