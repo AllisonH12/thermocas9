@@ -1,0 +1,9 @@
+cohort:
+  name: GSE322563-Roth-native-EPIC-v2-differential
+  tumor_dataset: GSE322563-MCF7
+  normal_dataset: GSE322563-MCF10A
+  platform: EPIC
+  min_samples_tumor: 2
+  min_samples_normal: 2
+  probabilistic_mode: tumor_plus_differential_protection
+  differential_delta: 0.2
