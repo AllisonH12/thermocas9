@@ -274,18 +274,21 @@ def check_artifact_counts(errors: list[str]) -> None:
         )
 
 
-def check_figure_captions(errors: list[str]) -> None:
-    """Extract each `**Figure N.**` block in MANUSCRIPT.md and cross-check
-    any italicized gene names / quoted tie_band values / quoted AUC values
-    against committed top-20 TSVs and bench JSONLs.
+def _check_figure_captions_in(doc_path: Path, errors: list[str]) -> None:
+    """Cross-check `**Figure N.**` caption claims in `doc_path` against the
+    committed top-20 TSVs.
 
     Rationale: every fabrication caught in the 2026-04-22 review cycle that
     *wasn't* about a table value came from free-form prose in the figure
     captions (fabricated 'four shared genes', non-existent 'MX1', misleading
     'plus cohort-specific candidates'). A simple extract-and-cross-check pass
     closes the class.
+
+    Runs on both MANUSCRIPT.md and PAPER.md — both documents are circulated
+    (PAPER.md is the audit-trail memo, also at the same tag) and both can
+    drift independently of the underlying artifacts.
     """
-    ms = MANUSCRIPT.read_text()
+    ms = doc_path.read_text()
 
     # Load the gene sets we might want to check caption lists against.
     top20_tsvs = {
@@ -348,19 +351,55 @@ def check_figure_captions(errors: list[str]) -> None:
                 for tok in tokens:
                     if tok not in tissue:
                         errors.append(
-                            f"FIG {fig_num}: caption claims '{tok}' is in the "
-                            f"GSE69914 tissue top-20, but it is not in the "
-                            f"committed TSV (tissue top-20 has {len(tissue)} genes)."
+                            f"{doc_path.name} FIG {fig_num}: caption claims "
+                            f"'{tok}' is in the GSE69914 tissue top-20, but "
+                            f"it is not in the committed TSV "
+                            f"(tissue top-20 has {len(tissue)} genes)."
                         )
             elif "all three" in prior or "all 3" in prior or "cross-laboratory convergence" in prior:
                 for tok in tokens:
                     if tok not in shared_3:
                         errors.append(
-                            f"FIG {fig_num}: caption claims '{tok}' is in all "
-                            f"three cell-line V2.5 top-20s, but the intersection "
-                            f"is {sorted(shared_3)}"
+                            f"{doc_path.name} FIG {fig_num}: caption claims "
+                            f"'{tok}' is in all three cell-line V2.5 top-20s, "
+                            f"but the intersection is {sorted(shared_3)}"
                         )
+            elif "both cell-line" in prior or "both v2.5 cell-line" in prior:
+                # PAPER.md historically described the heatmap with TWO
+                # cell-line V2.5 columns (HM450 + 77348). Now there are
+                # three (HM450, native, 77348). Flag the "both" framing
+                # as documentation drift — the intersection of the two
+                # original columns is not what the figure shows.
+                errors.append(
+                    f"{doc_path.name} FIG {fig_num}: caption uses 'both "
+                    f"cell-line' framing, but the figure now has THREE "
+                    f"cell-line V2.5 columns (HM450, native, 77348). "
+                    f"Update caption to 'all three cell-line V2.5 top-20s' "
+                    f"or explicitly explain the 2-of-3 narrowing."
+                )
             # Otherwise: not a claim we check.
+
+        # Standalone "both cell-line" / "either cell-line column" framing —
+        # these phrases survived from the pre-native (4-column) version of
+        # Fig 3. The current figure has THREE cell-line V2.5 columns, so
+        # "both" / "either" is a 2-column claim that doesn't match the
+        # artifact. Fire regardless of whether italicized gene names are
+        # present in the caption.
+        block_low = block.lower()
+        if re.search(r"both\s+cell-line\b", block_low):
+            errors.append(
+                f"{doc_path.name} FIG {fig_num}: caption says 'both "
+                f"cell-line' (2-column framing), but the current figure has "
+                f"THREE cell-line V2.5 columns (HM450, native EPIC v2, "
+                f"77348). Update to 'all three cell-line V2.5 top-20s'."
+            )
+        if re.search(r"either\s+cell-line\b", block_low):
+            errors.append(
+                f"{doc_path.name} FIG {fig_num}: caption says 'either "
+                f"cell-line' (2-column framing), but the current figure has "
+                f"THREE cell-line V2.5 columns. Update to 'any of the three "
+                f"cell-line V2.5 columns'."
+            )
 
         # Count claim: "exactly N distinct nearest-gene symbols" on the tissue cohort.
         m_count = re.search(r"exactly\s+(\d+)\s+distinct\s+nearest-gene", block)
@@ -369,12 +408,18 @@ def check_figure_captions(errors: list[str]) -> None:
             actual = len(tissue)
             if claimed != actual:
                 errors.append(
-                    f"FIG {fig_num}: caption says 'exactly {claimed} distinct "
-                    f"nearest-gene symbols' for the tissue cohort but the "
-                    f"committed top-20 TSV has {actual} distinct genes"
+                    f"{doc_path.name} FIG {fig_num}: caption says 'exactly "
+                    f"{claimed} distinct nearest-gene symbols' for the tissue "
+                    f"cohort but the committed top-20 TSV has {actual} distinct genes"
                 )
 
     return
+
+
+def check_figure_captions(errors: list[str]) -> None:
+    """Run the per-document caption check on both circulated documents."""
+    _check_figure_captions_in(MANUSCRIPT, errors)
+    _check_figure_captions_in(PAPER, errors)
 
 
 def check_test_count(errors: list[str]) -> None:

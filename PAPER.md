@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-h` (immutable pointer to the exact revision that produced this memo; supersedes `memo-2026-04-22-g` which hardcoded the PDF render helper to `PAPER.md` only (following the documented workflow would produce the wrong PDF for submission), and had a Fig 3 caption phrase "plus cohort-specific candidates" implying a longer tissue-gene list than the 9 actually present in GSE69914's top-20 — both fixed here. `scripts/verify_manuscript_claims.py` has been extended to scan `**Figure N.**` blocks and cross-check italicized gene names against the committed top-20 TSVs; the script would have caught the Fig 3 "plus cohort-specific" overclaim if the check had existed when the caption was first written).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-i` (immutable pointer to the exact revision that produced this memo; supersedes `memo-2026-04-22-h` which still had this memo's Figure 3 caption describing a 4-column heatmap with the pre-native "BOTH cell-line V2.5 top-20 windows (GSE322563 + GSE77348)" framing — actual figure has FIVE columns and THREE cell-line V2.5 columns since `-g`. The `scripts/verify_manuscript_claims.py` caption check ran only on `MANUSCRIPT.md` at `-h`, so the PAPER.md drift slipped through. Both fixed here: PAPER.md Fig 3 caption rewritten to the 5-column / 3-cell-line-V2.5-column reality, and the verify script now scans both circulated documents).
 **Status.** Technical memo from an educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -595,20 +595,28 @@ boundary case.
 ![Figure 3 · Top-20 gene presence per (axis × cohort)](docs/figures/fig3_topgene_heatmap.png)
 
 **Figure 3.** Per-(axis × cohort) top-20 gene presence, ordered so
-that the most-shared genes appear at the top. Blue column headers
-mark cohorts where `tie_band ≤ 2` and the top-20 is the genuine
-top-20 of the score distribution; red column headers mark cohorts
-where `tie_band ≫ K` and the top-20 is a 20-record window inside
-the tied band selected by the documented `candidate_id` ascending
-tie-break. Bold-blue gene rows appear in BOTH cell-line V2.5 top-20
-windows (GSE322563 + GSE77348). On those cohorts shared membership
-is window convergence, not robust ranking convergence; AUC (Fig. 2)
-is the stable claim at low n. V1 on GSE322563 has tie_band = 1 and
-samples a different (broader) genomic neighborhood — RET, ZMIZ1,
-DPYSL4 and other rows it surfaces are robust under that axis. The
-GSE69914 tissue column has tie_band = 2 and shares no genes with
-either cell-line column — V2.5 is cohort-specific, not returning a
-fixed gene list across regimes.
+that the most-shared genes appear at the top. **Five columns**:
+GSE322563 HM450 V1, GSE322563 HM450 V2.5, GSE322563 native EPIC v2
+V2.5, GSE77348 V2.5, GSE69914 V2.5. Blue column headers mark cohorts
+where `tie_band ≤ 2` and the top-20 is the genuine top-20 of the
+score distribution; red column headers mark cohorts where
+`tie_band ≫ K` (190 / 421 / 299 for the three cell-line V2.5 cohorts)
+and the top-20 is a 20-record window inside the tied band selected
+by the documented `candidate_id` ascending tie-break. Bold-blue
+gene rows appear in **all three** cell-line V2.5 top-20 windows
+(GSE322563 HM450, GSE322563 native EPIC v2, GSE77348) — that
+intersection is *CELF2* and *XPNPEP1*. On the cell-line cohorts
+shared membership is window convergence inside large tied bands,
+not robust ranking convergence; AUC (Fig. 2) is the stable claim
+at low n. V1 on GSE322563 has `tie_band = 1` and samples a different
+(broader) genomic neighborhood — RET, ZMIZ1, DPYSL4 and other rows
+it surfaces are robust under that axis. The GSE69914 tissue column
+has `tie_band = 2` and **shares no genes with any of the three
+cell-line V2.5 columns** — V2.5 is cohort-specific, not returning a
+fixed gene list across regimes; the tissue top-20 maps to 9 distinct
+nearest-gene symbols (COL21A1, FOXC1, FOXCUT, MAS1L, MAT2B, MXI1,
+RUNX2, SCML4, TENM2) that are entirely disjoint from the cell-line
+shortlists.
 
 ### 5.5 Top-hit annotation (tie-window-aware)
 
@@ -891,8 +899,9 @@ already invariant within tied score regions.
   - `memo-2026-04-22-e` — corrected the `-d` issues against the committed JSONLs, cohort build scripts, and `probabilistic.py` constants. **Retained but SHOULD NOT BE CITED**: this revision still carried (i) a false-universal claim "V2.5 is the highest-AUC discovery axis at every cohort × tier combination tested" that is violated on the 3 GSE68379 OOD rows where V1 > V2.5; (ii) a false matched-cell-line ordering claim "V2.5 > V1 > Δβ, typically by 0.01-0.05" where V1 > Δβ actually holds on only 2 of 9 rows (Δβ > V1 elsewhere) and the V2.5-over-V1 range is +0.014 to +0.169, not 0.01-0.05; (iii) a wrong normal-arm mechanism attribution in §5.3/§6.1 ("adjacent-normal bulk") that contradicted the GSE69914 build script's explicit exclusion of adjacent-normal arms.
   - `memo-2026-04-22-f` — corrected the `-e` issues and added the `verify_manuscript_claims.py` guard. **Retained but SHOULD NOT BE CITED**: MANUSCRIPT.md at this tag embedded only Figure 1 (mode schematic). Figures 2 and 3 existed on disk from an earlier render against a 3-axis × 3-cohort grid (no Δβ-only baseline, no GSE322563 native EPIC v2) and were inconsistent with the manuscript's 4-axis narrative; they were not embedded in MANUSCRIPT.md.
   - `memo-2026-04-22-g` — regenerated Fig 2 and Fig 3 against the committed bench grid and embedded both in MANUSCRIPT.md §5. **Retained but SHOULD NOT BE CITED**: the PDF render helper `scripts/render_paper_pdf.sh` still hardcoded `PAPER.md` as the source (following the documented workflow would have produced the audit memo, not the submission manuscript); and Fig 3's caption had an overclaim "plus cohort-specific candidates" implying additional tissue genes beyond the 9 actually listed.
-  - `memo-2026-04-22-h` — **the exact revision that produced this memo.** `render_paper_pdf.sh` now takes a source path as `$1` (defaulting to `PAPER.md` for backward compatibility); `MANUSCRIPT.md` → `MANUSCRIPT.pdf` renders correctly via `bash scripts/render_paper_pdf.sh MANUSCRIPT.md`. Fig 3 caption phrase "plus cohort-specific candidates" replaced with a precise "exactly 9 distinct nearest-gene symbols" claim verified against the committed TSV. `scripts/verify_manuscript_claims.py` extended to scan `**Figure N.**` blocks, extract italicized gene names, and cross-check them against the relevant top-20 TSVs (tissue-only list and all-three-cell-line-shared list). Regression-tested: the script catches a "MX1 → MXI1" or "CELF2 claimed as tissue-only" injection. Resolve to a SHA with `git rev-parse memo-2026-04-22-h` in a fresh clone.
-  Development continues on `main` past the tagged memo revision; cite `memo-2026-04-22-h` when citing this document.
+  - `memo-2026-04-22-h` — generalized the PDF render helper, fixed the Fig 3 caption "plus cohort-specific" overclaim in MANUSCRIPT.md, and extended the verify script to check figure captions. **Retained but SHOULD NOT BE CITED**: PAPER.md Fig 3 caption was not updated when fig3 went from 4 columns to 5 columns at `-g`, so it still described "BOTH cell-line V2.5 top-20 windows (GSE322563 + GSE77348)" and "either cell-line column" — 2-column framing that does not match the actual 5-column / 3-cell-line-V2.5-column figure. The verify script's caption check ran only on MANUSCRIPT.md, so this drift was not surfaced.
+  - `memo-2026-04-22-i` — **the exact revision that produced this memo.** PAPER.md Fig 3 caption rewritten to the 5-column reality with explicit `all three cell-line V2.5 top-20s` framing and the verified gene-list intersection (*CELF2*, *XPNPEP1*). `verify_manuscript_claims.py` `check_figure_captions()` now scans both MANUSCRIPT.md and PAPER.md, and additionally fires on the standalone "both cell-line" / "either cell-line column" 2-column patterns regardless of italicized-gene-name presence (PAPER.md captions historically don't italicize gene symbols, so the italics-only heuristic at `-h` couldn't have caught this drift). Resolve to a SHA with `git rev-parse memo-2026-04-22-i` in a fresh clone.
+  Development continues on `main` past the tagged memo revision; cite `memo-2026-04-22-i` when citing this document.
 - **Submission-shaped companion**: `MANUSCRIPT.md` at the same tag is the Bioinformatics-submission-shaped cut-down of this memo (~340 lines vs ~960) with the headline framing led from the Δβ-baseline finding.
 - **Tests**: 236 passing under `uv run pytest -q`.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the committed per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
