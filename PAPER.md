@@ -19,11 +19,14 @@ a static "normal is methylated above 0.5" assumption that is
 anti-predictive on bulk normal comparators (AUC 0.38). We replace it
 with a differential factor `p_diff = P(β_normal − β_tumor > δ)` under
 an independent-normal approximation on per-probe summaries. On the
-primary endpoint — AUC at the validated target probes from Roth et
-al. (2026) Fig. 5d on two matched MCF-7/MCF-10A cohorts — the new
-composite (V2.5) reaches 0.990 on Roth's own samples and 0.982 on an
-independent surrogate, compared with 0.821 and 0.968 for the
-deterministic V1 score. Every benchmark result emits
+single independent primary endpoint — AUC at the validated target
+probes from Roth et al. (2026) Fig. 5d on Roth's own MCF-7/MCF-10A
+EPIC v2 cohort (GSE322563) — the new composite (V2.5) reaches 0.990,
+compared with 0.821 for the deterministic V1 score and 0.928 for
+the deprecated V2 `tumor_only` mode. A second matched MCF-7/MCF-10A
+cohort (GSE77348) is the development cohort on which the differential
+margin δ was tuned and is reported as supporting evidence, not as
+an independent confirmation. Every benchmark result emits
 `tie_band_size_at_k` and `precision_at_k_{min,max}` so that
 low-replicate top-K numbers are reported as adversarial intervals,
 not point estimates. A separate cross-series run at the Sanger GDSC
@@ -200,18 +203,35 @@ islands methylated at 0 or 1). These tradeoffs are documented in the
 code; a downstream user who wants the exact difference-of-Betas path
 can swap it in.
 
-### 3.4 The `p_trust` saturation prediction
+### 3.4 The low-`n` tied-band prediction
 
-With the new factor isolated, we could predict before running any new
-cohort: `p_trust` saturates at the evidence-class ceiling × `min(n_t,
-n_n) / 30`. On low-replicate cohorts (n=2 or n=3 per side), every
-`EXACT`-evidence candidate with clean tumor hypomethylation and a
-large differential ends up at the same composite value, creating a
-tied band at the top of the score distribution. The prediction is that
-this tied band dissolves around n ≥ 30, at which point `p_trust`
-becomes continuous-valued and the composite's ordering reflects only
-`p_targ × p_diff`. This is a falsifiable claim the cohort matrix in §5
-directly tests.
+With the new factor isolated, we can predict before running any new
+cohort. `p_trust` is `EvidenceClass.base × min(1, min(n_t, n_n) / 30)`:
+piecewise-linear in min sample count up to `ramp_n = 30`, then a
+constant ceiling per evidence class. It is **never** continuous-valued
+in the real-line sense — at n ≥ 30 it saturates to a discrete-by-
+EvidenceClass value (0.95 at EXACT, 0.75 at PROXIMAL_CLOSE, etc.).
+What changes between the low-`n` and high-`n` regimes is which factor
+*dominates* the composite ordering:
+
+- **Low n (n ≪ 30).** `p_trust` scales every same-evidence-class
+  candidate by the same uniform fraction `(n / 30)`. Per-side IQRs are
+  wide (or zero, hitting the `σ_floor`), pushing both `p_targ` and
+  `p_diff` toward saturation (≈1) for any candidate with clean tumor
+  hypomethylation and a large normal/tumor gap. The composite is
+  effectively `1 × 1 × p_trust` for that whole subset, producing a
+  large tied band at the top of the score distribution.
+- **High n (n ≥ 30).** `p_trust` is constant per EvidenceClass.
+  Per-side IQRs are realistic (HM450 ranges of 0.05–0.20). The
+  composite ordering is now driven by the continuous variation in
+  `p_targ × p_diff`, with `p_trust` only multiplying by a per-
+  evidence-class constant. The previously-tied subset spreads out by
+  its underlying `p_targ × p_diff` values.
+
+The falsifiable prediction: the K = 100 tied band on V2.5 should be
+large at n=2/3 per side and shrink to near-1 at n ≳ 30 per side. §5.1
+and §5.3 test this directly across cohorts ranging from n=2/2 to
+n=305/50.
 
 ---
 
@@ -220,22 +240,33 @@ directly tests.
 ### 4.0 Pre-registration: primary endpoint, sensitivity, boundary
 
 To guard against post-hoc optimization, the analysis design separates
-tuned components from evaluation:
+tuned components from evaluation. The hyperparameter `differential_delta`
+was tuned on a specific cohort, and that cohort is therefore *not*
+part of the protected primary endpoint.
 
 - **Tuned, fixed before cross-cohort evaluation.**
   `differential_delta = 0.2` was selected by an offline sweep over
   {0.2, 0.3, 0.4, 0.5} on the GSE77348 MCF-7/MCF-10A surrogate
   against the *pre-repair* (gene-universe) positives. The value was
   fixed in code before any other cohort was ingested or benchmarked.
+  GSE77348 is the **development cohort** for δ; results on GSE77348
+  are tuned-on supporting evidence, not independent confirmation.
   The label-repair exercise that produced the Roth-validated
-  positives is data preparation, not scoring-axis tuning; it post-
-  dates the δ choice.
+  positives is data preparation, not scoring-axis tuning, and it
+  post-dates the δ choice.
 
 - **Primary endpoint.** AUC at the `positives_roth_validated.txt`
   label set (n = 3 Roth Fig. 5d target probes, hg38 → hg19-lifted)
-  on the two matched MCF-7 / MCF-10A cell-line cohorts: **GSE322563**
-  (Roth actual samples) and **GSE77348** (DNMT3B-paper surrogate).
-  This is the direct paper-comparable test.
+  on **GSE322563** (Roth's own MCF-7 / MCF-10A samples). This is
+  the single independent paper-comparable test. δ was not tuned
+  against this cohort; the label set was not derived from it.
+
+- **Supporting evidence** (§5.1, §5.2). AUC on GSE77348 (the
+  development cohort for δ, MCF-7/MCF-10A on HM450). Same matched
+  cell-line biology as GSE322563 but profiled by a different lab on a
+  different platform, so cross-platform agreement on the V2.5 ordering
+  is informative — but it is *not* an independent cohort under the
+  pre-registration discipline because δ was selected on it.
 
 - **Sensitivity analyses** (§5.2). The `narrow` (±50 bp) and `wide`
   (±500 bp) label sets are alternative label granularities; the
@@ -245,9 +276,8 @@ tuned components from evaluation:
 
 - **Tissue-cohort behavior** (§5.3). GSE69914 (n = 305 / 50 primary
   breast tissue) is *not* a paper-comparable test of Roth biology —
-  it probes whether the V2.5 architecture generalizes to a
-  high-replicate setting where the `p_trust`-saturation prediction
-  of §3.4 can be falsified.
+  it probes whether the V2.5 architecture's low-`n` tied-band
+  behavior dissolves at high `n`, as predicted in §3.4.
 
 - **Out-of-distribution boundary case** (§5.4). GSE68379 (Sanger
   GDSC breast panel × GSE69914 healthy normal) is *not* a
@@ -366,34 +396,49 @@ These three fields are on every emitted `BenchmarkResult` JSONL row.
 
 ![Figure 2 · Cross-cohort AUC by score axis](docs/figures/fig2_auc_bars.png)
 
-**Figure 2.** Cross-cohort AUC. **(a)** Primary endpoint plus tissue
-behavior at the `validated` (n = 3 Roth Fig. 5d) label set on each
-of the three primary-axis cohorts. V2.5 wins on both matched cell-
-line cohorts (GSE322563, GSE77348); on tissue (GSE69914) `tumor_only`
-takes a small AUC lead but at a tied band of 6,540 (see §5.3 + Fig. 3).
-V1 falls below random on the tissue wide-label set in (b). **(b)**
-Sensitivity over label granularity (validated → narrow ±50 bp →
-wide ±500 bp). The cohort-type × axis ordering is stable across
-granularities; only the magnitude varies. Dashed line at AUC = 0.5
-(random). The out-of-distribution GSE68379 cohort is not included
-here — it is plotted separately (see §5.4 / Table OOD).
+**Figure 2.** Cross-cohort AUC. **(a)** Validated-label AUC on each
+cohort. GSE322563 is the independent primary endpoint; GSE77348 is
+the development cohort on which δ was tuned (§4.0) and is shown as
+supporting evidence; GSE69914 is the tissue-behavior check for the
+§3.4 tied-band prediction. V2.5 is the highest-AUC axis on both
+matched cell-line cohorts; on tissue `tumor_only` takes a small AUC
+lead but at a tied band of 6,540 (§5.3 + Fig. 3). V1 falls below
+random on the tissue wide-label set in (b). **(b)** Sensitivity over
+label granularity (validated → narrow ±50 bp → wide ±500 bp). The
+cohort-type × axis ordering is stable across granularities; only the
+magnitude varies. Dashed line at AUC = 0.5 (random). The out-of-
+distribution GSE68379 cohort is not included here — it is plotted
+separately (§5.4).
 
 ### 5.1 Primary endpoint — matched cell-line AUC at validated Roth probes
 
-Primary endpoint: AUC at `positives_roth_validated.txt` (n = 3 Roth
-Fig. 5d target probes, hg38 → hg19-lifted) on the two matched
-MCF-7 / MCF-10A cohorts. Score axis on the rows:
+**Primary endpoint (independent):** AUC at
+`positives_roth_validated.txt` (n = 3 Roth Fig. 5d target probes,
+hg38 → hg19-lifted) on **GSE322563** (Roth's own MCF-7 / MCF-10A
+samples, EPIC v2). δ was not tuned on this cohort; the label set
+was not derived from it.
 
-| axis | GSE322563 (Roth actual, n=2/2) | GSE77348 (surrogate, n=3/3) |
+**Supporting evidence (development cohort for δ):** AUC on
+**GSE77348** (MCF-7 / MCF-10A on HM450, the DNMT3B-paper surrogate).
+Same matched cell-line biology, different platform and laboratory.
+Reported here because same-axis ordering on a second lab's
+MCF-7/MCF-10A is informative, but with the caveat that δ was
+selected on this cohort (§4.0) so its AUC is tuned-on, not
+independent.
+
+| axis | **GSE322563** (primary, n=2/2) | GSE77348 (δ-tuned, n=3/3) |
 |---|---:|---:|
 | V1 `final_score` | 0.821 | 0.968 |
 | V2 `tumor_only` | 0.928 | 0.912 |
 | **V2.5 differential** | **0.990** | **0.982** |
 
-V2.5 is the highest-AUC axis on both matched cell-line cohorts —
-+0.17 over V1 on Roth's own samples, +0.01 over V1 on the surrogate,
-and +0.06 to +0.07 over the deprecated V2 `tumor_only` composite.
-`δ = 0.2` was fixed before these two cohorts were benchmarked (§4.0).
+On the independent primary endpoint (GSE322563 validated), V2.5 is
+the highest-AUC axis — +0.17 over V1 and +0.06 over the deprecated
+V2 `tumor_only` composite. On the development cohort (GSE77348
+validated), V2.5 is similarly the highest-AUC axis (+0.01 over V1,
++0.07 over `tumor_only`); this is consistent with the primary-
+endpoint result but is not an independent replication, since the
+same cohort selected δ = 0.2 pre-repair-labels (§4.0).
 
 ### 5.2 Sensitivity analyses: label granularity and P@K intervals
 
@@ -436,8 +481,8 @@ is not a meaningful quantity on this cohort.
 ### 5.3 Tissue-cohort behavior — GSE69914 (high-`n`, tissue biology)
 
 GSE69914 (n = 305 / 50 primary breast vs. healthy donor tissue)
-tests whether the `p_trust`-saturation prediction of §3.4 holds at
-`n ≫ 30`:
+tests whether the low-`n` tied-band behavior predicted in §3.4
+dissolves at `n ≫ 30`:
 
 | label set | V1 | tumor_only | V2.5 | V2.5 tie_band@100 |
 |---|---:|---:|---:|---:|
@@ -447,11 +492,17 @@ tests whether the `p_trust`-saturation prediction of §3.4 holds at
 
 Two findings:
 
-1. **The saturation prediction holds exactly.** V2.5's tied band
-   at K = 100 shrinks from 190 at `n = 2 / 2` → 299 at `n = 3 / 3`
-   → 2 at `n = 305 / 50`, with no hyperparameter changes between
-   cohorts. This is a falsifiable prediction made before the
-   high-`n` run; `p_trust` behaved as the model says it should.
+1. **The tied-band prediction holds.** V2.5's tied band at K = 100
+   shrinks from 190 at `n = 2 / 2` → 299 at `n = 3 / 3` → 2 at
+   `n = 305 / 50`, with no hyperparameter changes between cohorts.
+   At `n ≥ 30`, `p_trust` saturates at the EvidenceClass ceiling
+   (0.95 for EXACT) — a per-class *constant*, not a continuous
+   function of n. The tied band shrinks not because `p_trust`
+   becomes continuous-valued but because `p_targ × p_diff` are no
+   longer pushed to 1 by wide-IQR saturation and the σ floor; with
+   realistic-width IQRs (0.05–0.20) the composite's ordering is
+   driven by continuous variation in those two factors while
+   `p_trust` just multiplies by the class constant.
 
 2. **The mode ordering flips on tissue biology.** `tumor_only`
    wins AUC (+0.03 to +0.15 over V2.5), but `tumor_only`'s tied
@@ -596,7 +647,7 @@ The decision table below is the literal hierarchy:
 
 | intended use | axis (mode) | status | rationale |
 |---|---|---|---|
-| **Default stable framework release** | V1 `final_score` | tagged `v0.4.0`; default mode in cohort YAMLs remains `tumor_only` | Deterministic, continuous-valued score; `tie_band = 1` on every cohort tested, so P@K is never tie-break-dependent. Best AUC on independent surrogate (GSE77348 validated 0.968). |
+| **Default stable framework release** | V1 `final_score` | tagged `v0.4.0`; default mode in cohort YAMLs remains `tumor_only` | Deterministic, continuous-valued score; `tie_band = 1` on every cohort tested, so P@K is never tie-break-dependent. The stable-release role is specifically about top-K interpretability, not AUC leadership — V2.5 outperforms V1 on AUC on the primary endpoint (§5.1). |
 | **Recommended probabilistic research mode, matched cell-line / paper-comparable cohorts** | V2.5 (differential) | experimental-on-main, not tagged | Highest AUC at every label granularity on GSE322563 and GSE77348 (§5.1–5.2). Tie-bands reported per benchmark; P@K intervals honest. The cohort-YAML key is `probabilistic_mode: tumor_plus_differential_protection`. |
 | **Analysis-only (diagnostic)** | V2 `tumor_only` | retained in the mode enum; not a discovery axis | Competitive AUC on tissue (§5.3) but `tie_band_size_at_k` consistently 6,000–12,000; top-K is not interpretable. Use only for AUC sanity checks against V2.5 / V1. |
 | **Unsupported / out-of-distribution interpretation** | any axis at GSE68379 | documented as §5.4 boundary case | Sanger MCF-7 epigenetic drift breaks label transportability from Roth Fig. 5d. Inverted AUC is the expected scorer response; do not pool this cohort's numbers with §5.1. |

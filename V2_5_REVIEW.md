@@ -95,10 +95,12 @@ minus the `p_diff` filter, i.e. mostly "always-unmethylated" loci. V1
 does not bottleneck on a discrete `p_trust` ceiling.
 
 **Implication.** On this cohort the V2.5 P@100 improvement over V1 is not
-a robust empirical claim. On a cohort where `n ≫ trust_ramp_n` (e.g.
-TCGA-BRCA `n ≈ 800`), `p_trust` is continuous and the tied band should
-dissolve; V2.5's continuous `p_diff × p_targ` structure should then drive
-a real ranking signal. That prediction is unvalidated.
+a robust empirical claim. On a cohort where `n ≫ trust_ramp_n`,
+`p_trust` saturates at the EvidenceClass constant (0.95 for EXACT) — per-
+class discrete, not continuous — but per-side IQRs become realistic
+so `p_targ × p_diff` vary continuously and dominate composite ordering,
+dissolving the tied band. That prediction is unvalidated at the time of
+this review.
 
 ---
 
@@ -261,8 +263,12 @@ Neither is a blocker.
   additionally now asserts composite = `p_targ × p_diff × p_trust` at
   construction (P2 fix), so malformed JSONL cannot silently change rankings.
 - V2.5's tie_band behaves correctly with `n` — 190 at n=2 → 299 at n=3 →
-  2 at n=305/50 — confirming the `p_trust`-saturation prediction made
-  in §3 before the higher-`n` cohort was run. This is a prediction that
+  2 at n=305/50 — confirming the low-`n` tied-band prediction made in §3
+  before the higher-`n` cohort was run. (Mechanistic note: `p_trust`
+  saturates at a per-EvidenceClass constant at `n ≥ ramp_n = 30`, not to
+  a continuous function of n; what dissolves the tied band is that
+  `p_targ × p_diff` move from saturated-at-1 to continuously-varying as
+  IQRs move from zero-under-floor to realistic-width.) The prediction
   held without tuning after-the-fact.
 - V2.5 reproduces Roth's Fig. 5d β values exactly at the three validated
   target sites (EGFLAM 0.01/0.49, ESR1 0.07/0.94, GATA3 0.02/0.31),
