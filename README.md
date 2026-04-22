@@ -410,14 +410,24 @@ cell-line-style matched comparisons. Reformulating V2 (additive log-odds,
 weighted geometric mean, or a cohort-typed `normal_is_methylated` flag) is
 deferred until the cell-line-to-cell-line benchmark lands.
 
-### Pan-cancer aggregation is memory-bound
+### Pan-cancer aggregation: two paths
 
 `thermocas aggregate` groups ScoredCandidates across cohorts and emits in
-sorted (chrom, pos, family) order. Despite returning an iterator it **holds
-the entire atlas in memory** before the first record is yielded — peak cost
-is `O(N_candidates × N_cohorts)`. For 3M candidates × 10 cohorts this is
-~60 GB, not tractable in the current shape. True cohort-streaming k-way
-merge is deferred.
+sorted (chrom, pos, family, candidate_id) order. Two paths share the same
+per-candidate emit contract and produce byte-identical output under valid
+input:
+
+- **Default (in-memory)**: buffers the full candidate × cohort matrix
+  before the first record is yielded — peak cost
+  `O(N_unique_candidate_ids × N_cohorts × sizeof(ScoredCandidate))`.
+  Fine for small cohorts; for 3M candidates × 10 cohorts this is ~60 GB
+  and not tractable.
+- **`--streaming`**: k-way merge over pre-sorted cohort JSONLs.
+  Candidate-side memory grows in `N_unique_candidate_ids` only (a small
+  `seen_cid → metadata` map, ~100 B per entry, used to enforce
+  cross-cohort metadata parity) rather than multiplying by
+  `N_cohorts × sizeof(ScoredCandidate)`. Requires each input to be
+  sorted by `(chrom, critical_c_pos, pam_family, candidate_id)`.
 
 ### Positives selection is coordinate-system-sensitive
 

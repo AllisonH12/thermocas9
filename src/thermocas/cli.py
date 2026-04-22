@@ -224,11 +224,15 @@ def _build_parser() -> argparse.ArgumentParser:
     agg.add_argument("--high-score-threshold", type=float, default=0.30,
                      help="Cohort-level final_score threshold for 'addressable' (default 0.30)")
     agg.add_argument("--streaming", action="store_true",
-                     help="Use the O(N_cohorts)-memory k-way-merge aggregator. "
+                     help="Use the k-way-merge aggregator; candidate-side "
+                          "memory grows in N_unique_candidate_ids (a "
+                          "seen-cid parity map, ~100 B/entry) rather than "
+                          "multiplying by N_cohorts × sizeof(ScoredCandidate). "
                           "Requires each input JSONL to be pre-sorted by "
                           "(chrom, critical_c_pos, pam_family, candidate_id). "
                           "Use this for genome-scale runs; the default "
-                          "in-memory path holds O(N_candidates × N_cohorts).")
+                          "in-memory path holds the full N_unique_candidate_ids "
+                          "× N_cohorts × sizeof(ScoredCandidate) buffer.")
     agg.add_argument("--output", required=True, type=Path,
                      help="Output JSONL of PanCancerAggregate records")
     agg.set_defaults(func=_cmd_aggregate)
@@ -560,9 +564,10 @@ def _cmd_gdc_fetch(args: argparse.Namespace) -> int:
 def _cmd_aggregate(args: argparse.Namespace) -> int:
     # Pass iterators through rather than `list(read_jsonl(...))` — the CLI
     # was preloading every cohort JSONL into memory before handing it to
-    # `aggregate()`. The default in-memory `aggregate()` still buffers
-    # candidate × cohort internally; pass --streaming for the O(k)-memory
-    # k-way-merge path (requires sorted JSONLs).
+    # `aggregate()`. The default in-memory `aggregate()` still buffers the
+    # full candidate × cohort × sizeof(ScoredCandidate) matrix internally;
+    # pass --streaming for the k-way-merge path whose candidate-side
+    # memory grows only in N_unique_candidate_ids (requires sorted JSONLs).
     cohorts: dict[str, Iterable[ScoredCandidate]] = {}
     for spec in args.scored:
         if "=" not in spec:
