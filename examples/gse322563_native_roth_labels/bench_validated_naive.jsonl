@@ -1,0 +1,1 @@
+{"cohort_name":"GSE322563-MCF7-native-naive-validated","n_total":5224082,"n_positives":3,"n_negatives":5224079,"held_out_chromosomes":[],"top_k":20,"precision_at_k":0.0,"recall_at_k":0.0,"roc_auc":0.9606121321416975,"tie_band_size_at_k":55,"tie_break_policy":"candidate_id_asc","precision_at_k_min":0.0,"precision_at_k_max":0.0,"recall_at_k_min":0.0,"recall_at_k_max":0.0}
