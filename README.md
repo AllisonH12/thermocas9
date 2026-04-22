@@ -240,9 +240,9 @@ Fig. 5d validated target coordinates (`EGFLAM T11`, `ESR1 T17`,
 
 | cohort type | example | recommended axis | why |
 |---|---|---|---|
-| **matched cell-line / paper-comparable** | GSE322563 (Roth actual), GSE77348 (surrogate) | **V2.5 `tumor_plus_differential_protection`** | Highest AUC at every label granularity (validated / narrow / wide). Up to +0.17 AUC over V1 on the Roth-validated label set. |
-| **primary tumor tissue** | GSE69914 (n=305 / 50) | V2.5 **or** V1, with caveats | `tumor_only` has marginally higher AUC but its top-K is determined by tie-break (`tie_band ≈ 6,500`), not by score. V2.5 has clean tie-band (=2). V1 AUC collapses to ~0.44 on wide positives — worse than random. |
-| **any cohort, top-K stability priority** | — | V1 `final_score` as fallback | V1's continuous-valued score has `tie_band = 1` at every K. Safe to read P@K. |
+| **matched cell-line / paper-comparable** | GSE322563 (Roth actual), GSE77348 (δ-tuning dev cohort) | **V2.5 `tumor_plus_differential_protection`** | Highest-AUC discovery axis at every label granularity (validated / narrow / wide). +0.01 to +0.08 over Δβ-only; +0.01 to +0.17 over V1 on the Roth-validated label set. |
+| **primary tumor tissue** | GSE69914 (n=305 / 50) | **V2.5 `tumor_plus_differential_protection`** | Highest-AUC discovery axis on tissue too: +0.113 validated, +0.172 narrow, +0.291 wide over V1. V2's `tumor_only` has the highest raw AUC (0.803–0.874) but `tie_band = 6,540` at K=100 excludes it from discovery use (retained as a diagnostic). V1 collapses on wide (AUC 0.435 — at chance). V2.5's tie-band is 2 at K=100; top-K is effectively deterministic. |
+| **any cohort, top-K stability priority / backward compat** | — | V1 `final_score` | V1's continuous-valued deterministic score has `tie_band = 1` at every K regardless of cohort shape. This is the stable-release default (tag `v0.4.0`) for backward compatibility; not the AUC leader anywhere. |
 
 ```bash
 # cell-line / paper-comparable cohort:
@@ -253,8 +253,10 @@ thermocas benchmark ... --score-field p_therapeutic_selectivity ...
 thermocas benchmark ... --score-field final_score ...
 ```
 
-V2.5 is **not** an unconditional default. It is the recommended probabilistic
-mode for matched cell-line / paper-comparable biology, subject to low-`n`
+V2.5 is **not** the unconditional stable-release default — V1 `final_score`
+is, for backward compatibility and its deterministic `tie_band = 1` top-K
+guarantee. V2.5 is the recommended *research* mode across every cohort
+shape we tested (matched cell-line *and* tissue), subject to low-`n`
 tie-band caveats documented in the next section. `tumor_only` stays
 framed as analysis-only. See `V2_5_REVIEW.md` §8 for the full 3-cohort
 × 3-label-set × 3-mode matrix.
