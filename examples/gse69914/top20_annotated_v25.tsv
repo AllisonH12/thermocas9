@@ -1,21 +1,21 @@
-rank	candidate_id	chrom	critical_c_pos	strand	pam_family	pam	score	beta_tumor_mean	beta_normal_mean	delta_beta	p_targ	p_diff	p_prot	p_trust	nearest_gene	tss_distance_bp	feature_class	cpg_island_context	cpg_island_distance_bp	in_repeat	repeat_class	repeat_family	repeat_name	in_dnase_cluster	dnase_source_count	is_positive
-1	chr6:45645204-:NNNNCGA	chr6	45645204	-	NNNNCGA	CAGCCGA	0.445582	0.096	0.287	+0.191	0.985	0.476	0.075	0.950	RUNX2	-255193	intergenic	open_sea	13391	-	-	-	-	YES	114	-
-2	chr6:108145420-:NNNNCGA	chr6	108145420	-	NNNNCGA	TACTCGG	0.433597	0.238	0.517	+0.278	0.700	0.652	0.547	0.950	SCML4	-96	promoter	open_sea	23976	-	-	-	-	YES	42	-
-3	chr6:1607922-:NNNNCGA	chr6	1607922	-	NNNNCGA	CCATCGG	0.421994	0.127	0.312	+0.185	0.989	0.449	0.040	0.950	FOXCUT	-2157	intergenic	island	0	-	-	-	-	YES	397	-
-4	chr6:29454557-:NNNNCGA	chr6	29454557	-	NNNNCGA	GGGTCGA	0.385992	0.138	0.310	+0.173	0.979	0.415	0.051	0.950	MAS1L	-1175	gene_body	open_sea	66553	-	-	-	-	YES	5	-
-5	chr6:55965977-:NNNNCGA	chr6	55965977	-	NNNNCGA	CAGTCGA	0.382869	0.207	0.389	+0.182	0.894	0.451	0.195	0.950	COL21A1	-146400	gene_body	open_sea	146211	-	-	-	-	YES	80	-
-6	chr6:1608107-:NNNNCGA	chr6	1608107	-	NNNNCGA	AGTTCGG	0.35733	0.171	0.344	+0.172	0.870	0.432	0.109	0.950	FOXC1	2042	intergenic	island	0	-	-	-	-	YES	397	-
-7	chr6:45645203+:NNNNCGA	chr6	45645203	+	NNNNCGA	GACTCGG	0.351775	0.096	0.287	+0.191	0.985	0.476	0.075	0.750	RUNX2	-255192	intergenic	open_sea	13390	-	-	-	-	YES	114	-
-8	chr6:45645205-:NNNNCCA	chr6	45645205	-	NNNNCCA	CCAGCCG	0.351775	0.096	0.287	+0.191	0.985	0.476	0.075	0.750	RUNX2	-255194	intergenic	open_sea	13392	-	-	-	-	YES	114	-
-9	chr6:45645209-:NNNNCCA	chr6	45645209	-	NNNNCCA	AGCCCCA	0.351775	0.096	0.287	+0.191	0.985	0.476	0.075	0.750	RUNX2	-255198	intergenic	open_sea	13396	-	-	-	-	YES	114	-
-10	chr6:45645216+:NNNNCCA	chr6	45645216	+	NNNNCCA	CTAACCA	0.351775	0.096	0.287	+0.191	0.985	0.476	0.075	0.750	RUNX2	-255205	intergenic	open_sea	13403	-	-	-	-	YES	114	-
-11	chr10:111974273-:NNNNCGA	chr10	111974273	-	NNNNCGA	GACCCGG	0.351467	0.235	0.433	+0.198	0.751	0.493	0.244	0.950	MXI1	-4285	gene_body	shelf	3551	-	-	-	-	YES	46	-
-12	chr6:108145374-:NNNNCGA	chr6	108145374	-	NNNNCGA	CTCCCGA	0.34974	0.310	0.621	+0.311	0.520	0.707	0.830	0.950	SCML4	-142	promoter	open_sea	24022	-	-	-	-	YES	42	-
-13	chr6:108145418+:NNNNCCA	chr6	108145418	+	NNNNCCA	CAAACCG	0.342313	0.238	0.517	+0.278	0.700	0.652	0.547	0.750	SCML4	-98	promoter	open_sea	23978	-	-	-	-	YES	42	-
-14	chr6:108145419+:NNNNCGA	chr6	108145419	+	NNNNCGA	AAACCGA	0.342313	0.238	0.517	+0.278	0.700	0.652	0.547	0.750	SCML4	-97	promoter	open_sea	23977	-	-	-	-	YES	42	-
-15	chr6:108145441+:NNNNCCA	chr6	108145441	+	NNNNCCA	TCTTCCA	0.342313	0.238	0.517	+0.278	0.700	0.652	0.547	0.750	SCML4	-75	promoter	open_sea	23955	-	-	-	-	YES	42	-
-16	chr6:108145445+:NNNNCCA	chr6	108145445	+	NNNNCCA	CCACCCG	0.342313	0.238	0.517	+0.278	0.700	0.652	0.547	0.750	SCML4	-71	promoter	open_sea	23951	-	-	-	-	YES	42	-
-17	chr5:167513451+:NNNNCCA	chr5	167513451	+	NNNNCCA	CATGCCA	0.341778	0.185	0.395	+0.209	0.868	0.525	0.168	0.750	TENM2	-331518	gene_body	open_sea	175776	-	-	-	-	YES	61	-
-18	chr5:167513459-:NNNNCCA	chr5	167513459	-	NNNNCCA	TAACCCA	0.341778	0.185	0.395	+0.209	0.868	0.525	0.168	0.750	TENM2	-331526	gene_body	open_sea	175768	-	-	-	-	YES	61	-
-19	chr5:167513475+:NNNNCCA	chr5	167513475	+	NNNNCCA	GAGGCCA	0.341778	0.185	0.395	+0.209	0.868	0.525	0.168	0.750	TENM2	-331542	gene_body	open_sea	175752	-	-	-	-	YES	61	-
-20	chr5:163187595-:NNNNCGA	chr5	163187595	-	NNNNCGA	GGGTCGA	0.340097	0.222	0.410	+0.188	0.769	0.466	0.129	0.950	MAT2B	-254971	intergenic	open_sea	254650	-	-	-	-	YES	72	-
+rank	candidate_id	chrom	critical_c_pos	strand	pam_family	pam	score	beta_tumor_mean	beta_normal_mean	delta_beta	p_targ	p_diff	p_prot	p_trust	nearest_gene	tss_distance_bp	feature_class	cpg_island_context	cpg_island_distance_bp	in_repeat	repeat_class	repeat_family	repeat_name	in_dnase_cluster	dnase_source_count	flags	is_positive
+1	chr6:45645204-:NNNNCGA	chr6	45645204	-	NNNNCGA	CAGCCGA	0.445582	0.096	0.287	+0.191	0.985	0.476	0.075	0.950	RUNX2	-255193	intergenic	open_sea	13391	-	-	-	-	YES	114	CAUTION: small differential (Delta_beta=+0.191)	-
+2	chr6:108145420-:NNNNCGA	chr6	108145420	-	NNNNCGA	TACTCGG	0.433597	0.238	0.517	+0.278	0.700	0.652	0.547	0.950	SCML4	-96	promoter	open_sea	23976	-	-	-	-	YES	42	STRONG: active promoter (DNase support in 42 cell types); CAUTION: small differential (Delta_beta=+0.278)	-
+3	chr6:1607922-:NNNNCGA	chr6	1607922	-	NNNNCGA	CCATCGG	0.421994	0.127	0.312	+0.185	0.989	0.449	0.040	0.950	FOXCUT	-2157	intergenic	island	0	-	-	-	-	YES	397	CAUTION: small differential (Delta_beta=+0.185)	-
+4	chr6:29454557-:NNNNCGA	chr6	29454557	-	NNNNCGA	GGGTCGA	0.385992	0.138	0.310	+0.173	0.979	0.415	0.051	0.950	MAS1L	-1175	gene_body	open_sea	66553	-	-	-	-	YES	5	CAUTION: small differential (Delta_beta=+0.173)	-
+5	chr6:55965977-:NNNNCGA	chr6	55965977	-	NNNNCGA	CAGTCGA	0.382869	0.207	0.389	+0.182	0.894	0.451	0.195	0.950	COL21A1	-146400	gene_body	open_sea	146211	-	-	-	-	YES	80	CAUTION: small differential (Delta_beta=+0.182)	-
+6	chr6:1608107-:NNNNCGA	chr6	1608107	-	NNNNCGA	AGTTCGG	0.35733	0.171	0.344	+0.172	0.870	0.432	0.109	0.950	FOXC1	2042	intergenic	island	0	-	-	-	-	YES	397	CAUTION: small differential (Delta_beta=+0.172)	-
+7	chr6:45645203+:NNNNCGA	chr6	45645203	+	NNNNCGA	GACTCGG	0.351775	0.096	0.287	+0.191	0.985	0.476	0.075	0.750	RUNX2	-255192	intergenic	open_sea	13390	-	-	-	-	YES	114	CAUTION: small differential (Delta_beta=+0.191)	-
+8	chr6:45645205-:NNNNCCA	chr6	45645205	-	NNNNCCA	CCAGCCG	0.351775	0.096	0.287	+0.191	0.985	0.476	0.075	0.750	RUNX2	-255194	intergenic	open_sea	13392	-	-	-	-	YES	114	CAUTION: small differential (Delta_beta=+0.191)	-
+9	chr6:45645209-:NNNNCCA	chr6	45645209	-	NNNNCCA	AGCCCCA	0.351775	0.096	0.287	+0.191	0.985	0.476	0.075	0.750	RUNX2	-255198	intergenic	open_sea	13396	-	-	-	-	YES	114	CAUTION: small differential (Delta_beta=+0.191)	-
+10	chr6:45645216+:NNNNCCA	chr6	45645216	+	NNNNCCA	CTAACCA	0.351775	0.096	0.287	+0.191	0.985	0.476	0.075	0.750	RUNX2	-255205	intergenic	open_sea	13403	-	-	-	-	YES	114	CAUTION: small differential (Delta_beta=+0.191)	-
+11	chr10:111974273-:NNNNCGA	chr10	111974273	-	NNNNCGA	GACCCGG	0.351467	0.235	0.433	+0.198	0.751	0.493	0.244	0.950	MXI1	-4285	gene_body	shelf	3551	-	-	-	-	YES	46	CAUTION: small differential (Delta_beta=+0.198)	-
+12	chr6:108145374-:NNNNCGA	chr6	108145374	-	NNNNCGA	CTCCCGA	0.34974	0.310	0.621	+0.311	0.520	0.707	0.830	0.950	SCML4	-142	promoter	open_sea	24022	-	-	-	-	YES	42	STRONG: active promoter (DNase support in 42 cell types)	-
+13	chr6:108145418+:NNNNCCA	chr6	108145418	+	NNNNCCA	CAAACCG	0.342313	0.238	0.517	+0.278	0.700	0.652	0.547	0.750	SCML4	-98	promoter	open_sea	23978	-	-	-	-	YES	42	STRONG: active promoter (DNase support in 42 cell types); CAUTION: small differential (Delta_beta=+0.278)	-
+14	chr6:108145419+:NNNNCGA	chr6	108145419	+	NNNNCGA	AAACCGA	0.342313	0.238	0.517	+0.278	0.700	0.652	0.547	0.750	SCML4	-97	promoter	open_sea	23977	-	-	-	-	YES	42	STRONG: active promoter (DNase support in 42 cell types); CAUTION: small differential (Delta_beta=+0.278)	-
+15	chr6:108145441+:NNNNCCA	chr6	108145441	+	NNNNCCA	TCTTCCA	0.342313	0.238	0.517	+0.278	0.700	0.652	0.547	0.750	SCML4	-75	promoter	open_sea	23955	-	-	-	-	YES	42	STRONG: active promoter (DNase support in 42 cell types); CAUTION: small differential (Delta_beta=+0.278)	-
+16	chr6:108145445+:NNNNCCA	chr6	108145445	+	NNNNCCA	CCACCCG	0.342313	0.238	0.517	+0.278	0.700	0.652	0.547	0.750	SCML4	-71	promoter	open_sea	23951	-	-	-	-	YES	42	STRONG: active promoter (DNase support in 42 cell types); CAUTION: small differential (Delta_beta=+0.278)	-
+17	chr5:167513451+:NNNNCCA	chr5	167513451	+	NNNNCCA	CATGCCA	0.341778	0.185	0.395	+0.209	0.868	0.525	0.168	0.750	TENM2	-331518	gene_body	open_sea	175776	-	-	-	-	YES	61	CAUTION: small differential (Delta_beta=+0.209)	-
+18	chr5:167513459-:NNNNCCA	chr5	167513459	-	NNNNCCA	TAACCCA	0.341778	0.185	0.395	+0.209	0.868	0.525	0.168	0.750	TENM2	-331526	gene_body	open_sea	175768	-	-	-	-	YES	61	CAUTION: small differential (Delta_beta=+0.209)	-
+19	chr5:167513475+:NNNNCCA	chr5	167513475	+	NNNNCCA	GAGGCCA	0.341778	0.185	0.395	+0.209	0.868	0.525	0.168	0.750	TENM2	-331542	gene_body	open_sea	175752	-	-	-	-	YES	61	CAUTION: small differential (Delta_beta=+0.209)	-
+20	chr5:163187595-:NNNNCGA	chr5	163187595	-	NNNNCGA	GGGTCGA	0.340097	0.222	0.410	+0.188	0.769	0.466	0.129	0.950	MAT2B	-254971	intergenic	open_sea	254650	-	-	-	-	YES	72	CAUTION: small differential (Delta_beta=+0.188)	-

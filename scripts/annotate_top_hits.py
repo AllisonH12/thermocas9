@@ -346,6 +346,160 @@ def top_k_by(score_field: str, scored_path: Path, k: int) -> list[dict]:
     return [x["record"] for x in top]
 
 
+# ---------- flag rules & markdown emitter ----------
+
+#: Thresholds the flag rules depend on. Pulled out here so a reader can see
+#: "promoter" vs "small Δβ" vs "sparse evidence" as one coherent filter set.
+FLAG_LOW_PTRUST = 0.10
+FLAG_SMALL_DELTA_BETA = 0.30
+
+
+def compute_flags(card: dict) -> list[str]:
+    """Return a list of short tagged strings summarizing each candidate.
+
+    The rules are intentionally conservative and deterministic from the
+    annotated fields — they are a triage aid for the person picking
+    guides, not a re-ranking. A card can carry multiple flags; a card
+    with no flags is neither good nor bad, it just didn't trip any rule.
+    """
+    flags: list[str] = []
+
+    feat = card.get("feature_class")
+    cgi = card.get("cpg_island_context")
+    in_rep = card.get("in_repeat")  # True / False / None
+    rep_fam = card.get("repeat_family")
+    in_dnase = card.get("in_dnase_cluster")  # True / False / None
+    dnase_count = card.get("dnase_source_count")  # int / None
+    p_trust = card.get("p_trust")
+    delta_beta = card.get("delta_beta")
+
+    # Positives — traits a bench reader cares to see front-loaded.
+    if feat == "promoter" and cgi == "island":
+        flags.append("STRONG: island-localized promoter")
+    if feat == "promoter" and in_dnase is True and (dnase_count or 0) >= 10:
+        flags.append(
+            f"STRONG: active promoter (DNase support in {dnase_count} cell types)"
+        )
+
+    # Cautions — things the reader should eyeball before ordering.
+    if in_rep is True:
+        flags.append(f"CAUTION: overlaps {rep_fam or 'a'} repeat")
+    if p_trust is not None and p_trust < FLAG_LOW_PTRUST:
+        flags.append(f"CAUTION: sparse evidence (p_trust={p_trust:.3f})")
+    if delta_beta is not None and delta_beta < FLAG_SMALL_DELTA_BETA:
+        flags.append(f"CAUTION: small differential (Delta_beta={delta_beta:+.3f})")
+    if feat == "gene_body" and in_dnase is False:
+        flags.append("NOTE: gene body with no DNase support")
+
+    return flags
+
+
+def emit_markdown(cards: list[dict], path: Path, *, cohort_label: str) -> None:
+    """Write a per-candidate Markdown shortlist.
+
+    Structure: a short summary header, followed by one card per
+    candidate. Each card shows the decision-critical fields (coords,
+    gene, feature class, methylation numbers, score components) plus
+    any flags from `compute_flags(card)`.
+    """
+    n = len(cards)
+    n_strong = sum(1 for c in cards if any(f.startswith("STRONG:") for f in c["_flags"]))
+    n_caution = sum(1 for c in cards if any(f.startswith("CAUTION:") for f in c["_flags"]))
+    n_clean = sum(1 for c in cards if not any(f.startswith("CAUTION:") for f in c["_flags"]))
+
+    lines: list[str] = []
+    lines.append(f"# Top-{n} ThermoCas9 target shortlist — {cohort_label}\n")
+    lines.append(
+        "Human-readable companion to the TSV. For each candidate: "
+        "coordinates, nearest gene, feature class, methylation numbers, "
+        "score components, and rule-based flags. "
+        "STRONG flags are traits a bench reader wants to see; "
+        "CAUTION flags are worth eyeballing before ordering guides. "
+        "Flags are a triage aid, not a re-ranking.\n"
+    )
+    lines.append(
+        f"- **{n_strong}** candidate(s) with at least one STRONG flag.\n"
+        f"- **{n_caution}** candidate(s) with at least one CAUTION flag.\n"
+        f"- **{n_clean}** candidate(s) with no CAUTION flags.\n"
+    )
+    lines.append("---\n")
+
+    for c in cards:
+        pos_str = c.get("is_positive") or "-"
+        pos_tag = " — **labeled positive**" if pos_str == "YES" else ""
+        lines.append(
+            f"## Rank {c['rank']} — `{c['candidate_id']}`{pos_tag}\n"
+        )
+
+        gene = c.get("nearest_gene") or "-"
+        tss_d = c.get("tss_distance_bp")
+        tss_d_str = f"{tss_d:+d} bp to TSS" if isinstance(tss_d, int) else "TSS distance: NA"
+        feat = c.get("feature_class") or "-"
+        cgi = c.get("cpg_island_context") or "-"
+        cgi_d = c.get("cpg_island_distance_bp")
+        cgi_str = f"{cgi}" + (f" ({cgi_d} bp to boundary)" if isinstance(cgi_d, int) and cgi_d > 0 else "")
+
+        lines.append(
+            f"**Locus.** {c['chrom']}:{c['critical_c_pos']} ({c['strand']}), "
+            f"PAM `{c['pam']}` (family `{c['pam_family']}`).  \n"
+            f"**Gene / feature.** {gene}, {feat} ({tss_d_str}); CpG context: {cgi_str}.\n"
+        )
+
+        bt = c.get("beta_tumor_mean")
+        bn = c.get("beta_normal_mean")
+        db = c.get("delta_beta")
+        beta_parts = []
+        if isinstance(bt, float):
+            beta_parts.append(f"beta_tumor = {bt:.3f}")
+        if isinstance(bn, float):
+            beta_parts.append(f"beta_normal = {bn:.3f}")
+        if isinstance(db, float):
+            beta_parts.append(f"Delta_beta = {db:+.3f}")
+        lines.append("**Methylation.** " + ", ".join(beta_parts) + ".\n")
+
+        prob_parts = []
+        for key, label in (
+            ("p_targ", "p_targ"),
+            ("p_diff", "p_diff"),
+            ("p_trust", "p_trust"),
+        ):
+            v = c.get(key)
+            if isinstance(v, float):
+                prob_parts.append(f"{label} = {v:.3f}")
+        score = c.get("score")
+        score_str = f"{score:.4g}" if isinstance(score, float) else "NA"
+        lines.append(
+            f"**Score.** {score_str}  ({', '.join(prob_parts)}).\n"
+        )
+
+        rep_overlay = []
+        if c.get("in_repeat") is True:
+            rep_overlay.append(
+                f"repeat: {c.get('repeat_class')}/{c.get('repeat_family')}/{c.get('repeat_name')}"
+            )
+        elif c.get("in_repeat") is False:
+            rep_overlay.append("no repeat overlap")
+        if c.get("in_dnase_cluster") is True:
+            rep_overlay.append(
+                f"DNase cluster in {c.get('dnase_source_count')} cell type(s)"
+            )
+        elif c.get("in_dnase_cluster") is False:
+            rep_overlay.append("no DNase-cluster support")
+        if rep_overlay:
+            lines.append("**Structural context.** " + "; ".join(rep_overlay) + ".\n")
+
+        flags = c.get("_flags") or []
+        if flags:
+            lines.append("**Flags.**")
+            for f in flags:
+                lines.append(f"- {f}")
+            lines.append("")  # blank line after list
+        lines.append("")  # blank line between cards
+
+    path.write_text("\n".join(lines))
+    print(f"-> {path}  ({n} candidate cards)", flush=True)
+
+
 # ---------- CLI ----------
 
 
@@ -370,6 +524,12 @@ def main() -> int:
     p.add_argument("--positives", type=Path, default=None,
                    help="Optional file of candidate_ids to flag in the output")
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--markdown", type=Path, default=None,
+                   help="Optional human-readable Markdown companion. Emits a "
+                        "per-candidate card with decision-critical fields and "
+                        "rule-based flags (island-localized promoter / in-repeat "
+                        "caution / sparse-evidence caution / etc.). Intended for "
+                        "the person who will actually order guides.")
     args = p.parse_args()
 
     # Stream once to know which chroms appear — small catalog, just read the
@@ -415,9 +575,13 @@ def main() -> int:
         "cpg_island_context", "cpg_island_distance_bp",
         "in_repeat", "repeat_class", "repeat_family", "repeat_name",
         "in_dnase_cluster", "dnase_source_count",
+        "flags",
         "is_positive",
     ]
-    out_rows: list[list[str]] = [cols]
+
+    # Build typed cards first; derive TSV rows and optional Markdown from
+    # the same source of truth so the two emissions can't drift.
+    cards: list[dict] = []
 
     for rank, r in enumerate(top, 1):
         cand = r["candidate"]
@@ -431,25 +595,20 @@ def main() -> int:
         cgi_ctx, cgi_d = annotate_cgi(chrom, pos, cgi_by_chrom[chrom])
 
         if rep_by_chrom is not None:
-            in_rep, rep_cls, rep_fam, rep_name = annotate_repeat(
+            in_rep_bool, rep_cls, rep_fam, rep_name = annotate_repeat(
                 chrom, pos, rep_by_chrom[chrom]
             )
-            rep_cols = [
-                "YES" if in_rep else "-", rep_cls, rep_fam, rep_name,
-            ]
+            in_rep_val: bool | None = in_rep_bool
         else:
-            rep_cols = ["NA", "NA", "NA", "NA"]
+            in_rep_val, rep_cls, rep_fam, rep_name = None, "NA", "NA", "NA"
 
         if reg_by_chrom is not None:
-            in_dnase, dnase_count = annotate_regulatory(
+            in_dnase_bool, dnase_count = annotate_regulatory(
                 chrom, pos, reg_by_chrom[chrom]
             )
-            dnase_cols = [
-                "YES" if in_dnase else "-",
-                str(dnase_count) if in_dnase else "0",
-            ]
+            in_dnase_val: bool | None = in_dnase_bool
         else:
-            dnase_cols = ["NA", "NA"]
+            in_dnase_val, dnase_count = None, 0
 
         if args.score_field == "final_score":
             score = r["final_score"]
@@ -460,32 +619,83 @@ def main() -> int:
         bn = obs.get("beta_normal_mean")
         db = (bn - bt) if (bt is not None and bn is not None) else None
 
-        def f(x, fmt=".4f"):
-            if x is None:
-                return "NA"
-            return format(x, fmt)
+        card = {
+            "rank": rank,
+            "candidate_id": cid,
+            "chrom": chrom,
+            "critical_c_pos": pos,
+            "strand": cand["strand"],
+            "pam_family": cand["pam_family"],
+            "pam": cand["pam"],
+            "score": score,
+            "beta_tumor_mean": bt,
+            "beta_normal_mean": bn,
+            "delta_beta": db,
+            "p_targ": prob.get("p_targetable_tumor"),
+            "p_diff": prob.get("p_differential_protection"),
+            "p_prot": prob.get("p_protected_normal"),
+            "p_trust": prob.get("p_observation_trustworthy"),
+            "nearest_gene": gene or None,
+            "tss_distance_bp": tss_d if gene else None,
+            "feature_class": feat,
+            "cpg_island_context": cgi_ctx,
+            "cpg_island_distance_bp": cgi_d if cgi_d >= 0 else None,
+            "in_repeat": in_rep_val,
+            "repeat_class": rep_cls,
+            "repeat_family": rep_fam,
+            "repeat_name": rep_name,
+            "in_dnase_cluster": in_dnase_val,
+            "dnase_source_count": dnase_count if in_dnase_val else 0,
+            "is_positive": "YES" if cid in positives else "-",
+        }
+        card["_flags"] = compute_flags(card)
+        cards.append(card)
 
+    def f(x, fmt=".4f"):
+        if x is None:
+            return "NA"
+        return format(x, fmt)
+
+    def tri(v: bool | None) -> str:
+        if v is None:
+            return "NA"
+        return "YES" if v else "-"
+
+    out_rows: list[list[str]] = [cols]
+    for c in cards:
         out_rows.append([
-            str(rank),
-            cid, chrom, str(pos), cand["strand"],
-            cand["pam_family"], cand["pam"],
-            f(score, ".6g"),
-            f(bt, ".3f"), f(bn, ".3f"), f(db, "+.3f"),
-            f(prob.get("p_targetable_tumor"), ".3f"),
-            f(prob.get("p_differential_protection"), ".3f"),
-            f(prob.get("p_protected_normal"), ".3f"),
-            f(prob.get("p_observation_trustworthy"), ".3f"),
-            gene or "-", str(tss_d) if gene else "NA", feat,
-            cgi_ctx, str(cgi_d) if cgi_d >= 0 else "NA",
-            *rep_cols,
-            *dnase_cols,
-            "YES" if cid in positives else "-",
+            str(c["rank"]),
+            c["candidate_id"], c["chrom"], str(c["critical_c_pos"]), c["strand"],
+            c["pam_family"], c["pam"],
+            f(c["score"], ".6g"),
+            f(c["beta_tumor_mean"], ".3f"), f(c["beta_normal_mean"], ".3f"),
+            f(c["delta_beta"], "+.3f"),
+            f(c["p_targ"], ".3f"), f(c["p_diff"], ".3f"),
+            f(c["p_prot"], ".3f"), f(c["p_trust"], ".3f"),
+            c["nearest_gene"] or "-",
+            str(c["tss_distance_bp"]) if c["tss_distance_bp"] is not None else "NA",
+            c["feature_class"],
+            c["cpg_island_context"],
+            str(c["cpg_island_distance_bp"]) if c["cpg_island_distance_bp"] is not None else "NA",
+            tri(c["in_repeat"]), c["repeat_class"], c["repeat_family"], c["repeat_name"],
+            tri(c["in_dnase_cluster"]),
+            str(c["dnase_source_count"]) if c["in_dnase_cluster"] is True else
+                ("0" if c["in_dnase_cluster"] is False else "NA"),
+            "; ".join(c["_flags"]) if c["_flags"] else "-",
+            c["is_positive"],
         ])
 
     with args.output.open("w") as fh:
         for row in out_rows:
             fh.write("\t".join(row) + "\n")
-    print(f"→ {args.output}  ({len(out_rows) - 1} candidates annotated)", flush=True)
+    print(f"-> {args.output}  ({len(out_rows) - 1} candidates annotated)", flush=True)
+
+    if args.markdown is not None:
+        # Cohort label = scored JSONL stem minus the leading "scored_" prefix
+        # if present. Purely cosmetic.
+        stem = args.scored.stem
+        cohort_label = stem[len("scored_"):] if stem.startswith("scored_") else stem
+        emit_markdown(cards, args.markdown, cohort_label=cohort_label)
 
     # Also print to stdout for quick inspection — but compact: drop some columns
     compact_cols = ["rank", "candidate_id", "score",

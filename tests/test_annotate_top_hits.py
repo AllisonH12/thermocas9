@@ -246,3 +246,82 @@ def test_annotate_regulatory_inside_and_outside():
 
 def test_annotate_regulatory_empty_list():
     assert annotate.annotate_regulatory("chr1", 42, []) == (False, 0)
+
+
+# ---------- compute_flags (shortlist triage rules) ----------
+
+
+def _card(**overrides) -> dict:
+    base = {
+        "feature_class": "intergenic",
+        "cpg_island_context": "open_sea",
+        "in_repeat": False,
+        "repeat_family": "-",
+        "in_dnase_cluster": False,
+        "dnase_source_count": 0,
+        "p_trust": 0.95,
+        "delta_beta": 0.85,
+    }
+    base.update(overrides)
+    return base
+
+
+def test_compute_flags_island_localized_promoter_is_strong():
+    flags = annotate.compute_flags(_card(
+        feature_class="promoter", cpg_island_context="island",
+    ))
+    assert any(f.startswith("STRONG: island-localized promoter") for f in flags)
+
+
+def test_compute_flags_active_promoter_requires_dnase_breadth():
+    # Promoter + DNase in 15 cell types → STRONG
+    flags = annotate.compute_flags(_card(
+        feature_class="promoter", in_dnase_cluster=True, dnase_source_count=15,
+    ))
+    assert any("active promoter" in f and "15" in f for f in flags)
+    # Promoter + DNase in only 3 cell types (below threshold) → no STRONG flag
+    flags = annotate.compute_flags(_card(
+        feature_class="promoter", in_dnase_cluster=True, dnase_source_count=3,
+    ))
+    assert not any("active promoter" in f for f in flags)
+
+
+def test_compute_flags_in_repeat_is_caution():
+    flags = annotate.compute_flags(_card(
+        in_repeat=True, repeat_family="L1",
+    ))
+    assert any("CAUTION: overlaps L1 repeat" in f for f in flags)
+
+
+def test_compute_flags_sparse_evidence_caution():
+    flags = annotate.compute_flags(_card(p_trust=0.05))
+    assert any("sparse evidence" in f for f in flags)
+    # Threshold is strict <: 0.10 itself is not sparse.
+    assert not any("sparse evidence" in f
+                   for f in annotate.compute_flags(_card(p_trust=0.10)))
+
+
+def test_compute_flags_small_differential_caution():
+    flags = annotate.compute_flags(_card(delta_beta=0.15))
+    assert any("small differential" in f for f in flags)
+    # 0.30 is exactly the threshold and must NOT trigger (strict <).
+    assert not any("small differential" in f
+                   for f in annotate.compute_flags(_card(delta_beta=0.30)))
+
+
+def test_compute_flags_gene_body_without_dnase_is_note():
+    flags = annotate.compute_flags(_card(
+        feature_class="gene_body", in_dnase_cluster=False,
+    ))
+    assert any("gene body with no DNase support" in f for f in flags)
+
+
+def test_compute_flags_none_values_do_not_trigger():
+    # When annotation layers are unavailable (None), the rule that depends
+    # on them must not fire — tri-valued semantics matter.
+    flags = annotate.compute_flags(_card(
+        in_repeat=None, in_dnase_cluster=None,
+        feature_class="gene_body",  # would be NOTE if in_dnase_cluster were False
+    ))
+    assert not any("overlaps" in f for f in flags)
+    assert not any("gene body with no DNase" in f for f in flags)
