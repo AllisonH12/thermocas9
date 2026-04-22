@@ -2,19 +2,19 @@
 
 **Allison Huang Mercer** · Columbia University · <allisonhmercer@gmail.com>
 
-Framework maintained by Thermocas9 Inc. Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-22-b`.
+Framework maintained by Thermocas9 Inc. Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-22-c`.
 
 ---
 
 ## Abstract
 
-**Motivation.** Methylation of the fifth PAM cytosine protects genomic loci from ThermoCas9 cleavage (Roth et al., *Nature* 2026), enabling tumor-selective targeting at loci that diverge in methylation between cancer and matched normal tissue. Translating this mechanism into a target-discovery shortlist requires a scorer that is cohort-agnostic, honest about evidence quality, and explicit about ties in its output. No such scorer was publicly available.
+**Motivation.** Methylation of the fifth PAM cytosine protects genomic loci from ThermoCas9 cleavage (Roth et al., *Nature* 2026), enabling tumor-selective targeting at loci that diverge in methylation between cancer and matched normal tissue. Translating this mechanism into a target-discovery shortlist requires a scorer that is cohort-agnostic, honest about evidence quality, and explicit about ties in its output. No such scorer was publicly available. The obvious baseline — rank candidates by the raw methylation gap Δβ = β_normal − β_tumor — was not benchmarked against any proposed alternative in the open literature.
 
 **Results.** We present `thermocas`, an open probabilistic scoring framework for methylation-sensitive Cas9 target ranking. The V2.5 mode computes
 `p_therapeutic_selectivity = p_targetable_tumor × p_differential_protection × p_observation_trustworthy`,
-where `p_differential_protection = P(β_normal − β_tumor > δ)` is estimated by an independent-normal approximation on per-probe summary statistics (IQR-based σ estimate with a σ_floor = 0.05). We benchmark against three baselines — a literature-naive Δβ-only ranker, the deterministic V1 score, and a first-pass V2 formulation that our own analysis rejected — across four public methylation cohorts: GSE322563 (Roth's own MCF-7/MCF-10A EPIC v2 samples; primary endpoint), GSE77348 (development cohort on which δ was tuned), GSE69914 (n ≈ 300 tumor–normal pair tissue), and GSE68379 (documented as an out-of-distribution boundary case). On the independent primary endpoint, V2.5 reaches AUC 0.990 vs 0.821 (V1), 0.928 (V2 `tumor_only`), and 0.974 (Δβ-only). On matched cell-line cohorts Δβ-only is a surprisingly strong baseline — V2.5's margin over Δβ is 0.01–0.03 at validated, and Δβ-only marginally beats V2.5 on native EPIC v2 narrow (0.956 vs 0.944). The probabilistic envelope's value is larger on tissue: V2.5 reaches AUC 0.837 on GSE69914 validated while Δβ-only is near-random (0.591). Every benchmark record emits `tie_band_size_at_k` and `precision_at_k_{min, max}`, so low-replicate top-K metrics are reported as adversarial intervals rather than point estimates. The package adds a k-way-merge pan-cancer aggregator for genome-scale atlas builds and a per-candidate annotation pipeline (nearest gene, CpG-island context, RepeatMasker overlap, ENCODE DNase-HS cluster breadth) with a Markdown shortlist aimed at experimental collaborators.
+where `p_differential_protection = P(β_normal − β_tumor > δ)` is estimated by an independent-normal approximation on per-probe summary statistics (IQR-based σ estimate with a σ_floor = 0.05). We benchmark against three baselines — a literature-naive Δβ-only ranker, the deterministic V1 score, and a first-pass V2 formulation that our own analysis rejected — across four public methylation cohorts: GSE322563 (Roth's own MCF-7/MCF-10A EPIC v2 samples; primary endpoint), GSE77348 (development cohort on which δ was tuned), GSE69914 (n ≈ 300 tumor–normal pair tissue), and GSE68379 (documented as an out-of-distribution boundary case). **The headline finding is that V2.5 is not a universal replacement for raw Δβ.** On matched cell-line cohorts where the methylation signal is clean, Δβ-only is already a strong baseline (AUC 0.96–0.97 at validated); V2.5's margin over it is 0.01–0.03 at validated and occasionally negative (native EPIC v2 narrow: Δβ 0.956 vs V2.5 0.944). On tissue, the baseline collapses: GSE69914 validated AUC is 0.591 for Δβ-only, 0.837 for V2.5; on narrow and wide tiers Δβ-only is near-random (0.435–0.477). Both axes invert correctly on the out-of-distribution boundary (GSE68379: Δβ 0.15–0.20; V2.5 < 0.5). The probabilistic envelope earns its complexity in three places: (i) tissue cohorts where Δβ loses its signal to stromal contamination, (ii) tie-band-honest top-K reporting (`precision_at_k_{min, max}` and `tie_band_size_at_k` on every BenchmarkResult), and (iii) a probability-scale interpretation that lets downstream pipelines compose per-site scores with other probabilistic inputs. The package adds a k-way-merge pan-cancer aggregator for genome-scale atlas builds and a per-candidate annotation pipeline (nearest gene, CpG-island context, RepeatMasker overlap, ENCODE DNase-HS cluster breadth) with a Markdown shortlist aimed at experimental collaborators.
 
-**Availability and implementation.** `thermocas` is open source at <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-b` for the version evaluated here. 229 unit tests pass under `uv run pytest -q`. Python 3.11+, BSD-3.
+**Availability and implementation.** `thermocas` is open source at <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-c` for the version evaluated here. 229 unit tests pass under `uv run pytest -q`. Python 3.11+, BSD-3.
 
 **Contact.** <allisonhmercer@gmail.com>
 
@@ -231,7 +231,19 @@ The formal SCREEN cCRE Registry is gated behind a JavaScript challenge on `scree
 
 ## 6 Discussion
 
-### 6.1 Decision hierarchy
+### 6.1 What V2.5 is and is not
+
+The benchmark picture is sharper than the one we expected when we built the framework. On matched cell-line cohorts — where the PAM cytosine's methylation state cleanly separates the tumor and normal arms — the raw methylation gap Δβ = β_normal − β_tumor is already a strong ranking signal. V2.5 improves on it by a small margin (AUC +0.01 to +0.03 at validated tiers) and occasionally loses to it by a small margin (Δβ 0.956 vs V2.5 0.944 on native EPIC v2 narrow). **V2.5 is not a universal AUC replacement for Δβ, and we do not claim it is.**
+
+What V2.5 *does* do that Δβ cannot:
+
+1. **Recovers ranking power on tissue cohorts.** On GSE69914 (n = 305/50 tumor–normal pair tissue), Δβ-only collapses to AUC 0.435–0.591 across label tiers — at or below chance on narrow and wide tiers. V2.5 reaches 0.837 at validated and maintains `tie_band = 2` at K = 100. The intuition is direct: tissue "normal" is adjacent-normal bulk, whose β values are shifted toward partial methylation by stromal contamination. A large tumor-normal gap on matched cell-line pairs can shrink to a noisy small gap on tissue, and raw Δβ magnitude loses its discriminative power. V2.5's normal approximation with `σ_floor` continues to separate large-gap-high-confidence candidates from small-gap-high-noise candidates where raw Δβ cannot.
+2. **Emits honest top-K intervals.** `tie_band_size_at_k` and `precision_at_k_{min, max}` let a reader see when the top-K window sits inside a saturated region of the composite. Δβ-only has `tie_band = 1` (a continuous score) and in principle does not need this, but its collapsed AUC on tissue makes its top-K less useful there regardless.
+3. **Produces a probability-scale interpretation.** Each per-site `p_therapeutic_selectivity ∈ [0, 1]` is composable with downstream probabilistic inputs (target-mutation models, gRNA off-target probabilities, delivery-efficiency priors). Δβ is a signed similarity, not a probability, and cannot be directly multiplied into such a chain.
+
+This is the methodologically honest framing: Δβ is a strong baseline that should be reported alongside any new methylation-guided Cas9 scorer, and V2.5's value is in robustness under cohort shift and in its structural integration with uncertainty propagation — not in a straight AUC win on easy cohorts. We expect reviewers to prefer this framing over the stronger but unsupportable "V2.5 wins everywhere" claim.
+
+### 6.2 Decision hierarchy
 
 Three truths coexist:
 
@@ -241,7 +253,7 @@ Three truths coexist:
 
 Neither axis dominates universally, and the decision table is the literal recommended hierarchy.
 
-### 6.2 Limitations
+### 6.3 Limitations
 
 1. **Low-replicate tie bands.** On cohorts with `n < 30`, top-K is reported as an interval via `precision_at_k_{min, max}` and `tie_band_size_at_k`. The problem dissolves at `n ≳ 30` (demonstrated on GSE69914).
 2. **Cell-line drift.** GSE68379 confirms that "MCF-7" is not a single epigenetic object across labs. Any V2.5 shortlist must be validated against the specific cell line intended for the follow-up editing assay.
@@ -250,11 +262,11 @@ Neither axis dominates universally, and the decision table is the literal recomm
 5. **SCREEN cCRE Registry** is not integrated; DNase-HS clusters are a proxy.
 6. **No prospective wet-lab validation.** The claim is AUC + tie-band-aware top-K on public methylation data. All named top hits are unvalidated predictions.
 
-### 6.3 Related work
+### 6.4 Related work
 
 Two bodies of prior art are adjacent but non-overlapping. Generic CRISPR guide-scoring tools (e.g. Azimuth, DeepCRISPR, CRISPRitz) score sequence properties and off-target risk; none of them incorporate methylation state at the PAM cytosine, because none of them target a methylation-sensitive Cas9 variant. Methylation-aware variant analysis tools (e.g. methylKit, minfi) provide per-probe differential analysis on arrays but do not produce ranked target lists; their output feeds a scorer, not replaces one. `thermocas` is the first open framework we are aware of that joins the two — a ranking scorer that consumes methylation array summaries and outputs tumor-selective ThermoCas9 target shortlists with honest uncertainty.
 
-### 6.4 Next steps
+### 6.5 Next steps
 
 1. Prospective wet-lab validation of 3–5 top V2.5 candidates on MCF-7 vs MCF-10A (β-pyrosequencing + ThermoCas9 editing readout). This is the terminal step that changes the scientific claim.
 2. A second independent-lab matched MCF-7/MCF-10A EPIC v2 cohort if one becomes public, to replicate the V2.5 headline at `n ≥ 3` rather than `n = 2`.
@@ -270,7 +282,7 @@ Two bodies of prior art are adjacent but non-overlapping. Generic CRISPR guide-s
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-b` for the exact revision evaluated here. BSD-3 licensed. `git rev-parse memo-2026-04-22-b` resolves to a SHA in a fresh clone.
+- **Code**: <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-c` for the exact revision evaluated here. BSD-3 licensed. `git rev-parse memo-2026-04-22-c` resolves to a SHA in a fresh clone. Supersedes `memo-2026-04-22-b` with the Δβ-only baseline + honest-framing updates to §5 / §6 applied on top; prior tag retained per the immutable-tag policy.
 - **Tests**: 229 passing under `uv run pytest -q`.
 - **Cohorts**: public GEO series GSE322563, GSE77348, GSE69914, GSE68379. Build scripts in `scripts/build_gse*_cohort.py`.
 - **Reference annotations**: UCSC hg19 `refGene.txt.gz`, `cpgIslandExt.txt.gz`, `rmsk.txt.gz`, and `wgEncodeRegDnaseClusteredV3.txt.gz` (fetched on demand from hgdownload.soe.ucsc.edu).
@@ -290,7 +302,7 @@ This work would not exist without Roth et al.'s characterization of ThermoCas9 a
 
 ## Appendix A · Reproducibility
 
-From a fresh clone of the repository at `memo-2026-04-22-b`:
+From a fresh clone of the repository at `memo-2026-04-22-c`:
 
 ```bash
 # One-time env setup
