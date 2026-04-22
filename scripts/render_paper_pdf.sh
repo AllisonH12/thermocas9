@@ -66,7 +66,7 @@ awk '
 pandoc "$TMP" -o "$OUT" --pdf-engine=typst \
     --metadata title="Differential-protection probabilistic scoring for methylome-guided ThermoCas9 target-site ranking" \
     --metadata subtitle="Technical memo from the thermocas methylome-analysis framework" \
-    --metadata author="Allison Huang (Thermocas9 Inc)" \
+    --metadata author="Allison Huang (Columbia University)" \
     --metadata date="$(date +%Y-%m-%d)" \
     --toc --toc-depth=2 \
     --variable=fontsize=10pt

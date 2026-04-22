@@ -1,9 +1,9 @@
 # Differential-protection probabilistic scoring for methylome-guided ThermoCas9 target-site ranking
 
-**Author.** Allison Huang, Thermocas9 Inc.
-**Date.** 2026-04-20.
-**Code.** <https://github.com/AllisonH12/thermocas9> at commit `45867fb`.
-**Status.** Technical memo from an educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
+**Author.** Allison Huang, Columbia University.
+**Date.** 2026-04-21.
+**Code.** <https://github.com/AllisonH12/thermocas9> on `main` (the commit landing this revision of the manuscript; SHA in `git log -1 --format=%H PAPER.md`).
+**Status.** Technical memo from an educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z). The `thermocas` framework itself is maintained by Thermocas9 Inc.
 
 ---
 
@@ -292,7 +292,7 @@ Four cohorts, all public HM450 or EPIC v2 methylation arrays:
 | cohort | regime | n tumor / normal | platform | role |
 |---|---|:---:|:---:|---|
 | **GSE322563** | Roth actual samples | 2 / 2 | EPIC v2 | paper-comparable biology |
-| **GSE77348** | MCF-7/MCF-10A surrogate (DNMT3B paper) | 3 / 3 | HM450 | independent cell-line surrogate |
+| **GSE77348** | MCF-7/MCF-10A surrogate (DNMT3B paper) | 3 / 3 | HM450 | δ development cohort (tuned-on supporting evidence) |
 | **GSE69914** | primary breast tissue | 305 / 50 | HM450 | high-n tissue validation |
 | **GSE68379** | Sanger GDSC cell-line panel × GSE69914 healthy normal | 52 / 50 | HM450 | orthogonal (see §5.4) |
 
@@ -830,7 +830,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9> at commit `45867fb` (tag `v0.4.0` for the stable default; V2.5 as `tumor_plus_differential_protection` on `main`).
+- **Code**: <https://github.com/AllisonH12/thermocas9>. The stable-release V1 code is tagged `v0.4.0`. The V2.5 experimental mode, the P@K-interval benchmark contract, the top-hit annotation pipeline, this manuscript, and its committed benchmark and figure artifacts all live on `main`. To cite the exact revision that produced this memo, use `git log -1 --format=%H PAPER.md` in a fresh clone — that SHA pins every behavior and artifact the text references.
 - **Tests**: 215 passing under `uv run pytest -q`.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the committed per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
