@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-i` (immutable pointer to the exact revision that produced this memo; supersedes `memo-2026-04-22-h` which still had this memo's Figure 3 caption describing a 4-column heatmap with the pre-native "BOTH cell-line V2.5 top-20 windows (GSE322563 + GSE77348)" framing — actual figure has FIVE columns and THREE cell-line V2.5 columns since `-g`. The `scripts/verify_manuscript_claims.py` caption check ran only on `MANUSCRIPT.md` at `-h`, so the PAPER.md drift slipped through. Both fixed here: PAPER.md Fig 3 caption rewritten to the 5-column / 3-cell-line-V2.5-column reality, and the verify script now scans both circulated documents).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-j` (immutable pointer to the exact revision that produced this memo; supersedes `memo-2026-04-22-i` with five fixes: render script's awk title-block stripper now extends to the `---` horizontal rule (was leaking second-paragraph metadata into both PDFs' bodies); render script now sources the date from a `**Date.**` line in the source MD (was injecting wall-clock date, making PDFs non-reproducible from the tag); §4.3 axis count corrected from "Three" to "Four" (Δβ-only baseline was missing); §4.4 vague "axis ordering preserved" claim narrowed to the verified 9/9 invariant; §6.1 V1-row decision-table claim "V2.5 outperforms V1 at every cohort × tier" narrowed to "every non-boundary cohort × tier" — the prior phrasing was violated on the 3 GSE68379 OOD rows where V1 > V2.5).
 **Status.** Technical memo from an educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -332,8 +332,9 @@ Three positives files result, at increasing granularity:
 
 ### 4.3 Score axes
 
-Three axes are benchmarked on every cohort:
+Four axes are benchmarked on every cohort:
 
+- **Δβ-only** (`naive_selectivity`) — `β_normal_mean − β_tumor_mean`. The literature-naive baseline: rank by the raw methylation gap with no uncertainty propagation or evidence weighting. Added in `memo-2026-04-22-c` to address the "why not just rank by Δβ?" reviewer question up front.
 - **V1** — `final_score = sequence × selectivity × confidence − heterogeneity_penalty − low_coverage_penalty`. Deterministic, continuous-valued, tie band always 1.
 - **V2 `tumor_only`** — `p_targ × p_trust`. Retained for audit; default in v0.4.0.
 - **V2.5 `tumor_plus_differential_protection`** — `p_targ × p_diff × p_trust` with δ = 0.2.
@@ -362,9 +363,14 @@ belong in the methodology, not as a footnote:
   floor. V1 gains the most under the native ingest (+0.05 to +0.11
   AUC across label granularities) because its continuous score
   ranks the validated targets higher relative to easy-negative
-  candidates added by the EPIC v2 probe density. The relative axis
-  ordering is preserved across both ingest paths. Sensitivity table
-  in §5.2; benchmark JSONLs at `examples/gse322563_native_roth_labels/`.
+  candidates added by the EPIC v2 probe density. The only axis
+  ordering that holds on **every** matched-cell-line tier × path
+  row (9/9) is V2.5 > V1 and V2.5 > Δβ-only; the relative order of
+  Δβ-only, V1, and V2 `tumor_only` below V2.5 reshuffles across
+  rows (e.g. `tumor_only` sits above Δβ-only on both GSE322563 wide
+  tiers; on GSE77348 `tumor_only` is the lowest at every tier).
+  Sensitivity table in §5.2; benchmark JSONLs at
+  `examples/gse322563_native_roth_labels/`.
 
 - **Catalog scope.** The candidate catalog is chr5 / chr6 / chr10
   only, filtered to candidates within ±500 bp of any assayed HM450
@@ -701,7 +707,7 @@ The decision table below is the literal hierarchy:
 
 | intended use | axis (mode) | status | rationale |
 |---|---|---|---|
-| **Default stable framework release** | V1 `final_score` | tagged `v0.4.0`; default mode in cohort YAMLs remains `tumor_only` | Deterministic, continuous-valued score; `tie_band = 1` on every cohort tested, so P@K is never tie-break-dependent. The stable-release role is about backward-compatibility and top-K determinism, not AUC leadership — V2.5 outperforms V1 on AUC at every cohort × tier combination tested (§5.1–§5.3). |
+| **Default stable framework release** | V1 `final_score` | tagged `v0.4.0`; default mode in cohort YAMLs remains `tumor_only` | Deterministic, continuous-valued score; `tie_band = 1` on every cohort tested, so P@K is never tie-break-dependent. The stable-release role is about backward-compatibility and top-K determinism, not AUC leadership — V2.5 outperforms V1 on AUC at every **non-boundary** cohort × tier combination tested (12/12 rows across GSE322563 HM450, GSE322563 native, GSE77348, GSE69914; §5.1–§5.3). On the GSE68379 OOD boundary case, AUCs are inverted or near-random for every axis, so "AUC leadership" is not a meaningful concept there (§5.4). |
 | **Recommended probabilistic research mode (all cohort shapes tested)** | V2.5 (differential) | experimental-on-main, not tagged | Highest-AUC discovery axis at every cohort × label-granularity combination on GSE322563 HM450, GSE322563 native EPIC v2, GSE77348, and GSE69914 (§5.1–5.3). On tissue (GSE69914), `tumor_only` has higher raw AUC but its tie_band (6,540 at K=100) disqualifies it for discovery; V2.5 (tie_band = 2) is the highest usable axis. Tie-bands reported per benchmark; P@K intervals honest. The cohort-YAML key is `probabilistic_mode: tumor_plus_differential_protection`. |
 | **Analysis-only (diagnostic)** | V2 `tumor_only` | retained in the mode enum; not a discovery axis | Competitive AUC on tissue (§5.3) but `tie_band_size_at_k` at K = 100 ranges 5,271–14,914 across the five cohort paths tested (see §5.3 cross-cohort matrix); top-K is not interpretable. Use only for AUC sanity checks against V2.5 / V1. |
 | **Unsupported / out-of-distribution interpretation** | any axis at GSE68379 | documented as §5.4 boundary case | Sanger MCF-7 epigenetic drift breaks label transportability from Roth Fig. 5d. Inverted AUC is the expected scorer response; do not pool this cohort's numbers with §5.1. |
@@ -900,8 +906,9 @@ already invariant within tied score regions.
   - `memo-2026-04-22-f` — corrected the `-e` issues and added the `verify_manuscript_claims.py` guard. **Retained but SHOULD NOT BE CITED**: MANUSCRIPT.md at this tag embedded only Figure 1 (mode schematic). Figures 2 and 3 existed on disk from an earlier render against a 3-axis × 3-cohort grid (no Δβ-only baseline, no GSE322563 native EPIC v2) and were inconsistent with the manuscript's 4-axis narrative; they were not embedded in MANUSCRIPT.md.
   - `memo-2026-04-22-g` — regenerated Fig 2 and Fig 3 against the committed bench grid and embedded both in MANUSCRIPT.md §5. **Retained but SHOULD NOT BE CITED**: the PDF render helper `scripts/render_paper_pdf.sh` still hardcoded `PAPER.md` as the source (following the documented workflow would have produced the audit memo, not the submission manuscript); and Fig 3's caption had an overclaim "plus cohort-specific candidates" implying additional tissue genes beyond the 9 actually listed.
   - `memo-2026-04-22-h` — generalized the PDF render helper, fixed the Fig 3 caption "plus cohort-specific" overclaim in MANUSCRIPT.md, and extended the verify script to check figure captions. **Retained but SHOULD NOT BE CITED**: PAPER.md Fig 3 caption was not updated when fig3 went from 4 columns to 5 columns at `-g`, so it still described "BOTH cell-line V2.5 top-20 windows (GSE322563 + GSE77348)" and "either cell-line column" — 2-column framing that does not match the actual 5-column / 3-cell-line-V2.5-column figure. The verify script's caption check ran only on MANUSCRIPT.md, so this drift was not surfaced.
-  - `memo-2026-04-22-i` — **the exact revision that produced this memo.** PAPER.md Fig 3 caption rewritten to the 5-column reality with explicit `all three cell-line V2.5 top-20s` framing and the verified gene-list intersection (*CELF2*, *XPNPEP1*). `verify_manuscript_claims.py` `check_figure_captions()` now scans both MANUSCRIPT.md and PAPER.md, and additionally fires on the standalone "both cell-line" / "either cell-line column" 2-column patterns regardless of italicized-gene-name presence (PAPER.md captions historically don't italicize gene symbols, so the italics-only heuristic at `-h` couldn't have caught this drift). Resolve to a SHA with `git rev-parse memo-2026-04-22-i` in a fresh clone.
-  Development continues on `main` past the tagged memo revision; cite `memo-2026-04-22-i` when citing this document.
+  - `memo-2026-04-22-i` — fixed PAPER.md Fig 3 caption to the 5-column reality and extended `verify_manuscript_claims.py` to scan both circulated documents. **Retained but SHOULD NOT BE CITED**: render script's awk title-block stripper only handled single-paragraph metadata (stopped at first blank line) — both PAPER.md and MANUSCRIPT.md have multi-paragraph metadata blocks, so the second paragraph leaked into the rendered PDF body before "Abstract". Render script also injected wall-clock date at render time, so re-running on a later day produced a visibly different PDF from the tagged revision. PAPER.md §4.3 also still said "Three axes" (missed the Δβ-only baseline added in `-c`), §4.4 had a vague "axis ordering preserved" claim, and the §6.1 decision-table V1 row had the same "V2.5 outperforms V1 at every cohort × tier" overclaim that was already corrected in MANUSCRIPT.md.
+  - `memo-2026-04-22-j` — **the exact revision that produced this memo.** Render script: awk now strips the title block from the H1 to the first `---` horizontal rule (handles multi-paragraph metadata correctly; verified by `pdftotext` of both renders showing TOC → Abstract with no leaked metadata). Date is now sourced from the `**Date.**` line in the source MD (with fallback to most-recent memo-* tag's date, then to wall clock with a stderr warning); MANUSCRIPT.md gains a `**Date.**` line. PAPER.md §4.3 fixed to "Four axes" (Δβ-only listed). §4.4 "axis ordering preserved" replaced with the verified 9/9 invariant. §6.1 decision-table V1 row narrowed to "every non-boundary cohort × tier (12/12 rows)". Resolve to a SHA with `git rev-parse memo-2026-04-22-j` in a fresh clone.
+  Development continues on `main` past the tagged memo revision; cite `memo-2026-04-22-j` when citing this document.
 - **Submission-shaped companion**: `MANUSCRIPT.md` at the same tag is the Bioinformatics-submission-shaped cut-down of this memo (~340 lines vs ~960) with the headline framing led from the Δβ-baseline finding.
 - **Tests**: 236 passing under `uv run pytest -q`.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the committed per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).

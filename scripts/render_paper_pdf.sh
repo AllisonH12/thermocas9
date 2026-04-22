@@ -75,6 +75,28 @@ case "$SRC_STEM" in
 esac
 AUTHOR="Allison Huang (Columbia University)"
 
+# Date sourcing — reproducible from the tagged source.
+#   1. Look for "**Date.** YYYY-MM-DD" in the source MD title block.
+#   2. Fall back to the most-recent local memo-YYYY-MM-DD[*] tag's date.
+#   3. Last resort: wall-clock date with a stderr warning. Re-rendering
+#      from this branch produces non-reproducible PDFs and is flagged.
+DOC_DATE="$(awk '/^\*\*Date\.\*\*[[:space:]]+/ {
+    s = $0
+    sub(/^\*\*Date\.\*\*[[:space:]]+/, "", s)
+    sub(/\.[[:space:]]*$/, "", s)
+    print s; exit
+}' "$SRC")"
+if [ -z "$DOC_DATE" ]; then
+    LATEST_TAG="$(git -C "$REPO_ROOT" tag --list 'memo-*' --sort=-creatordate 2>/dev/null | head -n1 || true)"
+    if [ -n "$LATEST_TAG" ]; then
+        DOC_DATE="$(echo "$LATEST_TAG" | sed -E 's/^memo-([0-9]{4}-[0-9]{2}-[0-9]{2}).*/\1/')"
+    fi
+fi
+if [ -z "$DOC_DATE" ]; then
+    DOC_DATE="$(date +%Y-%m-%d)"
+    echo "WARNING: no **Date.** in $SRC and no memo-* tag on disk — falling back to wall-clock date $DOC_DATE; PDF will NOT be reproducible from this source." >&2
+fi
+
 # mktemp -t on macOS doesn't preserve the trailing .md, so pandoc can't
 # deduce the format from extension. Create a directory and put a .md
 # file inside it — portable and avoids the warning.
@@ -82,17 +104,18 @@ TMPDIR="$(mktemp -d -t pdf_render.XXXXXX)"
 TMP="${TMPDIR}/src.md"
 trap 'rm -rf "$TMPDIR"' EXIT
 
-# Strip the leading title block:
-#   * delete the first H1 line ("# ...")
-#   * delete the immediately-following author/date/code/status paragraph
-#     (lines until the first blank line)
-# Everything else is preserved verbatim.
+# Strip the leading title block from the H1 line up to (and including)
+# the first horizontal rule `---` on its own line. Both PAPER.md and
+# MANUSCRIPT.md use the convention of a `---` separator between the
+# multi-paragraph title block and the first body section; the earlier
+# "stop at the first blank line" awk only handled single-paragraph
+# title blocks and leaked the second paragraph into the rendered body.
 awk '
   BEGIN { in_meta = 0; stripped_h1 = 0 }
   !stripped_h1 && /^# / { stripped_h1 = 1; in_meta = 1; next }
   in_meta {
-      if ($0 == "") { in_meta = 0 }
-      next
+      if ($0 ~ /^---[[:space:]]*$/) { in_meta = 0 }
+      next  # drop everything inside the title block, including the --- line itself
   }
   { print }
 ' "$SRC" > "$TMP"
@@ -106,7 +129,7 @@ pandoc "$TMP" -o "$OUT" --pdf-engine=typst \
     --metadata title="$TITLE" \
     --metadata subtitle="$SUBTITLE" \
     --metadata author="$AUTHOR" \
-    --metadata date="$(date +%Y-%m-%d)" \
+    --metadata date="$DOC_DATE" \
     --toc --toc-depth=2 \
     --variable=fontsize=10pt
 
