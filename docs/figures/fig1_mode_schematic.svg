@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-04-21T22:23:26.766583</dc:date>
+    <dc:date>2026-04-21T22:42:06.412161</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -40,7 +40,7 @@ Q 29.5488 96.5376 29.5488 101.952
 L 29.5488 169.632 
 Q 29.5488 175.0464 35.136 175.0464 
 z
-" clip-path="url(#pedefeb23a6)" style="fill: #e8f0fe; stroke: #1a73e8; stroke-width: 1.5; stroke-linejoin: miter"/>
+" clip-path="url(#pd4a2252f03)" style="fill: #e8f0fe; stroke: #1a73e8; stroke-width: 1.5; stroke-linejoin: miter"/>
    </g>
    <g id="patch_3">
     <path d="M 279.576 175.0464 
@@ -53,7 +53,7 @@ Q 273.9888 96.5376 273.9888 101.952
 L 273.9888 169.632 
 Q 273.9888 175.0464 279.576 175.0464 
 z
-" clip-path="url(#pedefeb23a6)" style="fill: #e8f0fe; stroke: #1a73e8; stroke-width: 1.5; stroke-linejoin: miter"/>
+" clip-path="url(#pd4a2252f03)" style="fill: #e8f0fe; stroke: #1a73e8; stroke-width: 1.5; stroke-linejoin: miter"/>
    </g>
    <g id="patch_4">
     <path d="M 524.016 175.0464 
@@ -66,7 +66,7 @@ Q 518.4288 96.5376 518.4288 101.952
 L 518.4288 169.632 
 Q 518.4288 175.0464 524.016 175.0464 
 z
-" clip-path="url(#pedefeb23a6)" style="fill: #e8f0fe; stroke: #1a73e8; stroke-width: 1.5; stroke-linejoin: miter"/>
+" clip-path="url(#pd4a2252f03)" style="fill: #e8f0fe; stroke: #1a73e8; stroke-width: 1.5; stroke-linejoin: miter"/>
    </g>
    <g id="patch_5">
     <path d="M 216.72 313.7904 
@@ -79,7 +79,7 @@ Q 211.1328 245.4336 211.1328 250.848
 L 211.1328 308.376 
 Q 211.1328 313.7904 216.72 313.7904 
 z
-" clip-path="url(#pedefeb23a6)" style="fill: #fff5e6; stroke: #f9ab00; stroke-width: 1.5; stroke-linejoin: miter"/>
+" clip-path="url(#pd4a2252f03)" style="fill: #fff5e6; stroke: #f9ab00; stroke-width: 1.5; stroke-linejoin: miter"/>
    </g>
    <g id="text_1">
     <!-- V2.5 differential-protection probabilistic composite -->
@@ -2633,7 +2633,7 @@ z
   </g>
  </g>
  <defs>
-  <clipPath id="pedefeb23a6">
+  <clipPath id="pd4a2252f03">
    <rect x="7.2" y="7.2" width="698.4" height="338.4"/>
   </clipPath>
  </defs>

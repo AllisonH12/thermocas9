@@ -594,10 +594,10 @@ Three truths coexist and should not be conflated:
 
 The decision table below is the literal hierarchy:
 
-| intended use | axis | status in the repo | rationale |
+| intended use | axis (mode) | status | rationale |
 |---|---|---|---|
-| **Default stable framework release** | V1 `final_score` | tagged `v0.4.0`; default `probabilistic_mode` in cohort YAMLs remains `tumor_only` | Deterministic, continuous-valued score; `tie_band = 1` on every cohort tested, so P@K is never tie-break-dependent. Best AUC on independent surrogate (GSE77348 validated 0.968). |
-| **Recommended probabilistic research mode, matched cell-line / paper-comparable cohorts** | V2.5 `tumor_plus_differential_protection` | experimental-on-main, not tagged | Highest AUC at every label granularity on GSE322563 and GSE77348 (§5.1–5.2). Tie-bands reported per benchmark; P@K intervals honest. |
+| **Default stable framework release** | V1 `final_score` | tagged `v0.4.0`; default mode in cohort YAMLs remains `tumor_only` | Deterministic, continuous-valued score; `tie_band = 1` on every cohort tested, so P@K is never tie-break-dependent. Best AUC on independent surrogate (GSE77348 validated 0.968). |
+| **Recommended probabilistic research mode, matched cell-line / paper-comparable cohorts** | V2.5 (differential) | experimental-on-main, not tagged | Highest AUC at every label granularity on GSE322563 and GSE77348 (§5.1–5.2). Tie-bands reported per benchmark; P@K intervals honest. The cohort-YAML key is `probabilistic_mode: tumor_plus_differential_protection`. |
 | **Analysis-only (diagnostic)** | V2 `tumor_only` | retained in the mode enum; not a discovery axis | Competitive AUC on tissue (§5.3) but `tie_band_size_at_k` consistently 6,000–12,000; top-K is not interpretable. Use only for AUC sanity checks against V2.5 / V1. |
 | **Unsupported / out-of-distribution interpretation** | any axis at GSE68379 | documented as §5.4 boundary case | Sanger MCF-7 epigenetic drift breaks label transportability from Roth Fig. 5d. Inverted AUC is the expected scorer response; do not pool this cohort's numbers with §5.1. |
 

@@ -258,21 +258,13 @@ def fig3_topgene_heatmap() -> None:
     ax.set_ylim(len(rows) - 0.5, -3.2)
 
     # Title sits above the column headers, well clear of the heatmap body.
+    # No in-figure caption block: the body caption in PAPER.md (Figure 3.
+    # Per-(axis × cohort) top-20 gene presence...) carries that load. An
+    # in-figure caption was overlapping the bottom-most gene rows when
+    # rendered in the PDF.
     fig.suptitle(
         "Figure 3 · Top-20 gene presence per (axis × cohort) — tie-window-aware",
         fontsize=11, fontweight="bold", y=0.985,
-    )
-
-    # Caveat block below the figure body.
-    fig.text(
-        0.02, -0.02,
-        "Blue column headers: tie_band ≤ 2 — top-20 is the genuine top-20 of the score distribution.\n"
-        "Red column headers:  tie_band ≫ K — top-20 is a 20-record window inside the tied band\n"
-        "                      selected by the documented `candidate_id` ascending tie-break.\n"
-        "Gene rows highlighted in bold blue appear in BOTH cell-line V2.5 top-20 windows\n"
-        "(GSE322563, GSE77348). On those cohorts shared membership reflects window convergence,\n"
-        "not robust ranking convergence; AUC (Fig. 2) is the stable claim at low n.",
-        fontsize=7.5, color="#5f6368", family="DejaVu Sans",
     )
 
     plt.tight_layout()
