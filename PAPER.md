@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-d` (immutable pointer to the exact revision that produced this memo; supersedes `memo-2026-04-22-c` which had fabricated GSE69914 tissue-cohort AUC values in MANUSCRIPT.md that did not match the committed bench JSONL artifacts — see §5.3 and §6.1 of MANUSCRIPT.md for the corrected tables, now verified against the committed JSONLs).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-e` (immutable pointer to the exact revision that produced this memo; supersedes `memo-2026-04-22-d` which had a documented-vs-implemented `p_targ` threshold mismatch, a false universal axis-ordering claim, a wrong `tumor_only` tie-band range, and two cohort-table wording errors on GSE69914 and GSE68379 — all corrected here against the committed bench JSONL artifacts and the `src/thermocas/probabilistic.py` constants).
 **Status.** Technical memo from an educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -680,16 +680,22 @@ Three truths coexist and should not be conflated:
 
 1. V1 `final_score` is the stable release axis (tagged `v0.4.0`).
 2. V2.5 is an **experimental-on-main** probabilistic mode.
-3. V2.5 is **recommended** as the probabilistic research mode for
-   matched cell-line / paper-comparable cohorts.
+3. V2.5 is **recommended** as the probabilistic research mode across
+   every cohort shape tested, including tissue — the scope was
+   narrowed to "matched cell-line only" in an earlier draft because
+   V2.5 appeared to be beaten by V1 on GSE69914 AUC; the committed
+   bench JSONLs (which this memo is internally consistent with) show
+   V2.5 actually beats V1 on tissue at every label granularity
+   (§5.3). See MANUSCRIPT.md §6.1 for the same-shape-corrected
+   framing.
 
 The decision table below is the literal hierarchy:
 
 | intended use | axis (mode) | status | rationale |
 |---|---|---|---|
-| **Default stable framework release** | V1 `final_score` | tagged `v0.4.0`; default mode in cohort YAMLs remains `tumor_only` | Deterministic, continuous-valued score; `tie_band = 1` on every cohort tested, so P@K is never tie-break-dependent. The stable-release role is specifically about top-K interpretability, not AUC leadership — V2.5 outperforms V1 on AUC on the primary endpoint (§5.1). |
-| **Recommended probabilistic research mode, matched cell-line / paper-comparable cohorts** | V2.5 (differential) | experimental-on-main, not tagged | Highest AUC at every label granularity on GSE322563 and GSE77348 (§5.1–5.2). Tie-bands reported per benchmark; P@K intervals honest. The cohort-YAML key is `probabilistic_mode: tumor_plus_differential_protection`. |
-| **Analysis-only (diagnostic)** | V2 `tumor_only` | retained in the mode enum; not a discovery axis | Competitive AUC on tissue (§5.3) but `tie_band_size_at_k` consistently 6,000–12,000; top-K is not interpretable. Use only for AUC sanity checks against V2.5 / V1. |
+| **Default stable framework release** | V1 `final_score` | tagged `v0.4.0`; default mode in cohort YAMLs remains `tumor_only` | Deterministic, continuous-valued score; `tie_band = 1` on every cohort tested, so P@K is never tie-break-dependent. The stable-release role is about backward-compatibility and top-K determinism, not AUC leadership — V2.5 outperforms V1 on AUC at every cohort × tier combination tested (§5.1–§5.3). |
+| **Recommended probabilistic research mode (all cohort shapes tested)** | V2.5 (differential) | experimental-on-main, not tagged | Highest-AUC discovery axis at every cohort × label-granularity combination on GSE322563 HM450, GSE322563 native EPIC v2, GSE77348, and GSE69914 (§5.1–5.3). On tissue (GSE69914), `tumor_only` has higher raw AUC but its tie_band (6,540 at K=100) disqualifies it for discovery; V2.5 (tie_band = 2) is the highest usable axis. Tie-bands reported per benchmark; P@K intervals honest. The cohort-YAML key is `probabilistic_mode: tumor_plus_differential_protection`. |
+| **Analysis-only (diagnostic)** | V2 `tumor_only` | retained in the mode enum; not a discovery axis | Competitive AUC on tissue (§5.3) but `tie_band_size_at_k` at K = 100 ranges 5,271–14,914 across the five cohort paths tested (see §5.3 cross-cohort matrix); top-K is not interpretable. Use only for AUC sanity checks against V2.5 / V1. |
 | **Unsupported / out-of-distribution interpretation** | any axis at GSE68379 | documented as §5.4 boundary case | Sanger MCF-7 epigenetic drift breaks label transportability from Roth Fig. 5d. Inverted AUC is the expected scorer response; do not pool this cohort's numbers with §5.1. |
 
 The phrase "recommended" in row 2 means: for a user running V2.5 on a
@@ -881,8 +887,9 @@ already invariant within tied score regions.
   - `memo-2026-04-22` — initial revision: V2.5 experimental mode, native EPIC v2 ingest, P@K-interval benchmark contract, top-hit annotation pipeline.
   - `memo-2026-04-22-b` — adds post-self-review fixes: nested-repeat scan correctness, streaming-aggregator cross-cohort metadata parity, intra-cohort duplicate rejection, memory-claim docstring scrubs.
   - `memo-2026-04-22-c` — added the Δβ-only baseline benchmark across all five cohort paths × three positives tiers (15 `bench_*_naive.jsonl` artifacts), and introduced `MANUSCRIPT.md` as the Bioinformatics-submission-shaped sibling. **Retained but SHOULD NOT BE CITED**: MANUSCRIPT.md at this tag contains GSE69914 tissue-cohort AUC values (V1 = 0.861, V2.5 = 0.837) that do not match the committed bench JSONLs (actual: V1 = 0.660, V2.5 = 0.773). This was a manuscript-text / committed-artifact inconsistency, not a code bug.
-  - `memo-2026-04-22-d` — **the exact revision that produced this memo.** Corrects the MANUSCRIPT.md tissue-cohort tables and reframing against the committed JSONLs, and fixes a similar class of fabricated numbers in the §5.2 native-vs-HM450 sensitivity table. Also corrects three drift items flagged in an independent review (cover-letter mislabel of GSE77348 as "independent", over-stated claim that all scored JSONLs are committed, stale test count in PAPER.md appendix). Resolve to a SHA with `git rev-parse memo-2026-04-22-d` in a fresh clone.
-  Development continues on `main` past the tagged memo revision; cite `memo-2026-04-22-d` when citing this document.
+  - `memo-2026-04-22-d` — corrected tissue-cohort AUC values and §5.2 native-vs-HM450 sensitivity table; also corrected three drift items from an independent review. **Retained but SHOULD NOT BE CITED**: this revision still had a documented-vs-implemented `p_targ` threshold mismatch (prose said 0.5; code uses 0.30), a false universal axis-ordering claim in MANUSCRIPT.md §5.2, a wrong `tumor_only` tie-band range (stated 6,000–12,000; actual 5,271–14,914), an incorrect "tumor–normal pair tissue" label on GSE69914 (actual: unpaired sporadic-tumor + healthy-donor), and a GSE68379 cohort row listing 1/0 instead of the 52/50 cross-series setup the benchmarks actually use.
+  - `memo-2026-04-22-e` — **the exact revision that produced this memo.** Corrects all of the above against the committed bench JSONLs, the cohort build scripts, and `src/thermocas/probabilistic.py` constants. Resolve to a SHA with `git rev-parse memo-2026-04-22-e` in a fresh clone.
+  Development continues on `main` past the tagged memo revision; cite `memo-2026-04-22-e` when citing this document.
 - **Submission-shaped companion**: `MANUSCRIPT.md` at the same tag is the Bioinformatics-submission-shaped cut-down of this memo (~340 lines vs ~960) with the headline framing led from the Δβ-baseline finding.
 - **Tests**: 236 passing under `uv run pytest -q`.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the committed per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
