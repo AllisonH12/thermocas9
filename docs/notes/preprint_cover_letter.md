@@ -7,7 +7,7 @@
 3. **Bioinformatics Advances** or **BMC Bioinformatics** as the acceptance-optimized backup (explicitly welcoming to benchmarked methods/software contributions without prospective-validation expectations).
 4. **The CRISPR Journal** only if a field-specific audience is preferred over broader computational-methods readership — narrower but higher topical familiarity.
 5. **Nature Methods** only if the smallest-possible prospective validation is added first (see variant section at the bottom). Without that, expect desk reject.
-**Manuscript reference.** `PAPER.md` (or `MANUSCRIPT.md` for the Bioinformatics-shaped version) in <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-l`.
+**Manuscript reference.** `PAPER.md` (or `MANUSCRIPT.md` for the Bioinformatics-shaped version) in <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-m`.
 
 ---
 
@@ -21,14 +21,14 @@ We are submitting our manuscript, *"Differential-protection probabilistic scorin
 
 We present a differential-protection probabilistic scoring framework (V2.5) built around the composite
 `p_therapeutic_selectivity = p_targetable_tumor × p_differential_protection × p_observation_trustworthy`,
-where `p_differential_protection = P(β_normal − β_tumor > δ)` is computed via an independent-normal approximation on tumor/normal β summary statistics. The scorer is benchmarked on four public methylation cohorts (GSE322563 matched cell lines as the independent primary endpoint, GSE77348 as the development cohort on which the differential threshold δ was tuned, GSE69914 tumor–normal pairs, GSE68379 as out-of-distribution boundary) against a 3-tier positives set derived from the Roth paper's validated targets. We also ship:
+where `p_differential_protection = P(β_normal − β_tumor > δ)` is computed via an independent-normal approximation on tumor/normal β summary statistics. The scorer is benchmarked on four public methylation cohorts (GSE322563 matched cell lines as the independent primary endpoint, GSE77348 as the development cohort on which the differential threshold δ was tuned, GSE69914 as 305 sporadic breast tumors + 50 healthy-donor breast tissue samples — unpaired by design with adjacent-normal arms excluded by the cohort build script, GSE68379 as the out-of-distribution boundary) against a 3-tier positives set derived from the Roth paper's validated targets. We also ship:
 
 - a `tumor_only` analysis-only path that avoids the β_normal prior when the normal arm is unreliable,
 - tie-band-aware Precision@K and Recall@K reporting (P@K_min, P@K_max, tie_band_size_at_k) so a reader cannot be misled by arbitrary tie-break choices,
 - an annotation pipeline that attaches nearest gene, CpG-island context, RepeatMasker overlap, and ENCODE DNase-HS cluster breadth to each shortlisted candidate, plus a Markdown companion to the TSV aimed at experimental collaborators,
 - a streaming k-way-merge pan-cancer aggregator with cross-cohort metadata-parity enforcement, so the framework scales to genome-scale atlas builds without loading every cohort into memory.
 
-Benchmark `BenchmarkResult` JSONLs, positives lists, annotated top-20 TSV + Markdown shortlists, figures, and the test suite are all committed at the immutable tag `memo-2026-04-22-l`. The large per-cohort scored-candidate JSONLs (`data/derived/scored_*.jsonl`, tens of millions of records each) are gitignored but fully reproducible from the committed build scripts and cohort YAMLs — the exact `uv run` invocations are listed in the manuscript's reproducibility appendix. 236 unit tests pass.
+Benchmark `BenchmarkResult` JSONLs, positives lists, annotated top-20 TSV + Markdown shortlists, figures, and the test suite are all committed at the immutable tag `memo-2026-04-22-m`. The large per-cohort scored-candidate JSONLs (`data/derived/scored_*.jsonl`, tens of millions of records each) are gitignored but fully reproducible from the committed build scripts and cohort YAMLs — the exact `uv run` invocations are listed in the manuscript's reproducibility appendix. 236 unit tests pass.
 
 **What the paper does NOT claim.** We want to be explicit about scope. This is a *methods and benchmarking* paper on public data. It does not include prospective wet-lab validation of new target sites; the `thermocas` framework is an open educational research tool, not a clinical decision-support system. Per-site p-values are not reported because `p_observation_trustworthy` saturates by `EvidenceClass`, not continuously; what `p_therapeutic_selectivity` provides is a defensible *ranking axis*, not a hypothesis test.
 
@@ -61,6 +61,6 @@ Append before "Suggested reviewers":
 
 - **If submitting to bioRxiv only**: no cover letter is required. Use the first four paragraphs of the body as the bioRxiv abstract prompt and paste them into the summary field. The claim-narrowing paragraph ("What the paper does NOT claim") is especially useful here — bioRxiv readers see method papers from anonymous-ish accounts all the time, and explicit scope-limiting reads as professional, not defensive.
 - **Timing**: the Roth follow-up note (`roth_followup_2026-04-22.md`) carries more weight if it goes *after* the preprint is up, so readers of the follow-up can cite a Google Scholar result rather than a GitHub tag. Sequence: preprint first, Roth note second, same week.
-- **Tag-reference check before submission**: `git rev-parse memo-2026-04-22-l` must still resolve, and both `PAPER.md` and `MANUSCRIPT.md` citations must still read `memo-2026-04-22-l`. Do not let development on `main` implicitly move the reference.
+- **Tag-reference check before submission**: `git rev-parse memo-2026-04-22-m` must still resolve, and both `PAPER.md` and `MANUSCRIPT.md` citations must still read `memo-2026-04-22-m`. Do not let development on `main` implicitly move the reference.
 - **Reviewer suggestions**: the three fields listed under "Suggested reviewers" are generic by design — fill in specific names per venue from recent program committees / corresponding authors in each area.
 - **Revision checkpoint**: if this letter sits more than a week before submission, re-verify (a) the tag, (b) the test count (`uv run pytest -q`), and (c) the set of committed benchmark artifacts under `examples/`. Update the numbers if they've moved.

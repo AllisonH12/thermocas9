@@ -1,5 +1,5 @@
-"""Verify every numerical claim in MANUSCRIPT.md, PAPER.md, and README.md
-against the committed bench JSONLs and the source-code constants.
+"""Cross-check selected numerical claims in MANUSCRIPT.md, PAPER.md, and
+README.md against the committed bench JSONLs and the source-code constants.
 
 Rationale: during the 2026-04-22 revision cycle, three successive tags
 (-c, -d, -e) each shipped with prose claims that did not match the
@@ -8,34 +8,82 @@ mis-quoted constants). Manual verification has repeatedly missed class-of-
 bug issues like "at every cohort × tier combination tested" when the
 committed data actually violated the claim on several rows.
 
-This script is the guard against that. Run it before cutting any new
-memo-* tag. It walks MANUSCRIPT.md and PAPER.md, matches each AUC /
-tie-band / constant claim against the authoritative source, and exits
-non-zero on mismatch.
+This script is the guard against the *known classes* of that failure
+mode that have actually shown up. Run it before cutting any new memo-*
+tag. Exits non-zero on mismatch.
 
 Usage:
     python scripts/verify_manuscript_claims.py
 
 Exit codes:
-    0 — all claims match committed artifacts and source constants.
+    0 — all CHECKED claims match committed artifacts and source constants.
     1 — at least one mismatch. Details printed to stdout.
 
-Scope (what this script currently verifies):
-    1. All numeric constants named in MANUSCRIPT.md §2.1 against
-       src/thermocas/probabilistic.py (τ_u, δ, σ_floor, n_ramp,
-       EvidenceClass trust bases).
-    2. Every AUC value in every markdown table in MANUSCRIPT.md and
-       PAPER.md against examples/*_roth_labels/bench_*.jsonl.
-    3. Universal ordering claims of the form "V2.5 > X at every ..." —
-       enumerated against the JSONL grid and flagged if violated.
-    4. Tie-band range claims of the form "A-B on every cohort tested" —
-       enumerated against the JSONLs and flagged if the stated range
-       does not match the observed extremes.
-    5. Per-cohort tumor_only tie-band enumeration in §6.2.
-    6. Test count claims ("N tests pass"); cross-checked against
-       `pytest --collect-only -q`.
-    7. Artifact-count claims ("15 bench_*_naive.jsonl"); cross-checked
-       against `ls examples/*_roth_labels/bench_*_naive.jsonl`.
+Scope (what this script ACTUALLY verifies, by check; reflects exactly
+which `check_*` functions are wired into `main()`):
+
+    1. **Code-constant quotes** (`check_constants`) — run on MANUSCRIPT.md
+       §2.1 only. Verifies that `τ_u = 0.30`, `δ = 0.2`, σ_floor = 0.05,
+       and the n=30 trust ramp are quoted exactly as named in
+       `src/thermocas/probabilistic.py`. Also verifies a few EvidenceClass
+       trust-base values are quoted correctly.
+
+    2. **Universal ordering claims** (`check_universal_ordering_claims`) —
+       not text-driven; enumerates the canonical V2.5 > V1 and V2.5 > Δβ
+       invariants on the 9 matched-cell-line rows + 3 GSE69914 tissue
+       rows directly from the JSONL grid, and flags any row where the
+       invariant fails. Catches data-side regressions, not prose
+       overclaims; the latter is checked in `check_figure_captions` and
+       in the doc-text pattern detectors below.
+
+    3. **`tumor_only` tie-band per-cohort enumeration**
+       (`check_tumor_only_tie_band_range`) — verifies the 5 expected
+       per-cohort `tie_band@K=100` values are present in MANUSCRIPT.md
+       §6.2 (in either bare or comma-formatted form), AND scans
+       MANUSCRIPT.md / PAPER.md / README.md for the stale
+       "6,000-12,000" or "6,500+ on every cohort" patterns, with a
+       historical-context filter that exempts retrospectives in the
+       PAPER.md tag ledger.
+
+    4. **Naive baseline artifact count** (`check_artifact_counts`) —
+       requires exactly 15 `bench_*_naive.jsonl` files under
+       `examples/*_roth_labels/`.
+
+    5. **Test count consistency** (`check_test_count`) — runs
+       `pytest --collect-only -q`, sums per-file collected counts, and
+       flags any quoted "N tests pass" / "N tests passing" in
+       MANUSCRIPT.md or PAPER.md that disagrees.
+
+    6. **Figure-caption gene-list claims** (`check_figure_captions`) —
+       runs on BOTH MANUSCRIPT.md and PAPER.md. Extracts each
+       `**Figure N.**` block; for each italicized all-caps gene token
+       run, decides from local prior-context whether the caption is
+       claiming the genes are in the GSE69914 tissue top-20, in the
+       intersection of all three cell-line V2.5 top-20s, etc., and
+       cross-checks against the relevant committed top20 TSV(s). Also
+       fires on the 2-column "both cell-line" / "either cell-line
+       column" framing patterns regardless of italicized gene presence,
+       and on "exactly N distinct nearest-gene symbols" count claims
+       on the tissue cohort.
+
+NOT yet implemented (known coverage gaps):
+
+    * **Per-cell AUC verification of every markdown table cell.** A
+      `check_table_auc_values` function exists in this file but is not
+      wired into `main()` — the heuristic exempt-list approach is
+      noisy and would false-positive on margin / P@K values quoted in
+      table cells. The proper fix is a markdown-table parser that
+      identifies AUC cells specifically; out of scope for this script
+      until/unless table drift is observed.
+    * **README.md scope is narrower than MANUSCRIPT.md / PAPER.md**:
+      README is covered by check (3) and the figure-caption check
+      currently only runs on the two manuscripts. The constants check
+      and universal-ordering check do not touch README. README's
+      headline tables are AUC values that would benefit from the
+      planned table-cell verifier above.
+    * **Cover letter and Roth note** under `docs/notes/` are NOT
+      scanned. They contain a small number of cohort-description and
+      tag-citation claims; manual review is required before sending.
 """
 
 from __future__ import annotations
