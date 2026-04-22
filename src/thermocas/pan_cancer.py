@@ -172,7 +172,7 @@ def aggregate_streaming(
     *,
     validate_sort: bool = True,
 ) -> Iterator[PanCancerAggregate]:
-    """Streaming pan-cancer aggregator — O(N_cohorts) peak memory.
+    """Streaming pan-cancer aggregator.
 
     Performs a k-way merge across cohort iterables, grouping consecutive
     records that share the same (chrom, pos, family, candidate_id) and
@@ -185,6 +185,16 @@ def aggregate_streaming(
         chrom-blocked but not lexicographically sorted by chrom (e.g.
         chr5 → chr6 → chr10), so callers typically need to presort each
         JSONL before invoking this function.
+
+    Memory characteristic:
+        O(N_cohorts + N_unique_candidate_ids). Only the head of each input
+        stream and the records for the current candidate group are held —
+        an order of magnitude smaller than the in-memory `aggregate()`,
+        which holds every ScoredCandidate × cohort_name pair. The
+        `O(N_unique_candidate_ids)` term comes from a `seen_cid → metadata`
+        map used to detect cross-cohort metadata mismatches (see below);
+        the per-entry payload is small (one cid string + one (chrom, pos,
+        family) 3-tuple), so this scales to the working catalog comfortably.
 
     Args:
         sorted_cohorts: cohort_name → pre-sorted iterable of ScoredCandidate.
@@ -199,7 +209,11 @@ def aggregate_streaming(
         order — identical to `aggregate(...)` output for the same input set.
 
     Raises:
-        ValueError: same-candidate_id metadata mismatch across cohorts;
+        ValueError: cross-cohort `candidate_id` metadata mismatch (a cid
+                    that appears with different (chrom, pos, family) in two
+                    cohorts, possibly in different merge groups — caught
+                    via the `seen_cid → metadata` map);
+                    duplicate candidate_id within a single cohort;
                     or sort violation in an input stream (when
                     `validate_sort=True`).
     """
@@ -226,6 +240,19 @@ def aggregate_streaming(
     current_records: dict[str, ScoredCandidate] = {}
     current_meta: tuple[str, int, str] | None = None
 
+    # cid → first-seen (chrom, pos, family). Required to catch the case
+    # where the same candidate_id appears in two cohorts with different
+    # metadata: those records land in DIFFERENT merge groups (the merge
+    # key includes metadata), so the per-group consistency check alone
+    # would miss it. Without this map the streaming path would silently
+    # emit two PanCancerAggregate records both labeled with the same cid
+    # — a strictly weaker contract than the in-memory aggregator.
+    seen_cid_meta: dict[str, tuple[str, int, str]] = {}
+
+    def _check_seen(cid: str, meta: tuple[str, int, str]) -> None:
+        existing = seen_cid_meta.setdefault(cid, meta)
+        _check_metadata_consistent(cid, existing, meta)
+
     for key, name, sc in merged:
         if current_key is None:
             current_key = key
@@ -245,10 +272,9 @@ def aggregate_streaming(
 
         cid = sc.candidate.candidate_id
         meta = (sc.candidate.chrom, sc.candidate.critical_c_pos, sc.candidate.pam_family)
-        # All records in the current group share the same candidate_id (the
-        # merge key includes it) and thus must share metadata.
-        assert current_meta is not None
-        _check_metadata_consistent(cid, current_meta, meta)
+        # Cross-group consistency: if cid was seen earlier with different
+        # metadata, this raises before we corrupt the aggregate.
+        _check_seen(cid, meta)
         # Same cohort emitting the same candidate twice would be a duplicate
         # in the input stream — surface it explicitly rather than silently
         # overwriting.

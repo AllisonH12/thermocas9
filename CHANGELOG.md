@@ -111,6 +111,30 @@ recommended-axis table is unchanged.
   composite-consistency validator (P2 fix), and deterministic tie-break
   + `tie_band_size_at_k` reporting in `evaluate_ranking` (P1 fix).
 
+### Reporting / annotation
+
+- `scripts/annotate_top_hits.py` gains optional `--rmsk` and `--dnase`
+  flags. Output adds `in_repeat`, `repeat_class`, `repeat_family`,
+  `repeat_name`, `in_dnase_cluster`, `dnase_source_count`. The DNase-HS
+  clusters from `wgEncodeRegDnaseClusteredV3` are a stand-in for the
+  ENCODE SCREEN cCRE Registry (which is gated behind a JS challenge on
+  `screen.wenglab.org` and cannot be fetched directly).
+
+### Pan-cancer aggregation
+
+- New `aggregate_streaming(...)` (and `thermocas aggregate --streaming`)
+  performs a k-way merge over pre-sorted cohort JSONLs. Peak RAM is
+  `O(N_cohorts + N_unique_candidate_ids)` (a small `seen_cid → metadata`
+  map) versus the in-memory path's `O(N_candidates × N_cohorts)`. Both
+  paths now share the per-candidate emit logic and detect cross-cohort
+  metadata mismatches identically.
+- **Behavior change**: in-memory `aggregate(...)` emission order now
+  breaks ties on `(chrom, pos, family)` by `candidate_id` ascending
+  (previously: dict-insertion order, i.e. cohort-iteration-order
+  dependent). Strict improvement in determinism; only affects edge
+  cases where two distinct `candidate_id`s share the same
+  `(chrom, pos, family)` tuple.
+
 ---
 
 ## [0.4.0] — 2026-04-20 (V2.4 — `probabilistic_mode` config surface)

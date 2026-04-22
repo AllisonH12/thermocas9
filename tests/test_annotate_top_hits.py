@@ -196,6 +196,35 @@ def test_annotate_repeat_empty_list():
     assert annotate.annotate_repeat("chr1", 42, []) == (False, "-", "-", "-")
 
 
+def test_annotate_repeat_finds_outer_nested_repeat():
+    """Regression: pos may be covered by an outer repeat whose start lies
+    several entries earlier than `idx` because of intervening shorter
+    non-overlapping repeats. The earlier one-step-lookback implementation
+    returned (False, ...) here, mislabeling the candidate as not in any
+    repeat when it was actually inside an L1.
+    """
+    rep_list = [
+        (100, 1000, "L1HS", "LINE", "L1"),    # outer; covers pos = 400
+        (200, 250, "FLAM_C", "SINE", "Alu"),  # earlier; ends before pos
+        (300, 350, "AluY", "SINE", "Alu"),    # nearest by start; ends before pos
+    ]
+    in_rep, cls, fam, name = annotate.annotate_repeat("chr1", 400, rep_list)
+    assert (in_rep, cls, fam, name) == (True, "LINE", "L1", "L1HS")
+
+
+def test_annotate_repeat_prefers_innermost_when_nested():
+    """When pos is inside both an outer and an inner repeat, return the
+    innermost (largest-start). The backward scan from `idx` encounters it
+    first, so first-match-wins gives the right behavior.
+    """
+    rep_list = [
+        (100, 1000, "L1HS", "LINE", "L1"),    # outer
+        (400, 500, "AluY", "SINE", "Alu"),    # inner; covers pos = 450
+    ]
+    in_rep, cls, fam, name = annotate.annotate_repeat("chr1", 450, rep_list)
+    assert (in_rep, cls, fam, name) == (True, "SINE", "Alu", "AluY")
+
+
 # ---------- annotate_regulatory (DNase-HS clusters) ----------
 
 

@@ -262,25 +262,24 @@ def annotate_repeat(
     """Return (in_repeat, repeat_class, repeat_family, repeat_name).
 
     UCSC rmsk intervals are 0-indexed half-open: a repeat at [start, end)
-    contains pos iff start <= pos < end. Repeats can overlap; pick the
-    first interval whose range covers pos (ties broken by position).
+    contains pos iff start <= pos < end. RepeatMasker output frequently
+    nests (a young SINE inserted inside an older LINE) and an outer
+    repeat's start can lie many entries earlier than the nearest-start
+    repeat. We therefore scan ALL earlier-starting candidates without an
+    early break — same shape as `annotate_gene`. First match in
+    backward-scan order wins, which means the innermost (largest-start)
+    overlapping repeat is preferred — typically the most specific
+    annotation a reader wants.
     """
     if not rep_list:
         return (False, "-", "-", "-")
     starts = [r[0] for r in rep_list]
     idx = bisect.bisect_right(starts, pos) - 1
-    # Repeats in rmsk generally don't nest, but we scan backwards just in
-    # case one does: all candidates with start <= pos where end > pos.
     j = idx
     while j >= 0:
         s, e, name, cls, fam = rep_list[j]
         if s <= pos < e:
             return (True, cls, fam, name)
-        # If the nearest earlier-starting repeat ends before pos, earlier
-        # ones generally do too (RepeatMasker intervals are non-nested by
-        # construction); one-step lookback is sufficient.
-        if j < idx:
-            break
         j -= 1
     return (False, "-", "-", "-")
 

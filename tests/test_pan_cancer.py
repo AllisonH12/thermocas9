@@ -298,54 +298,39 @@ def test_aggregate_streaming_detects_intra_cohort_duplicate_candidate():
         list(aggregate_streaming({"BRCA": iter(dup)}))
 
 
-def test_aggregate_streaming_rejects_metadata_mismatch():
-    """Same candidate_id with conflicting (chrom, pos, family) across cohorts
-    must raise — same contract as the in-memory aggregator."""
+def test_aggregate_streaming_aggregates_matched_cross_cohort_records():
+    """Sanity: same candidate_id with matching (chrom, pos, family) across
+    cohorts groups into a single PanCancerAggregate. This is the happy
+    path — distinct from the metadata-mismatch case below."""
 
     brca = [_scored_at("same", "chr5", 200, "BRCA", 0.7)]
-    luad = [_scored_at("same", "chr6", 999, "LUAD", 0.7)]  # different metadata
-    # The merge interleaves by sort key; chr5,200 comes before chr6,999 so
-    # the conflict appears as two separate groups (different keys). When the
-    # caller intends "same candidate" they must use matching metadata —
-    # we want a clear failure mode.
-    #
-    # Construct the conflict at the SAME merge key by colliding cid alone:
-    brca = [_scored_at("same", "chr5", 200, "BRCA", 0.7)]
-    luad = [
-        # different metadata but identical candidate_id — placed at the
-        # same merge key we would group them together.
-        ScoredCandidate(
-            candidate=CandidateSite(
-                candidate_id="same",
-                chrom="chr5",          # match chrom
-                critical_c_pos=200,    # match pos
-                strand=Strand.PLUS,
-                pam="ACGTCGA",
-                pam_family="NNNNCGA",
-                is_cpg_pam=True,
-            ),
-            observation=MethylationObservation(
-                candidate_id="same", cohort_name="LUAD",
-                evidence_class=EvidenceClass.EXACT, evidence_distance_bp=0,
-                probe_id="cg-x", beta_tumor_mean=0.1, beta_tumor_q25=0.05,
-                beta_tumor_q75=0.15, n_samples_tumor=400,
-                beta_normal_mean=0.8, beta_normal_q25=0.75, beta_normal_q75=0.85,
-                n_samples_normal=80,
-            ),
-            components=ScoreComponents(
-                sequence_score=1.0, selectivity_score=0.7, confidence_score=1.0,
-            ),
-            final_score=0.7,
-        ),
-    ]
-    # No mismatch path here because we deliberately matched the metadata —
-    # this becomes a "duplicate cohort emitting same cid" case if cohorts
-    # share a name, but here cohorts differ. So this should aggregate fine.
+    luad = [_scored_at("same", "chr5", 200, "LUAD", 0.5, beta_normal=0.20)]
     out = list(aggregate_streaming({
         "BRCA": iter(brca), "LUAD": iter(luad),
     }))
     assert len(out) == 1
+    assert out[0].candidate_id == "same"
     assert out[0].n_cohorts_observed == 2
+    assert set(out[0].cohort_scores.keys()) == {"BRCA", "LUAD"}
+
+
+def test_aggregate_streaming_rejects_cross_cohort_metadata_mismatch():
+    """Regression: same candidate_id at conflicting (chrom, pos, family)
+    across cohorts lands in different merge groups (the merge key includes
+    metadata), so the per-group consistency check alone misses it. The
+    `seen_cid → metadata` map catches it on the second appearance and
+    raises — restoring parity with the in-memory aggregator's contract.
+    """
+
+    brca = [_scored_at("same", "chr5", 200, "BRCA", 0.7)]
+    luad = [_scored_at("same", "chr6", 999, "LUAD", 0.7)]  # divergent meta
+
+    # chr5/200 sorts before chr6/999 so BRCA's record is consumed first
+    # and seeds seen_cid_meta. LUAD's record then trips the check.
+    with pytest.raises(ValueError, match="conflicting metadata"):
+        list(aggregate_streaming({
+            "BRCA": iter(brca), "LUAD": iter(luad),
+        }))
 
 
 def test_top_exclusive_picks_cohort_specific_winners():
