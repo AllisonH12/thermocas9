@@ -140,6 +140,17 @@ target discovery. The deeper fix was needed.
 
 ## 3 · V2.5 · differential-protection probabilistic mode
 
+![Figure 1 · V2.5 mode-formula schematic](docs/figures/fig1_mode_schematic.png)
+
+**Figure 1.** The V2.5 composite. Three factors multiply: `p_targ`
+(tumor unmethylated at the PAM cytosine), `p_diff` (differential
+methylation gap exceeds δ under a normal approximation on per-probe
+β summaries), and `p_trust` (evidence-class confidence, saturating
+in min sample count). The result is `p_therapeutic_selectivity`,
+the stored scalar that downstream ranking consumes. The deprecated
+V2 `p_prot = P(β_normal > 0.5)` is replaced by `p_diff` to remove
+its static-threshold assumption about the normal side.
+
 ### 3.1 Formulation
 
 Replace the threshold-based `p_prot` with a differential factor:
@@ -353,6 +364,20 @@ These three fields are on every emitted `BenchmarkResult` JSONL row.
 
 ## 5 · Results
 
+![Figure 2 · Cross-cohort AUC by score axis](docs/figures/fig2_auc_bars.png)
+
+**Figure 2.** Cross-cohort AUC. **(a)** Primary endpoint plus tissue
+behavior at the `validated` (n = 3 Roth Fig. 5d) label set on each
+of the three primary-axis cohorts. V2.5 wins on both matched cell-
+line cohorts (GSE322563, GSE77348); on tissue (GSE69914) `tumor_only`
+takes a small AUC lead but at a tied band of 6,540 (see §5.3 + Fig. 3).
+V1 falls below random on the tissue wide-label set in (b). **(b)**
+Sensitivity over label granularity (validated → narrow ±50 bp →
+wide ±500 bp). The cohort-type × axis ordering is stable across
+granularities; only the magnitude varies. Dashed line at AUC = 0.5
+(random). The out-of-distribution GSE68379 cohort is not included
+here — it is plotted separately (see §5.4 / Table OOD).
+
 ### 5.1 Primary endpoint — matched cell-line AUC at validated Roth probes
 
 Primary endpoint: AUC at `positives_roth_validated.txt` (n = 3 Roth
@@ -475,6 +500,24 @@ cohorts would misrepresent the result; redefining positives from
 GSE68379's own β values would be circular (labels derived from the
 data under test). It remains in the documentation as a documented
 boundary case.
+
+![Figure 3 · Top-20 gene presence per (axis × cohort)](docs/figures/fig3_topgene_heatmap.png)
+
+**Figure 3.** Per-(axis × cohort) top-20 gene presence, ordered so
+that the most-shared genes appear at the top. Blue column headers
+mark cohorts where `tie_band ≤ 2` and the top-20 is the genuine
+top-20 of the score distribution; red column headers mark cohorts
+where `tie_band ≫ K` and the top-20 is a 20-record window inside
+the tied band selected by the documented `candidate_id` ascending
+tie-break. Bold-blue gene rows appear in BOTH cell-line V2.5 top-20
+windows (GSE322563 + GSE77348). On those cohorts shared membership
+is window convergence, not robust ranking convergence; AUC (Fig. 2)
+is the stable claim at low n. V1 on GSE322563 has tie_band = 1 and
+samples a different (broader) genomic neighborhood — RET, ZMIZ1,
+DPYSL4 and other rows it surfaces are robust under that axis. The
+GSE69914 tissue column has tie_band = 2 and shares no genes with
+either cell-line column — V2.5 is cohort-specific, not returning a
+fixed gene list across regimes.
 
 ### 5.5 Top-hit annotation (tie-window-aware)
 
