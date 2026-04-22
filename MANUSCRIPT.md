@@ -14,7 +14,7 @@ Framework maintained by Thermocas9 Inc. Code at <https://github.com/AllisonH12/t
 `p_therapeutic_selectivity = p_targetable_tumor × p_differential_protection × p_observation_trustworthy`,
 where `p_differential_protection = P(β_normal − β_tumor > δ)` is estimated by an independent-normal approximation on per-probe summary statistics (IQR-based σ estimate with a σ_floor = 0.05). We benchmark against three baselines — a literature-naive Δβ-only ranker, the deterministic V1 score, and a first-pass V2 formulation that our own analysis rejected — across four public methylation cohorts: GSE322563 (Roth's own MCF-7/MCF-10A EPIC v2 samples; primary endpoint), GSE77348 (development cohort on which δ was tuned), GSE69914 (n ≈ 300 tumor–normal pair tissue), and GSE68379 (documented as an out-of-distribution boundary case). **The headline finding is that V2.5 is not a universal replacement for raw Δβ.** On matched cell-line cohorts where the methylation signal is clean, Δβ-only is already a strong baseline (AUC 0.96–0.97 at validated); V2.5's margin over it is 0.01–0.03 at validated and occasionally negative (native EPIC v2 narrow: Δβ 0.956 vs V2.5 0.944). On tissue, the baseline collapses: GSE69914 validated AUC is 0.591 for Δβ-only, 0.837 for V2.5; on narrow and wide tiers Δβ-only is near-random (0.435–0.477). Both axes invert correctly on the out-of-distribution boundary (GSE68379: Δβ 0.15–0.20; V2.5 < 0.5). The probabilistic envelope earns its complexity in three places: (i) tissue cohorts where Δβ loses its signal to stromal contamination, (ii) tie-band-honest top-K reporting (`precision_at_k_{min, max}` and `tie_band_size_at_k` on every BenchmarkResult), and (iii) a probability-scale interpretation that lets downstream pipelines compose per-site scores with other probabilistic inputs. The package adds a k-way-merge pan-cancer aggregator for genome-scale atlas builds and a per-candidate annotation pipeline (nearest gene, CpG-island context, RepeatMasker overlap, ENCODE DNase-HS cluster breadth) with a Markdown shortlist aimed at experimental collaborators.
 
-**Availability and implementation.** `thermocas` is open source at <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-c` for the version evaluated here. 229 unit tests pass under `uv run pytest -q`. Python 3.11+, BSD-3.
+**Availability and implementation.** `thermocas` is open source at <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-c` for the version evaluated here. 236 unit tests pass under `uv run pytest -q`. Python 3.11+, BSD-3.
 
 **Contact.** <allisonhmercer@gmail.com>
 
@@ -283,7 +283,7 @@ Two bodies of prior art are adjacent but non-overlapping. Generic CRISPR guide-s
 ## Data and code availability
 
 - **Code**: <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-c` for the exact revision evaluated here. BSD-3 licensed. `git rev-parse memo-2026-04-22-c` resolves to a SHA in a fresh clone. Supersedes `memo-2026-04-22-b` with the Δβ-only baseline + honest-framing updates to §5 / §6 applied on top; prior tag retained per the immutable-tag policy.
-- **Tests**: 229 passing under `uv run pytest -q`.
+- **Tests**: 236 passing under `uv run pytest -q`.
 - **Cohorts**: public GEO series GSE322563, GSE77348, GSE69914, GSE68379. Build scripts in `scripts/build_gse*_cohort.py`.
 - **Reference annotations**: UCSC hg19 `refGene.txt.gz`, `cpgIslandExt.txt.gz`, `rmsk.txt.gz`, and `wgEncodeRegDnaseClusteredV3.txt.gz` (fetched on demand from hgdownload.soe.ucsc.edu).
 - **Positives**: `data/derived/positives_roth_{validated, narrow, wide}.txt` (HM450 path) and `data/derived/epic_v2_positives/positives_roth_*.txt` (native EPIC v2 path). Derived from Roth et al. Fig. 5d via Ensembl REST hg38 → hg19 liftover.
@@ -307,7 +307,7 @@ From a fresh clone of the repository at `memo-2026-04-22-c`:
 ```bash
 # One-time env setup
 uv sync
-uv run pytest -q           # 229 passing
+uv run pytest -q           # 236 passing
 
 # Rebuild the EPIC v2 probe annotation on chr5/6/10 (~2 min, needs pyliftover)
 uv run python scripts/build_epic_v2_probes.py \

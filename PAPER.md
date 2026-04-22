@@ -883,7 +883,7 @@ already invariant within tied score regions.
   - `memo-2026-04-22-c` — **the exact revision that produced this memo.** Adds the Δβ-only baseline benchmark across all five cohort paths × three positives tiers (15 new `bench_*_naive.jsonl` artifacts), which revised the §5 tables and the §6 framing toward the honest interpretation ("V2.5 is not a universal AUC replacement for raw Δβ; its value is tissue-cohort robustness, tie-band-honest top-K reporting, and probability-scale composability"). Resolve to a SHA with `git rev-parse memo-2026-04-22-c` in a fresh clone.
   Development continues on `main` past the tagged memo revision; cite `memo-2026-04-22-c` when citing this document.
 - **Submission-shaped companion**: `MANUSCRIPT.md` at the same tag is the Bioinformatics-submission-shaped cut-down of this memo (~340 lines vs ~960) with the headline framing led from the Δβ-baseline finding.
-- **Tests**: 229 passing under `uv run pytest -q`.
+- **Tests**: 236 passing under `uv run pytest -q`.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the committed per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
 - **Benchmark artifacts**: every `BenchmarkResult` JSONL row committed under `examples/*_roth_labels/` carries `precision_at_k`, `precision_at_k_{min,max}`, `recall_at_k`, `recall_at_k_{min,max}`, `roc_auc`, `tie_band_size_at_k`, and `tie_break_policy`.
