@@ -4,7 +4,139 @@ All notable changes to the `thermocas` framework. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — V2.5 experimental (on `main`, not tagged)
+## [Unreleased] — submission-freeze post-`memo-2026-04-22`
+
+> Submission-freeze cycle for the bioRxiv / *Bioinformatics* preprint.
+> Captures the activity since the V2.5 release notes below: Δβ-only
+> baseline, MANUSCRIPT.md introduction, figure regeneration, render-
+> pipeline reproducibility, manuscript-claim verifier, and the dated
+> memo-tag policy that drove the `-c` through `-k` revision cycle.
+> Stable release is still `v0.4.0`; the "for-submission" anchor is
+> the immutable tag `memo-2026-04-22-l`.
+
+### Added — submission artifacts
+
+- **`MANUSCRIPT.md`** — Bioinformatics-submission-shaped sibling to
+  `PAPER.md` (~340 lines vs ~960). Structured abstract; same
+  benchmark numbers, narrower scope, leads with the corrected
+  "no single axis dominates" framing.
+- **`MANUSCRIPT.pdf` / `PAPER.pdf`** committed at the freeze tag.
+  Both byte-identical across re-renders given the same toolchain
+  (pandoc 3.9 + typst 0.14.2 + `SOURCE_DATE_EPOCH` from the source
+  `**Date.**` line).
+- **`docs/notes/preprint_cover_letter.md`** + **`roth_followup_2026-04-22.md`** — drafts to send with the preprint and to the
+  Roth group, marked "edit before sending."
+
+### Added — Δβ-only baseline benchmarks
+
+- 15 new `BenchmarkResult` JSONLs under
+  `examples/*_roth_labels/bench_*_naive.jsonl` (5 cohort paths × 3
+  positives tiers): GSE322563 HM450, GSE322563 native EPIC v2,
+  GSE77348, GSE69914, GSE68379. The literature-naive baseline
+  (`β_normal_mean − β_tumor_mean`) is reported alongside V1, V2
+  `tumor_only`, and V2.5 differential in every results table.
+  Headline finding: V2.5 beats Δβ-only on every matched-cell-line
+  row (margin +0.010 to +0.080), but Δβ-only is a much stronger
+  baseline than expected on easy cohorts; the AUC margin is small
+  and the practical case for V2.5 over Δβ on those cohorts is
+  structural (probability scale, tie-band reporting), not AUC
+  supremacy. On tissue, V2.5 (0.711–0.773) far exceeds Δβ-only
+  (0.435–0.591) — that's where the probabilistic envelope earns
+  its keep.
+
+### Added — annotation pipeline + experiment-facing shortlist
+
+- `scripts/annotate_top_hits.py` extended with `--rmsk` and
+  `--dnase` flags adding `in_repeat`, `repeat_class`,
+  `repeat_family`, `repeat_name`, `in_dnase_cluster`,
+  `dnase_source_count` columns from UCSC `rmsk.txt.gz` and
+  `wgEncodeRegDnaseClusteredV3.txt.gz`.
+- `--markdown` companion output: per-candidate triage cards with
+  rule-based flags (STRONG: island-localized promoter / active
+  promoter with DNase support; CAUTION: overlaps repeat / sparse
+  evidence / small Δβ; NOTE: gene body without DNase support).
+  Aimed at experimental collaborators picking guides; example
+  shortlists committed at `examples/*/top20_annotated_v25.md`.
+
+### Added — pan-cancer aggregator (genome-scale)
+
+- `aggregate_streaming(...)` — k-way merge over pre-sorted cohort
+  iterables. Candidate-side memory grows in
+  `N_unique_candidate_ids` rather than multiplying by `N_cohorts ×
+  sizeof(ScoredCandidate)`. Both the in-memory and streaming
+  paths share the per-candidate emit contract and produce
+  byte-identical output; both raise on intra-cohort duplicate
+  `candidate_id` and on cross-cohort metadata mismatch.
+- `thermocas aggregate --streaming` flag in the CLI.
+
+### Added — submission-time guards
+
+- **`scripts/verify_manuscript_claims.py`** — programmatic guard
+  that cross-checks every numeric / universal claim in
+  MANUSCRIPT.md, PAPER.md, and README.md against the committed
+  bench JSONLs and `src/thermocas/probabilistic.py` constants.
+  Covers: code-constant quotes (τ_u, δ, σ_floor, n_ramp,
+  EvidenceClass bases); universal ordering claims (V2.5 > V1,
+  V2.5 > Δβ on every matched-cell-line + tissue row); the per-
+  cohort `tumor_only` tie-band enumeration; stale 2-column figure
+  framings ("both cell-line" / "either cell-line column"); stale
+  "6,000-12,000" / "6,500+" tumor_only tie-band patterns;
+  artifact + test counts; figure-caption gene lists. Must pass
+  before any subsequent dated memo tag is cut. This script
+  should have existed before `-c` and would have prevented the
+  fabricated-numbers issues that drove the `-c` → `-h` re-cuts.
+- **`scripts/render_paper_pdf.sh`** — generalized to accept a
+  source path as `$1` (default `PAPER.md`); per-document title
+  metadata; `**Date.**` parsing from source MD;
+  `SOURCE_DATE_EPOCH` export for byte-identical PDFs across
+  re-renders. Strips the title block from H1 to the first `---`
+  horizontal rule (handles multi-paragraph metadata correctly,
+  fixing earlier metadata leaks into the rendered PDF body).
+
+### Added — figures
+
+- `docs/figures/fig2_auc_bars.{png,svg}` — 4-axis × 4-cohort-path
+  × 3-tier cross-cohort AUC bars. Regenerated against the full
+  committed bench grid; previous version was 3-axis × 3-cohort
+  and stale.
+- `docs/figures/fig3_topgene_heatmap.{png,svg}` — 5-column top-20
+  gene-presence heatmap (GSE322563 HM450 V1, GSE322563 HM450
+  V2.5, GSE322563 native V2.5, GSE77348 V2.5, GSE69914 V2.5).
+  Bolded rows highlight genes shared across all three cell-line
+  V2.5 shortlists (intersection: *CELF2*, *XPNPEP1*); tissue
+  cohort has zero gene overlap with any cell-line shortlist.
+- Both embedded in MANUSCRIPT.md §5; PAPER.md §5 also re-aligned.
+
+### Process — dated immutable memo tags
+
+- Submission-freeze revisions are tagged
+  `memo-YYYY-MM-DD[-suffix]` per the "tags never move" policy.
+  The `-c` through `-l` cycle on `2026-04-22` corrected three
+  classes of error in successive rounds: (a) fabricated AUC
+  values in MANUSCRIPT.md prose that did not match the committed
+  bench JSONLs; (b) false universal quantifiers ("at every
+  cohort × tier") violated on OOD rows; (c) figure captions and
+  cross-document drift (MANUSCRIPT vs PAPER vs README staleness).
+  PAPER.md tag ledger documents per-tag what each revision
+  fixed and what each retains-but-should-not-cite. Cite
+  `memo-2026-04-22-l` for the current submission-freeze state.
+
+### Reporting framing — corrected
+
+- The shipped recommendation is **V1 as the stable-release
+  default** (backward compatibility + `tie_band = 1` by
+  construction regardless of cohort shape) and **V2.5 as the
+  recommended research mode on all non-boundary cohort shapes
+  tested (matched cell-line and tissue)**, with Δβ-only retained
+  as a published baseline. Earlier drafts narrowed V2.5 to
+  matched-cell-line cohorts only on the basis of incorrect
+  GSE69914 tissue AUCs; the committed JSONLs show V2.5 beats V1
+  on tissue at every label granularity (+0.113 / +0.172 / +0.291
+  validated / narrow / wide).
+
+---
+
+## [Unreleased — earlier] — V2.5 experimental (on `main`, not tagged)
 
 > Not a release. V2.5 ships as an opt-in mode on `main`. The stable default
 > remains v0.4.0 (`tumor_only`). V1 `final_score` is still the recommended

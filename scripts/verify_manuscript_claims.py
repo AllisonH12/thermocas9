@@ -1,5 +1,5 @@
-"""Verify every numerical claim in MANUSCRIPT.md and PAPER.md against the
-committed bench JSONLs and the source-code constants.
+"""Verify every numerical claim in MANUSCRIPT.md, PAPER.md, and README.md
+against the committed bench JSONLs and the source-code constants.
 
 Rationale: during the 2026-04-22 revision cycle, three successive tags
 (-c, -d, -e) each shipped with prose claims that did not match the
@@ -51,6 +51,12 @@ BENCH_ROOT = REPO / "examples"
 PROB_PY = REPO / "src" / "thermocas" / "probabilistic.py"
 MANUSCRIPT = REPO / "MANUSCRIPT.md"
 PAPER = REPO / "PAPER.md"
+README = REPO / "README.md"
+
+#: Documents that are publicly circulated and whose claims must match the
+#: committed artifacts. README is a smaller surface than the manuscripts
+#: but is what GitHub visitors land on first; drift here is high-visibility.
+PUBLIC_DOCS = (MANUSCRIPT, PAPER, README)
 
 
 # ---------- authoritative sources ----------
@@ -242,28 +248,49 @@ def check_tumor_only_tie_band_range(errors: list[str]) -> None:
                 f"tie_band={expect} (expected for {cohort})"
             )
 
-    # Falsify "6,000-12,000" claim if it survives as a live claim.
-    # Allow the phrase to appear inside a tag-ledger historical entry
-    # (lines explaining what prior tags got wrong) — those mentions are
-    # intentional retrospective records, not live claims.
-    for doc_path in (MANUSCRIPT, PAPER):
+    # Falsify stale tumor_only tie-band universal claims if they survive as
+    # live claims in any public-facing doc. Two patterns have appeared in
+    # prior rounds:
+    #   - "6,000-12,000" (older, MANUSCRIPT.md/PAPER.md range)
+    #   - "6,500+" (older, README.md lower-bound)
+    # Both are violated by the actual 5,271-14,914 spread across the 5
+    # cohort paths. Allow either to appear inside a tag-ledger
+    # historical entry (lines explaining what prior tags got wrong) —
+    # those mentions are intentional retrospective records, not live
+    # claims.
+    historical_markers = (
+        "SHOULD NOT BE CITED", "retained on origin", "supersedes",
+        "Superseded", "mis-transcribed", "tag ledger", "stated ",
+        "in an earlier draft",
+    )
+    stale_patterns = [
+        (r"6[,.]?000[–\-]12[,.]?000", "stale '6,000-12,000' tumor_only tie_band claim"),
+        (r"6[,.]?500\+\s+on every cohort", "stale '6,500+ on every cohort' tumor_only tie_band claim"),
+        (r"6[,.]?500\+", "stale '6,500+' tumor_only tie_band lower-bound claim"),
+    ]
+    for doc_path in PUBLIC_DOCS:
         text = doc_path.read_text()
-        for m in re.finditer(r"6[,.]?000[–\-]12[,.]?000", text):
-            # Walk back to the start of the paragraph and check whether it is
-            # a historical/ledger context.
-            back = text.rfind("\n\n", 0, m.start())
-            ctx = text[max(0, back): m.end() + 40]
-            if any(tag in ctx for tag in (
-                "SHOULD NOT BE CITED", "retained on origin", "supersedes",
-                "Superseded", "mis-transcribed", "tag ledger", "stated ",
-                "in an earlier draft",
-            )):
-                continue  # intentional retrospective mention
-            errors.append(
-                f"{doc_path.name}: stale '6,000-12,000' tumor_only tie_band "
-                f"claim found outside a historical context; actual range is "
-                f"5,271-14,914. Context: {ctx.replace(chr(10),' ')[:200]!r}"
-            )
+        for pat, label in stale_patterns:
+            for m in re.finditer(pat, text):
+                # Walk back to the start of the paragraph and check whether
+                # this is a historical/ledger context.
+                back = text.rfind("\n\n", 0, m.start())
+                ctx = text[max(0, back): m.end() + 60]
+                if any(tag in ctx for tag in historical_markers):
+                    continue  # intentional retrospective mention
+                # Special-case: "6,500+" on its own can match "6,540" inside
+                # a precise per-cohort enumeration. Only fire if the match
+                # is followed by qualifier text suggesting a sweeping claim.
+                if pat == r"6[,.]?500\+" and not re.search(
+                    r"6[,.]?500\+\s+(on every|across all|on all)", text[m.start(): m.end() + 40]
+                ):
+                    continue
+                errors.append(
+                    f"{doc_path.name}: {label} found outside a historical "
+                    f"context; actual range is 5,271-14,914 across the 5 "
+                    f"cohort paths. Context: "
+                    f"{ctx.replace(chr(10),' ')[:200]!r}"
+                )
 
 
 def check_artifact_counts(errors: list[str]) -> None:

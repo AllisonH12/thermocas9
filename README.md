@@ -270,9 +270,9 @@ probabilistic composite `p_therapeutic_selectivity`:
 
 | mode | composite | suitable for |
 |---|---|---|
-| `tumor_only` (default) | `p_targ × p_trust` | **analysis-only** — competitive AUC on tissue, but tie_band at K=100 is 6,500+ on every cohort tested. Do NOT use for target-list generation. |
+| `tumor_only` (default) | `p_targ × p_trust` | **analysis-only** — competitive AUC on tissue, but tie_band at K=100 ranges **5,271–14,914 across the five cohort paths tested** (GSE68379 5,271; GSE69914 6,540; GSE322563 HM450 10,005; GSE77348 11,848; GSE322563 native 14,914). Do NOT use for target-list generation. |
 | `tumor_plus_normal_protection` | `p_targ × p_prot × p_trust` | opt-in; known anti-predictive on TCGA-BRCA bulk and inverted on the MCF-7/MCF-10A surrogate. Retained for audit. |
-| `tumor_plus_differential_protection` (V2.5) | `p_targ × p_diff × p_trust` where `p_diff = P(β_n − β_t > δ)` | **experimental**; requires `differential_delta` (default 0.2). Highest AUC among probabilistic axes on matched cell-line cohorts (GSE322563, GSE77348); tie_band scales correctly with `n` (190 at n=2 → 2 at n=305/50). Not the AUC leader on primary tissue cohorts (tumor_only is), but the only probabilistic axis whose top-K is usable there. |
+| `tumor_plus_differential_protection` (V2.5) | `p_targ × p_diff × p_trust` where `p_diff = P(β_n − β_t > δ)` | **experimental**; requires `differential_delta` (default 0.2). Highest-AUC discovery axis at every non-boundary cohort × tier combination tested (12/12 rows across **GSE322563 HM450, GSE322563 native EPIC v2, GSE77348, GSE69914**); tie_band scales correctly with `n` (190 at n=2 → 2 at n=305/50). Not the raw-AUC leader on tissue (tumor_only is), but the only probabilistic axis whose top-K is usable there. |
 
 Both modes emit `p_targetable_tumor`, `p_protected_normal`, and
 `p_observation_trustworthy` for auditability — the `mode` field on
@@ -439,6 +439,22 @@ gene-symbol intersection (build-robust). The Roth paper reports target
 coordinates in hg38, so any benchmark that uses raw Roth `(chrom, pos)`
 tuples *directly* needs liftOver to hg19 first — or a full catalog rebuild
 against hg38.
+
+## Reproducibility
+
+Manuscript / memo PDFs (`MANUSCRIPT.pdf`, `PAPER.pdf`) at any
+`memo-2026-04-22-*` tag are byte-identical from a fresh clone given
+the same toolchain version pair (verified on `pandoc 3.9` + `typst
+0.14.2`). The render helper (`scripts/render_paper_pdf.sh`) sources
+the date from the source MD's `**Date.**` line and exports
+`SOURCE_DATE_EPOCH` so Typst embeds a deterministic
+`CreationDate` / `ModDate`. A different `typst` minor version will
+produce a different PDF from the same source — that is renderer
+drift across versions, not pipeline non-determinism. Run
+`scripts/verify_manuscript_claims.py` before cutting any new
+`memo-*` tag; it cross-checks numeric / universal claims in
+`MANUSCRIPT.md`, `PAPER.md`, and `README.md` against the committed
+bench JSONLs and source-code constants.
 
 ## Citation
 
