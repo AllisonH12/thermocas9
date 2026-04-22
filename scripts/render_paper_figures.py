@@ -104,16 +104,20 @@ def _auc_from_bench(path: Path) -> float:
 
 def fig2_auc_bars() -> None:
     bench = REPO / "examples"
+    # Multi-line short labels — keeps panel (a) x-ticks from colliding at
+    # 4-cohort group width.
     cohorts = [
-        ("GSE322563\n(Roth, n=2/2)",   "gse322563_roth_labels"),
-        ("GSE77348\n(surrogate, n=3/3)", "gse77348_roth_labels"),
-        ("GSE69914\n(tissue, n=305/50)",  "gse69914_roth_labels"),
+        ("GSE322563\nHM450\n(Roth, n=2/2)",           "gse322563_roth_labels"),
+        ("GSE322563\nnative\n(EPIC v2, n=2/2)",       "gse322563_native_roth_labels"),
+        ("GSE77348\nHM450\n(δ-dev, n=3/3)",           "gse77348_roth_labels"),
+        ("GSE69914\nHM450\n(tissue, n=305/50)",       "gse69914_roth_labels"),
     ]
     label_sets = ["validated", "narrow", "wide"]
     axes_modes = [
-        ("V1 final_score",        "V1",          "#5f6368"),
-        ("V2 tumor_only",         "tumor_only",  "#fbbc04"),
-        ("V2.5 differential",     "differential", "#1a73e8"),
+        ("Δβ-only",             "naive",        "#34a853"),  # green
+        ("V1 final_score",      "V1",           "#5f6368"),  # gray
+        ("V2 tumor_only",       "tumor_only",   "#fbbc04"),  # yellow
+        ("V2.5 differential",   "differential", "#1a73e8"),  # blue
     ]
 
     auc = {}
@@ -123,54 +127,66 @@ def fig2_auc_bars() -> None:
                 p = bench / dirname / f"bench_{ls}_{mode_tag}.jsonl"
                 auc[(cohort_label, ls, axis_label)] = _auc_from_bench(p)
 
-    # Two-panel layout: left = primary endpoint (validated only), right = sensitivity
+    # Two-panel layout: left = primary endpoint (validated only),
+    # right = sensitivity. Widened for 4 cohorts × 4 axes.
     fig, (axL, axR) = plt.subplots(
-        1, 2, figsize=(12.5, 5.0), gridspec_kw={"width_ratios": [1, 2]}
+        1, 2, figsize=(16.0, 5.5), gridspec_kw={"width_ratios": [1, 2.4]}
     )
 
-    # Left panel: validated AUC, 3 cohorts × 3 axes (9 bars in 3 groups)
-    width = 0.27
+    # Left panel: validated AUC, 4 cohorts × 4 axes (16 bars in 4 groups of 4)
+    width = 0.20
     x = list(range(len(cohorts)))
     for i, (axis_label, _, color) in enumerate(axes_modes):
         ys = [auc[(c[0], "validated", axis_label)] for c in cohorts]
-        offsets = [xi + (i - 1) * width for xi in x]
+        offsets = [xi + (i - 1.5) * width for xi in x]
         axL.bar(offsets, ys, width=width, color=color, label=axis_label,
                 edgecolor="#202124", linewidth=0.4)
         for off, y in zip(offsets, ys):
-            axL.text(off, y + 0.012, f"{y:.2f}", ha="center", fontsize=7.5)
+            axL.text(off, y + 0.012, f"{y:.2f}", ha="center", fontsize=7.2)
     axL.axhline(0.5, color="#dadce0", linestyle="--", linewidth=1)
     axL.set_xticks(x)
-    axL.set_xticklabels([c[0] for c in cohorts], fontsize=8.5)
+    axL.set_xticklabels([c[0] for c in cohorts], fontsize=8.0)
     axL.set_ylabel("AUC")
     axL.set_ylim(0, 1.05)
-    axL.set_title("(a) Primary + tissue: validated label set (n_pos=3)\n"
+    axL.set_title("(a) Validated label set (n_pos=3)\n"
                   "AUC at Roth Fig. 5d target probes",
                   fontsize=10)
-    axL.legend(loc="lower left", fontsize=8, frameon=False)
+    axL.legend(loc="lower left", fontsize=8, frameon=False, ncol=2)
     axL.spines["top"].set_visible(False)
     axL.spines["right"].set_visible(False)
 
-    # Right panel: sensitivity over label granularity (3 cohorts × 3 sets × 3 axes)
-    # Group by (cohort, label_set), 3 bars per group.
+    # Right panel: sensitivity over label granularity
+    # 4 cohorts × 3 label_sets × 4 axes = 48 bars in 12 groups of 4.
     groups = [(c[0], ls) for c in cohorts for ls in label_sets]
     x2 = list(range(len(groups)))
     for i, (axis_label, _, color) in enumerate(axes_modes):
         ys = [auc[(c, ls, axis_label)] for (c, ls) in groups]
-        offsets = [xi + (i - 1) * width for xi in x2]
+        offsets = [xi + (i - 1.5) * width for xi in x2]
         axR.bar(offsets, ys, width=width, color=color,
                 edgecolor="#202124", linewidth=0.4)
     axR.axhline(0.5, color="#dadce0", linestyle="--", linewidth=1)
+    # Label each bar group with "<cohort-short> <tier>". Join the first two
+    # lines of the cohort label (GSE code + platform/path) with a space, so
+    # "GSE322563\nHM450\n..." → "GSE322563 HM450" and similarly "GSE322563
+    # native" — this keeps HM450 and native paths distinguishable in (b).
+    def _short(cohort_label: str) -> str:
+        lines = cohort_label.split(chr(10))
+        return " ".join(lines[:2])  # e.g. "GSE322563 HM450"
+
     axR.set_xticks(x2)
-    axR.set_xticklabels([f"{c.split(chr(10))[0]}\n{ls}" for (c, ls) in groups],
-                        fontsize=7.0)
+    axR.set_xticklabels(
+        [f"{_short(c)}\n{ls}" for (c, ls) in groups],
+        fontsize=6.0, rotation=30, ha="right",
+    )
     axR.set_ylim(0, 1.05)
     axR.set_title("(b) Sensitivity: AUC across label granularities\n"
-                  "(narrow ±50 bp, wide ±500 bp)",
+                  "(narrow ±50 bp, wide ±500 bp) × 4 score axes",
                   fontsize=10)
     axR.spines["top"].set_visible(False)
     axR.spines["right"].set_visible(False)
 
-    fig.suptitle("Figure 2 · Cross-cohort AUC by score axis (primary cohorts)",
+    fig.suptitle("Figure 2 · Cross-cohort AUC by score axis — "
+                 "4 axes × 4 cohort paths × 3 label tiers",
                  fontsize=11, fontweight="bold", y=1.02)
     plt.tight_layout()
     fig.savefig(OUT / "fig2_auc_bars.png", dpi=200, bbox_inches="tight")
@@ -196,11 +212,15 @@ def _genes_from_tsv(path: Path) -> list[str]:
 def fig3_topgene_heatmap() -> None:
     examples = REPO / "examples"
     # (header_label, path, tie_band, header_color)
+    # Header color: blue for deterministic-top-K (tie_band == 1 or 2),
+    # red for large-tie-band (V2.5 at low-n cell lines) to remind the
+    # reader that the top-20 window is inside a saturated score region.
     columns = [
-        ("GSE322563\nV1\ntie_band=1",        examples / "gse322563" / "top20_annotated_v1.tsv",            1, "#1a73e8"),
-        ("GSE322563\nV2.5\ntie_band=190",    examples / "gse322563" / "top20_annotated_v25.tsv",         190, "#d93025"),
-        ("GSE77348\nV2.5\ntie_band=299",     examples / "gse77348_roth_labels" / "top20_annotated_v25.tsv", 299, "#d93025"),
-        ("GSE69914\nV2.5\ntie_band=2",       examples / "gse69914" / "top20_annotated_v25.tsv",            2, "#1a73e8"),
+        ("GSE322563 HM450\nV1\ntie_band=1",        examples / "gse322563" / "top20_annotated_v1.tsv",                    1, "#1a73e8"),
+        ("GSE322563 HM450\nV2.5\ntie_band=190",    examples / "gse322563" / "top20_annotated_v25.tsv",                 190, "#d93025"),
+        ("GSE322563 native\nV2.5\ntie_band=421",   examples / "gse322563_native_roth_labels" / "top20_annotated_v25.tsv", 421, "#d93025"),
+        ("GSE77348\nV2.5\ntie_band=299",           examples / "gse77348_roth_labels" / "top20_annotated_v25.tsv",        299, "#d93025"),
+        ("GSE69914\nV2.5\ntie_band=2",             examples / "gse69914" / "top20_annotated_v25.tsv",                      2, "#1a73e8"),
     ]
     col_genes = [(_genes_from_tsv(p), tb, label, color) for (label, p, tb, color) in columns]
 
@@ -223,14 +243,20 @@ def fig3_topgene_heatmap() -> None:
     }
     rows = sorted(all_genes_ordered, key=lambda g: (-presence[g], first_col[g], g))
     matrix = [[1 if g in col_genes[c][0] else 0 for c in range(len(col_genes))] for g in rows]
+    # "Shared across cell-line V2.5" = present in GSE322563 HM450 V2.5 (col 1),
+    # GSE322563 native V2.5 (col 2), AND GSE77348 V2.5 (col 3). Bolded/blued
+    # below to draw the eye to cross-platform / cross-laboratory convergence.
     shared_cell_line_rows = [
         i for i, g in enumerate(rows)
-        if g in col_genes[1][0] and g in col_genes[2][0]
+        if g in col_genes[1][0]
+        and g in col_genes[2][0]
+        and g in col_genes[3][0]
     ]
 
     # Generous height — 0.22 in per gene row + headroom for the column header.
+    # Widened to 10.5 in for 5 cohort columns (was 8.5 for 4).
     fig_h = max(8.5, len(rows) * 0.22 + 2.0)
-    fig, ax = plt.subplots(figsize=(8.5, fig_h))
+    fig, ax = plt.subplots(figsize=(10.5, fig_h))
 
     cmap = ListedColormap(["#f1f3f4", "#1a73e8"])
     ax.imshow(matrix, aspect="auto", cmap=cmap, interpolation="nearest")
