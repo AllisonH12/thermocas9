@@ -1,8 +1,8 @@
 # Differential-protection probabilistic scoring for methylome-guided ThermoCas9 target-site ranking
 
 **Author.** Allison Huang, Columbia University.
-**Date.** 2026-04-21.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-21` (immutable pointer to the exact revision that produced this memo).
+**Date.** 2026-04-22.
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22` (immutable pointer to the exact revision that produced this memo).
 **Status.** Technical memo from an educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z). The `thermocas` framework itself is maintained by Thermocas9 Inc.
 
 ---
@@ -344,17 +344,27 @@ Two facts constrain interpretation of the reported numbers and
 belong in the methodology, not as a footnote:
 
 - **Platform.** GSE322563 was profiled on Illumina EPIC v2
-  (GPL33022, ~935K probes); GSE77348, GSE69914, and GSE68379 are on
-  HM450 (GPL13534, ~485K probes). To use a single scorer across
-  both platforms, we harmonize EPIC v2 probe IDs to the HM450
-  canonical form by stripping the EPIC v2 beadchip design suffixes
-  (`_BC##`, `_TC##`, `_TO##`, `_BO##`) and intersecting with the
-  HM450 universe. Retention: 80.7% of HM450 probes map. Per Roth-
-  validated gene: ESR1 96%, EGFLAM 91%, VEGFA 90%, GATA3 83%. A
-  native EPIC v2 probe annotation (manifest ingest + catalog
-  rebuild) would remove this caveat but is not shipped; every EPIC
-  v2-origin per-probe β reported here passes through the HM450
-  intersect.
+  (GPL33022, ~937K probes); GSE77348, GSE69914, and GSE68379 are on
+  HM450 (GPL13534, ~485K probes). The primary GSE322563 results in
+  §5.1 use an HM450-intersect harmonization path (EPIC v2 probe IDs
+  stripped of beadchip-design suffixes — `_BC##`, `_TC##`, `_TO##`,
+  `_BO##` — then intersected with the HM450 universe; 80.7%
+  retention overall, 83–96% at the Roth-validated genes). To
+  quantify the cost of that shortcut, we also built a **native EPIC
+  v2 ingest** (script `build_epic_v2_probes.py` lifts GPL33022
+  hg38 → hg19 via pyliftover; 147,928 chr5/6/10 probes, 99.95%
+  liftover success; cohort builder
+  `build_gse322563_native_epic_v2_cohort.py` keeps native probe IDs
+  and produces a 5.22M-candidate catalog vs the HM450 catalog's
+  2.98M). Side-by-side at the validated label set on GSE322563:
+  V2.5 differential AUC 0.990 (HM450-intersect) → 0.986 (native EPIC
+  v2), a 0.003 difference well within the cohort's tied-band noise
+  floor. V1 gains the most under the native ingest (+0.05 to +0.11
+  AUC across label granularities) because its continuous score
+  ranks the validated targets higher relative to easy-negative
+  candidates added by the EPIC v2 probe density. The relative axis
+  ordering is preserved across both ingest paths. Sensitivity table
+  in §5.2; benchmark JSONLs at `examples/gse322563_native_roth_labels/`.
 
 - **Catalog scope.** The candidate catalog is chr5 / chr6 / chr10
   only, filtered to candidates within ±500 bp of any assayed HM450
@@ -477,6 +487,36 @@ observed value because V1's score is continuous and `tie_band = 1`.
 `tumor_only`'s tied band (10,005) spans two orders of magnitude
 more of the score distribution than V2.5's; top-K on `tumor_only`
 is not a meaningful quantity on this cohort.
+
+**Native EPIC v2 vs HM450-intersect on GSE322563.** §4.4 describes
+the harmonization shortcut: GSE322563 EPIC v2 probe IDs are stripped
+of beadchip-design suffixes and intersected with the HM450 universe
+(80.7% retention). To verify the shortcut is not distorting the
+primary endpoint, we ran the full pipeline a second time against a
+native EPIC v2 catalog (5.22M candidates vs the HM450 catalog's
+2.98M):
+
+| label set | axis | HM450-intersect AUC | native EPIC v2 AUC | Δ |
+|---|---|---:|---:|---:|
+| validated | V1 | 0.821 | 0.933 | +0.112 |
+| validated | tumor_only | 0.928 | 0.936 | +0.008 |
+| validated | **V2.5 differential** | **0.990** | **0.986** | **−0.003** |
+| narrow | V1 | 0.884 | 0.938 | +0.054 |
+| narrow | tumor_only | 0.886 | 0.933 | +0.046 |
+| narrow | V2.5 differential | 0.942 | 0.983 | +0.040 |
+| wide | V1 | 0.768 | 0.855 | +0.087 |
+| wide | tumor_only | 0.871 | 0.916 | +0.044 |
+| wide | V2.5 differential | 0.910 | 0.945 | +0.035 |
+
+The V2.5 primary-endpoint AUC moves by 0.003 (well within the
+tied-band noise floor on this n=2/2 cohort). V1 gains the most under
+native EPIC v2 — its continuous score ranks the validated targets
+higher relative to easy-negative candidates added by the larger
+catalog. The relative axis ordering (V2.5 > V1) is preserved across
+both ingest paths. The HM450-intersect shortcut is therefore not
+materially distorting the headline V2.5 claim. Tied bands grow
+modestly with the larger catalog (V2.5 differential: 190 → 421;
+tumor_only: 10,005 → 14,914; V1 stays at 1).
 
 ### 5.3 Tissue-cohort behavior — GSE69914 (high-`n`, tissue biology)
 
@@ -673,11 +713,15 @@ they are.)
    per benchmark result so that P@K is read as an interval. The
    problem dissolves at `n ≳ 30` (demonstrated on GSE69914; §5.3).
 
-2. **HM450/EPIC harmonization (see §4.4).** Reported AUCs that use
-   GSE322563 are under the HM450-intersect path, not a native EPIC v2
-   scoring run. Retention of HM450 probes is 80.7% overall and
-   83–96% at the Roth-validated genes. A native EPIC v2 ingest would
-   remove this caveat but is not shipped.
+2. **HM450/EPIC harmonization (see §4.4 + §5.2 sensitivity).** The
+   primary GSE322563 results in §5.1 use the HM450-intersect path
+   (80.7% retention). A native EPIC v2 ingest is now also shipped;
+   the V2.5 primary-endpoint AUC differs by 0.003 (0.990 → 0.986)
+   under native vs intersect — well within the tied-band noise
+   floor on this n=2/2 cohort. The shortcut is not materially
+   distorting the headline claim. V1 gains the most under native
+   (+0.05 to +0.11 across label granularities) but the relative
+   axis ordering V2.5 > V1 is preserved.
 
 3. **Catalog scope (see §4.4).** AUCs are on chr5 / chr6 / chr10
    candidates filtered to within ±500 bp of an HM450 probe, not on
@@ -714,8 +758,9 @@ they are.)
 
 In priority order, not committed to any timeline:
 
-1. Native EPIC v2 probe annotation + catalog rebuild, to remove the
-   HM450-intersect caveat from the Roth-comparable pipeline.
+1. ~~Native EPIC v2 probe annotation + catalog rebuild~~ **Done.**
+   Shipped after this revision; results in §5.2. The HM450-intersect
+   shortcut is now sensitivity-bracketed rather than an open caveat.
 2. Annotation-pass extension: mappability, repeat overlap, and ENCODE
    cCRE intersection to move top-20 shortlists from "interesting
    genes" to "experimentally prioritized target sites".
@@ -832,8 +877,8 @@ already invariant within tied score regions.
 
 - **Code**: <https://github.com/AllisonH12/thermocas9>. Two tags matter:
   - `v0.4.0` — the stable-release V1 code. Default `probabilistic_mode` is `tumor_only`; V2.5 is not yet shipped at this tag.
-  - `memo-2026-04-21` — the exact revision that produced this memo, including the V2.5 experimental mode, the P@K-interval benchmark contract, the top-hit annotation pipeline, every table and figure in the text, and every committed benchmark artifact under `examples/`. An immutable pointer; resolve to a SHA with `git rev-parse memo-2026-04-21` in a fresh clone.
-  Development continues on `main` past the tagged memo revision; cite `memo-2026-04-21` when citing this document.
+  - `memo-2026-04-22` — the exact revision that produced this memo, including the V2.5 experimental mode, the native EPIC v2 sensitivity analysis (§5.2), the P@K-interval benchmark contract, the top-hit annotation pipeline, every table and figure in the text, and every committed benchmark artifact under `examples/`. An immutable pointer; resolve to a SHA with `git rev-parse memo-2026-04-22` in a fresh clone. (The previous revision of this memo is tagged `memo-2026-04-21`; it predated the native EPIC v2 ingest.)
+  Development continues on `main` past the tagged memo revision; cite `memo-2026-04-22` when citing this document.
 - **Tests**: 215 passing under `uv run pytest -q`.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the committed per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
