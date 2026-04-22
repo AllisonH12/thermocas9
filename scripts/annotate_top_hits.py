@@ -8,21 +8,26 @@ candidate:
     * feature class (promoter / 5'UTR / gene_body / 3'UTR / intergenic)
     * CpG-island context (island / shore / shelf / open_sea) + bp
       distance to nearest CGI boundary
+    * repeat overlap (RepeatMasker class/family/name, or "-")
+    * DNase-hypersensitivity cluster overlap (an ENCODE-wide regulatory-
+      activity proxy; v1 stand-in for the formal cCRE Registry which
+      lives behind a JS challenge on screen.wenglab.org)
 
-Stdlib only. Uses two UCSC hg19 tables: refGene.txt.gz (transcripts →
-gene symbols) and cpgIslandExt.txt.gz (CGI intervals). These are not
-committed (reproducible artifacts); fetch once:
+Stdlib only. UCSC hg19 table sources — fetch once:
 
     mkdir -p data/raw/ucsc
     curl -sSo data/raw/ucsc/refGene.txt.gz \\
         https://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refGene.txt.gz
     curl -sSo data/raw/ucsc/cpgIslandExt.txt.gz \\
         https://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/cpgIslandExt.txt.gz
+    curl -sSo data/raw/ucsc/rmsk.txt.gz \\
+        https://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/rmsk.txt.gz
+    curl -sSo data/raw/ucsc/wgEncodeRegDnaseClusteredV3.txt.gz \\
+        https://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/wgEncodeRegDnaseClusteredV3.txt.gz
 
-The script is intentionally small. It is the smallest thing that turns
-"good AUC" into "here is a real target shortlist, here is what each
-top hit actually *is*". If the v1 output changes decisions, we extend
-with repeat / mappability / cCRE axes in v2.
+The --rmsk and --dnase arguments are optional; if omitted, the repeat
+and DNase columns are emitted as "NA" so downstream consumers can tell
+"annotation not available" from "no overlap".
 
 Output is a tab-separated table; the first row carries column names.
 """
@@ -80,6 +85,56 @@ def load_cgi(path: Path, chroms: set[str]) -> dict[str, list[tuple[int, int]]]:
             if chrom not in chroms:
                 continue
             out[chrom].append((int(parts[2]), int(parts[3])))
+    for c in out:
+        out[c].sort()
+    return out
+
+
+def load_repeats(
+    path: Path, chroms: set[str]
+) -> dict[str, list[tuple[int, int, str, str, str]]]:
+    """chrom → list of (start, end, repName, repClass, repFamily) sorted by start.
+
+    UCSC rmsk.txt.gz schema (0-indexed half-open genomic coords):
+        bin swScore milliDiv milliDel milliIns
+        genoName genoStart genoEnd genoLeft strand
+        repName repClass repFamily repStart repEnd repLeft id
+    """
+    out: dict[str, list[tuple[int, int, str, str, str]]] = {c: [] for c in chroms}
+    with gzip.open(path, "rt") as f:
+        for line in f:
+            parts = line.rstrip("\n").split("\t")
+            chrom = parts[5]
+            if chrom not in chroms:
+                continue
+            out[chrom].append(
+                (int(parts[6]), int(parts[7]), parts[10], parts[11], parts[12])
+            )
+    for c in out:
+        out[c].sort()
+    return out
+
+
+def load_regulatory(
+    path: Path, chroms: set[str]
+) -> dict[str, list[tuple[int, int, int]]]:
+    """chrom → list of (start, end, sourceCount) sorted by start.
+
+    UCSC wgEncodeRegDnaseClusteredV3 schema (0-indexed half-open):
+        bin chrom chromStart chromEnd name score sourceCount sourceIds sourceScores
+
+    `sourceCount` is the number of ENCODE cell types in which the DNase
+    hypersensitivity peak was observed — a rough proxy for how ubiquitous
+    the open-chromatin region is (higher = more constitutively open).
+    """
+    out: dict[str, list[tuple[int, int, int]]] = {c: [] for c in chroms}
+    with gzip.open(path, "rt") as f:
+        for line in f:
+            parts = line.rstrip("\n").split("\t")
+            chrom = parts[1]
+            if chrom not in chroms:
+                continue
+            out[chrom].append((int(parts[2]), int(parts[3]), int(parts[6])))
     for c in out:
         out[c].sort()
     return out
@@ -201,6 +256,55 @@ def annotate_cgi(
     return (ctx, d)
 
 
+def annotate_repeat(
+    chrom: str, pos: int, rep_list: list[tuple[int, int, str, str, str]]
+) -> tuple[bool, str, str, str]:
+    """Return (in_repeat, repeat_class, repeat_family, repeat_name).
+
+    UCSC rmsk intervals are 0-indexed half-open: a repeat at [start, end)
+    contains pos iff start <= pos < end. Repeats can overlap; pick the
+    first interval whose range covers pos (ties broken by position).
+    """
+    if not rep_list:
+        return (False, "-", "-", "-")
+    starts = [r[0] for r in rep_list]
+    idx = bisect.bisect_right(starts, pos) - 1
+    # Repeats in rmsk generally don't nest, but we scan backwards just in
+    # case one does: all candidates with start <= pos where end > pos.
+    j = idx
+    while j >= 0:
+        s, e, name, cls, fam = rep_list[j]
+        if s <= pos < e:
+            return (True, cls, fam, name)
+        # If the nearest earlier-starting repeat ends before pos, earlier
+        # ones generally do too (RepeatMasker intervals are non-nested by
+        # construction); one-step lookback is sufficient.
+        if j < idx:
+            break
+        j -= 1
+    return (False, "-", "-", "-")
+
+
+def annotate_regulatory(
+    chrom: str, pos: int, reg_list: list[tuple[int, int, int]]
+) -> tuple[bool, int]:
+    """Return (in_dnase_cluster, source_count).
+
+    UCSC ENCODE DNase-clustered intervals are 0-indexed half-open. This
+    is the v1 proxy for the SCREEN/ENCODE cCRE Registry (which we would
+    prefer but currently cannot fetch directly from screen.wenglab.org).
+    """
+    if not reg_list:
+        return (False, 0)
+    starts = [r[0] for r in reg_list]
+    idx = bisect.bisect_right(starts, pos) - 1
+    if idx >= 0:
+        s, e, count = reg_list[idx]
+        if s <= pos < e:
+            return (True, count)
+    return (False, 0)
+
+
 # ---------- top-K stream ----------
 
 
@@ -255,6 +359,14 @@ def main() -> int:
                    default=Path("data/raw/ucsc/refGene.txt.gz"))
     p.add_argument("--cpg-islands", type=Path,
                    default=Path("data/raw/ucsc/cpgIslandExt.txt.gz"))
+    p.add_argument("--rmsk", type=Path, default=None,
+                   help="Optional UCSC rmsk.txt.gz (RepeatMasker track, hg19). "
+                        "If omitted, repeat columns are 'NA'.")
+    p.add_argument("--dnase", type=Path, default=None,
+                   help="Optional UCSC wgEncodeRegDnaseClusteredV3.txt.gz "
+                        "(ENCODE DNase-HS clusters, hg19). Stand-in for the "
+                        "formal SCREEN cCRE Registry. If omitted, DNase "
+                        "columns are 'NA'.")
     p.add_argument("--positives", type=Path, default=None,
                    help="Optional file of candidate_ids to flag in the output")
     p.add_argument("--output", type=Path, required=True)
@@ -276,6 +388,20 @@ def main() -> int:
     for c in chroms:
         print(f"  {c}: {len(cgi_by_chrom[c]):,} islands", flush=True)
 
+    rep_by_chrom: dict[str, list[tuple[int, int, str, str, str]]] | None = None
+    if args.rmsk:
+        print(f"loading RepeatMasker for {chroms}...", flush=True)
+        rep_by_chrom = load_repeats(args.rmsk, set(chroms))
+        for c in chroms:
+            print(f"  {c}: {len(rep_by_chrom[c]):,} repeats", flush=True)
+
+    reg_by_chrom: dict[str, list[tuple[int, int, int]]] | None = None
+    if args.dnase:
+        print(f"loading DNase clusters for {chroms}...", flush=True)
+        reg_by_chrom = load_regulatory(args.dnase, set(chroms))
+        for c in chroms:
+            print(f"  {c}: {len(reg_by_chrom[c]):,} DNase clusters", flush=True)
+
     positives: set[str] = set()
     if args.positives:
         positives = set(args.positives.read_text().split())
@@ -287,6 +413,8 @@ def main() -> int:
         "p_targ", "p_diff", "p_prot", "p_trust",
         "nearest_gene", "tss_distance_bp", "feature_class",
         "cpg_island_context", "cpg_island_distance_bp",
+        "in_repeat", "repeat_class", "repeat_family", "repeat_name",
+        "in_dnase_cluster", "dnase_source_count",
         "is_positive",
     ]
     out_rows: list[list[str]] = [cols]
@@ -301,6 +429,27 @@ def main() -> int:
 
         gene, tss_d, feat = annotate_gene(chrom, pos, tx_by_chrom[chrom])
         cgi_ctx, cgi_d = annotate_cgi(chrom, pos, cgi_by_chrom[chrom])
+
+        if rep_by_chrom is not None:
+            in_rep, rep_cls, rep_fam, rep_name = annotate_repeat(
+                chrom, pos, rep_by_chrom[chrom]
+            )
+            rep_cols = [
+                "YES" if in_rep else "-", rep_cls, rep_fam, rep_name,
+            ]
+        else:
+            rep_cols = ["NA", "NA", "NA", "NA"]
+
+        if reg_by_chrom is not None:
+            in_dnase, dnase_count = annotate_regulatory(
+                chrom, pos, reg_by_chrom[chrom]
+            )
+            dnase_cols = [
+                "YES" if in_dnase else "-",
+                str(dnase_count) if in_dnase else "0",
+            ]
+        else:
+            dnase_cols = ["NA", "NA"]
 
         if args.score_field == "final_score":
             score = r["final_score"]
@@ -328,6 +477,8 @@ def main() -> int:
             f(prob.get("p_observation_trustworthy"), ".3f"),
             gene or "-", str(tss_d) if gene else "NA", feat,
             cgi_ctx, str(cgi_d) if cgi_d >= 0 else "NA",
+            *rep_cols,
+            *dnase_cols,
             "YES" if cid in positives else "-",
         ])
 
@@ -340,7 +491,10 @@ def main() -> int:
     compact_cols = ["rank", "candidate_id", "score",
                     "beta_tumor_mean", "beta_normal_mean", "delta_beta",
                     "nearest_gene", "tss_distance_bp", "feature_class",
-                    "cpg_island_context", "is_positive"]
+                    "cpg_island_context",
+                    "in_repeat", "repeat_family",
+                    "in_dnase_cluster",
+                    "is_positive"]
     compact_idxs = [cols.index(c) for c in compact_cols]
     widths = [max(len(row[i]) for row in out_rows) for i in compact_idxs]
     for row in out_rows:

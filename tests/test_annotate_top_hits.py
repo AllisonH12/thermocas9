@@ -169,3 +169,51 @@ def test_annotate_cgi_shore_shelf_open_sea_bands():
     assert annotate.annotate_cgi("chr1", 15_000, cgi_list)[0] == "shelf"
     # 10 kb before start → open_sea
     assert annotate.annotate_cgi("chr1", 0, cgi_list)[0] == "open_sea"
+
+
+# ---------- annotate_repeat ----------
+
+
+def test_annotate_repeat_inside_and_outside():
+    rep_list = [
+        (100, 200, "ALU", "SINE", "Alu"),
+        (500, 700, "L1HS", "LINE", "L1"),
+    ]
+    # 150 is inside [100,200)
+    in_rep, cls, fam, name = annotate.annotate_repeat("chr1", 150, rep_list)
+    assert (in_rep, cls, fam, name) == (True, "SINE", "Alu", "ALU")
+    # 200 is half-open exclusive end → outside
+    in_rep, cls, fam, name = annotate.annotate_repeat("chr1", 200, rep_list)
+    assert in_rep is False
+    assert (cls, fam, name) == ("-", "-", "-")
+    # between repeats → outside
+    assert annotate.annotate_repeat("chr1", 300, rep_list)[0] is False
+    # inside second
+    assert annotate.annotate_repeat("chr1", 600, rep_list)[1:] == ("LINE", "L1", "L1HS")
+
+
+def test_annotate_repeat_empty_list():
+    assert annotate.annotate_repeat("chr1", 42, []) == (False, "-", "-", "-")
+
+
+# ---------- annotate_regulatory (DNase-HS clusters) ----------
+
+
+def test_annotate_regulatory_inside_and_outside():
+    reg_list = [
+        (100, 200, 50),   # broad HS: 50 cell types
+        (500, 600, 2),    # narrow HS: 2 cell types
+    ]
+    in_reg, count = annotate.annotate_regulatory("chr1", 150, reg_list)
+    assert in_reg is True and count == 50
+    # 200 is exclusive end → outside
+    in_reg, count = annotate.annotate_regulatory("chr1", 200, reg_list)
+    assert in_reg is False and count == 0
+    # narrow HS returns its source count
+    assert annotate.annotate_regulatory("chr1", 550, reg_list) == (True, 2)
+    # far from any cluster
+    assert annotate.annotate_regulatory("chr1", 10_000, reg_list) == (False, 0)
+
+
+def test_annotate_regulatory_empty_list():
+    assert annotate.annotate_regulatory("chr1", 42, []) == (False, 0)
