@@ -875,7 +875,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas-framework>. Four tags matter (immutable-tag policy: never move; supersede by cutting a new dated tag):
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Four tags matter (immutable-tag policy: never move; supersede by cutting a new dated tag):
   - `v0.4.0` — the stable-release V1 code. Default `probabilistic_mode` is `tumor_only`; V2.5 is not yet shipped at this tag.
   - `memo-2026-04-21` — preceding-day revision; predates the native EPIC v2 ingest.
   - `memo-2026-04-22` — initial revision: V2.5 experimental mode, native EPIC v2 ingest, P@K-interval benchmark contract, top-hit annotation pipeline.
