@@ -7,16 +7,23 @@ across cohorts.
 Two paths share the same per-candidate emit contract:
 
   * `aggregate(...)`           — in-memory; loads every cohort into a
-                                 candidate_id → cohort_name map. Peak RAM
-                                 is O(N_candidates × N_cohorts). Convenient
-                                 for tests and small cohorts; do NOT use at
+                                 candidate_id → cohort_name → ScoredCandidate
+                                 map. Peak RAM is
+                                 O(N_unique_candidate_ids × N_cohorts ×
+                                 sizeof(ScoredCandidate)). Convenient for
+                                 tests and small cohorts; do NOT use at
                                  genome scale.
   * `aggregate_streaming(...)` — k-way merge across cohort iterables that
                                  are pre-sorted by (chrom, pos, family,
-                                 candidate_id). Peak RAM is O(N_cohorts);
-                                 the only state held is the head of each
-                                 stream plus the records for the current
-                                 candidate group.
+                                 candidate_id). Candidate-side memory
+                                 grows in N_unique_candidate_ids (a small
+                                 `seen_cid → metadata` map used to enforce
+                                 cross-cohort metadata parity; ~100 B per
+                                 entry) rather than multiplying by
+                                 N_cohorts × sizeof(ScoredCandidate). The
+                                 only record-level state held is the head
+                                 of each input stream plus the records for
+                                 the current candidate group.
 
 Metric definitions (see `models.PanCancerAggregate`):
 
@@ -138,12 +145,15 @@ def aggregate(
         This function is **not single-pass streaming**. Despite returning an
         iterator, it first consumes every input record into a
         candidate_id → cohort_name → ScoredCandidate map, then sorts and
-        emits. Peak memory is O(N_candidates × N_cohorts).
+        emits. Peak memory is
+        O(N_unique_candidate_ids × N_cohorts × sizeof(ScoredCandidate)).
 
         For genome-scale runs (tens of millions of candidates × tens of
         cohorts), use `aggregate_streaming(...)` instead — it requires each
-        input iterable to be pre-sorted by the natural candidate order but
-        runs in O(N_cohorts) memory.
+        input iterable to be pre-sorted by the natural candidate order and
+        its candidate-side memory grows in N_unique_candidate_ids only
+        (the seen-cid → metadata parity map, ~100 B per entry), not
+        multiplied by N_cohorts × sizeof(ScoredCandidate).
     """
 
     by_candidate: dict[str, dict[str, ScoredCandidate]] = {}
