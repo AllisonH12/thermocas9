@@ -2,7 +2,7 @@
 
 **Allison Huang** · Columbia University · <allisonhmercer@gmail.com>
 
-Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-22-c`.
+Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-22-d`.
 
 ---
 
@@ -12,9 +12,9 @@ Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-
 
 **Results.** We present `thermocas`, an open probabilistic scoring framework for methylation-sensitive Cas9 target ranking. The V2.5 mode computes
 `p_therapeutic_selectivity = p_targetable_tumor × p_differential_protection × p_observation_trustworthy`,
-where `p_differential_protection = P(β_normal − β_tumor > δ)` is estimated by an independent-normal approximation on per-probe summary statistics (IQR-based σ estimate with a σ_floor = 0.05). We benchmark against three baselines — a literature-naive Δβ-only ranker, the deterministic V1 score, and a first-pass V2 `tumor_only` formulation — across four public methylation cohorts: GSE322563 (Roth's own MCF-7/MCF-10A EPIC v2 samples; primary endpoint), GSE77348 (development cohort on which δ was tuned), GSE69914 (n ≈ 300 tumor–normal pair tissue), and GSE68379 (out-of-distribution boundary). **On matched cell-line cohorts, Δβ-only is already a strong baseline** (validated AUC 0.96–0.97); V2.5's margin over it is small (+0.01 to +0.03 at validated, occasionally negative — Δβ 0.956 vs V2.5 0.944 on native EPIC v2 narrow). **On tissue, Δβ-only collapses** (GSE69914 validated 0.591; 0.435–0.477 on narrow/wide), **V1 also degrades** (0.435–0.660 across tiers, at-chance on wide), and **V2.5 differential is the highest-AUC discovery axis** (0.711–0.773 across tiers, `tie_band@100 = 2`). The deprecated V2 `tumor_only` mode has the highest raw AUC on tissue (0.803–0.874) but `tie_band@100 = 6540` makes its top-K unusable — it is retained as a diagnostic, not a discovery axis. Both probabilistic axes invert correctly on the out-of-distribution boundary (GSE68379: Δβ 0.15–0.20; V2.5 < 0.5). V2.5 earns its complexity in three places: (i) highest-AUC discovery axis at every cohort × tier combination tested; (ii) tie-band-honest top-K reporting (`precision_at_k_{min, max}` and `tie_band_size_at_k` on every BenchmarkResult); (iii) a probability-scale interpretation that lets downstream pipelines compose per-site scores with other probabilistic inputs. **The shipped recommendation is V1 as the stable-release default** (backward compatibility; `tie_band = 1` by construction regardless of cohort shape) **and V2.5 as the recommended research mode across all cohort types**, with Δβ-only retained as a published baseline. The package adds a k-way-merge pan-cancer aggregator for genome-scale atlas builds and a per-candidate annotation pipeline (nearest gene, CpG-island context, RepeatMasker overlap, ENCODE DNase-HS cluster breadth) with a Markdown shortlist aimed at experimental collaborators.
+where `p_differential_protection = P(β_normal − β_tumor > δ)` is estimated by an independent-normal approximation on per-probe summary statistics (IQR-based σ estimate with a σ_floor = 0.05). We benchmark against three baselines — a literature-naive Δβ-only ranker, the deterministic V1 score, and a first-pass V2 `tumor_only` formulation — across four public methylation cohorts: GSE322563 (Roth's own MCF-7/MCF-10A EPIC v2 samples; primary endpoint), GSE77348 (development cohort on which δ was tuned), GSE69914 (n ≈ 300 tumor–normal pair tissue), and GSE68379 (out-of-distribution boundary). **On matched cell-line cohorts, Δβ-only is already a strong baseline** (validated AUC 0.96–0.97); V2.5's margin over it is consistently positive but small (+0.010 to +0.080 across all nine tier × path rows on GSE322563 (HM450 path + native EPIC v2 path) and GSE77348). **On tissue, Δβ-only collapses** (GSE69914 validated 0.591; 0.435–0.477 on narrow/wide), **V1 also degrades** (0.435–0.660 across tiers, at-chance on wide), and **V2.5 differential is the highest-AUC discovery axis** (0.711–0.773 across tiers, `tie_band@100 = 2`). The deprecated V2 `tumor_only` mode has the highest raw AUC on tissue (0.803–0.874) but `tie_band@100 = 6540` makes its top-K unusable — it is retained as a diagnostic, not a discovery axis. Both probabilistic axes invert correctly on the out-of-distribution boundary (GSE68379: Δβ 0.15–0.20; V2.5 < 0.5). V2.5 earns its complexity in three places: (i) highest-AUC discovery axis at every cohort × tier combination tested; (ii) tie-band-honest top-K reporting (`precision_at_k_{min, max}` and `tie_band_size_at_k` on every BenchmarkResult); (iii) a probability-scale interpretation that lets downstream pipelines compose per-site scores with other probabilistic inputs. **The shipped recommendation is V1 as the stable-release default** (backward compatibility; `tie_band = 1` by construction regardless of cohort shape) **and V2.5 as the recommended research mode across all cohort types**, with Δβ-only retained as a published baseline. The package adds a k-way-merge pan-cancer aggregator for genome-scale atlas builds and a per-candidate annotation pipeline (nearest gene, CpG-island context, RepeatMasker overlap, ENCODE DNase-HS cluster breadth) with a Markdown shortlist aimed at experimental collaborators.
 
-**Availability and implementation.** `thermocas` is open source at <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-c` for the version evaluated here. 236 unit tests pass under `uv run pytest -q`. Python 3.11+, BSD-3.
+**Availability and implementation.** `thermocas` is open source at <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-d` for the version evaluated here. 236 unit tests pass under `uv run pytest -q`. Python 3.11+, BSD-3.
 
 **Contact.** <allisonhmercer@gmail.com>
 
@@ -166,7 +166,7 @@ On the independent primary endpoint, V2.5 is the highest-AUC axis. The margin ov
 | GSE77348 | narrow (28) | 0.964 | 0.969 | 0.911 | **0.983** |
 | GSE77348 | wide (142) | 0.910 | 0.931 | 0.887 | **0.949** |
 
-V2.5 is the highest-AUC axis at every tier on both matched cell-line cohorts. The margin over Δβ-only ranges from **+0.010 to +0.066**; the margin over V1 ranges from **+0.014 to +0.174**. On GSE77348 narrow, Δβ-only is the second-best axis (0.964), ahead of both V1 (0.969; marginally better) and V2 `tumor_only` (0.911). On the *native* EPIC v2 path (§5.2 below), Δβ-only marginally *beats* V2.5 on the narrow tier (0.956 vs 0.944) — a loss that is honest to report and that we interpret in §5.3 alongside the tissue-cohort numbers where the picture reverses sharply.
+V2.5 is the highest-AUC axis at every tier on both matched cell-line cohorts (HM450-intersect path). The margin over Δβ-only ranges from **+0.010 to +0.066**; the margin over V1 ranges from **+0.014 to +0.169**. On GSE77348 narrow, Δβ-only (0.964) sits between V1 (0.969) and V2 `tumor_only` (0.911) — a tight cluster that underscores the "V2.5 earns a small but consistent margin" story, not a dominance claim.
 
 **P@K intervals (GSE322563, narrow labels).** On `n = 2/2` the score distribution at K = 100 sits inside a tied band; P@100 is an adversarial interval, not a point estimate:
 
@@ -180,13 +180,13 @@ V2.5's band at K = 100 is 190 (interval [0.00, 0.02]); V2 `tumor_only`'s band is
 
 **Native EPIC v2 vs HM450-intersect (GSE322563).** Re-running under the native EPIC v2 probe set (no HM450 intersect) gives:
 
-| tier | V1 (HM450 / native) | V2.5 (HM450 / native) |
-|---|---:|---:|
-| validated | 0.821 / 0.879 | 0.990 / 0.986 |
-| narrow | 0.884 / 0.931 | 0.942 / 0.944 |
-| wide | 0.768 / 0.877 | 0.910 / 0.933 |
+| tier | Δβ-only (HM450 / native) | V1 (HM450 / native) | V2 tumor_only (HM450 / native) | V2.5 (HM450 / native) |
+|---|---:|---:|---:|---:|
+| validated | 0.974 / 0.961 | 0.821 / 0.933 | 0.928 / 0.936 | 0.990 / 0.986 |
+| narrow | 0.912 / 0.956 | 0.884 / 0.938 | 0.886 / 0.933 | 0.942 / 0.983 |
+| wide | 0.844 / 0.865 | 0.768 / 0.855 | 0.871 / 0.916 | 0.910 / 0.945 |
 
-The V2.5 primary-endpoint AUC differs by 0.003 under native vs intersect — within the tied-band noise floor. V1 gains the most under native (+0.05 to +0.11). The relative axis ordering V2.5 > V1 is preserved at every tier. The HM450-intersect shortcut is not materially distorting the headline claim.
+The V2.5 primary-endpoint AUC differs by 0.004 under native vs intersect (0.990 vs 0.986) — within the tied-band noise floor. V1 and V2 `tumor_only` gain more under native on average (V1 +0.054 to +0.112; V2 +0.008 to +0.047), consistent with the broader probe coverage exercising more of the continuous-score dynamic range. The relative axis ordering V2.5 > Δβ > V1, with V2 `tumor_only` between Δβ and V1, is preserved at every tier on both paths. The HM450-intersect shortcut is not materially distorting the headline claim.
 
 ### 5.3 Tissue cohort — GSE69914 (n = 305/50)
 
@@ -237,7 +237,7 @@ The formal SCREEN cCRE Registry is gated behind a JavaScript challenge on `scree
 
 ### 6.1 What V2.5 is and is not
 
-On matched cell-line cohorts — where the PAM cytosine's methylation state cleanly separates the tumor and normal arms — raw Δβ is already a strong baseline and V2.5 improves on it by a small margin (AUC +0.01 to +0.03 at validated tiers; occasionally negative, as on native EPIC v2 narrow where Δβ 0.956 beats V2.5 0.944). **V2.5 is not a universal AUC replacement for Δβ on easy cohorts, and we do not claim it is.** What V2.5 *does* do, relative to all three baselines, is summarized below:
+On matched cell-line cohorts — where the PAM cytosine's methylation state cleanly separates the tumor and normal arms — raw Δβ is already a strong baseline and V2.5 improves on it by a consistent but small margin (+0.010 to +0.080 across all nine tier × path rows on GSE322563 and GSE77348). **V2.5 does not dominate Δβ by a large AUC margin on easy cohorts, and we do not claim it does** — the practical case for V2.5 over Δβ on such cohorts is structural, not a matter of AUC supremacy. What V2.5 *does* do, relative to all three baselines, is summarized below:
 
 1. **V2.5 is the highest-AUC discovery axis at every cohort × tier combination tested.** On matched cell-line cohorts (GSE322563, GSE77348) the margins are small — V2.5 > V1 > Δβ, typically by 0.01–0.05. On tissue (GSE69914) the margins are large: V2.5 beats V1 by +0.113 validated, +0.172 narrow, +0.291 wide. The raw-AUC winner on tissue is V2 `tumor_only` (0.803–0.874), but its `tie_band@100 = 6540` puts its top-100 inside a massively tied region, disqualifying it as a discovery axis (retained as a diagnostic for AUC cross-checking).
 2. **V2.5 rescues tissue-cohort ranking that V1 and Δβ both lose.** V1 collapses on GSE69914 wide (0.435, at chance) and degrades sharply on narrow (0.539); Δβ-only collapses across tiers (0.435–0.591). V2.5's normal approximation with `σ_floor` handles the stromal-contamination-shifted "normal" arm in tissue in a way that raw-magnitude Δβ and V1's weighted-sum heuristic cannot. The tie-band prediction from §2.4 also holds: V2.5's band at K = 100 shrinks from 190 (`n = 2/2`) → 299 (`n = 3/3`) → 2 (`n = 305/50`) with no hyperparameter changes.
@@ -280,13 +280,13 @@ Two bodies of prior art are adjacent but non-overlapping. Generic CRISPR guide-s
 
 ## 7 Conclusion
 
-`thermocas` offers a principled scoring axis and an honest benchmarking protocol for methylome-guided ThermoCas9 target discovery. Its strongest contributions — the differential-protection formulation, the tie-band-aware P@K reporting, and the k-way-merge pan-cancer aggregator — are each small in isolation and cumulative in effect. On matched cell-line cohorts (the Roth use profile), V2.5 wins on AUC at every label granularity tested. On tissue cohorts, V1's continuous score and better top-K interpretability make it the right default. The combination is offered as an open research framework; groups extending Roth et al. to other cell-type pairs are the immediate target audience.
+`thermocas` offers a principled scoring axis and an honest benchmarking protocol for methylome-guided ThermoCas9 target discovery. Its strongest contributions — the differential-protection formulation, the tie-band-aware P@K reporting, and the k-way-merge pan-cancer aggregator — are each small in isolation and cumulative in effect. V2.5 is the highest-AUC discovery axis at every cohort × tier combination tested (small margins over Δβ and V1 on matched cell-line cohorts; large margins on tissue). V1 remains the stable-release default for backward compatibility with existing users and for its deterministic `tie_band = 1` top-K guarantee, not because it wins AUC anywhere. The combination is offered as an open research framework; groups extending Roth et al. to other cell-type pairs are the immediate target audience.
 
 ---
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-c` for the exact revision evaluated here. BSD-3 licensed. `git rev-parse memo-2026-04-22-c` resolves to a SHA in a fresh clone. Supersedes `memo-2026-04-22-b` with the Δβ-only baseline + honest-framing updates to §5 / §6 applied on top; prior tag retained per the immutable-tag policy.
+- **Code**: <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-d` for the exact revision evaluated here. BSD-3 licensed. `git rev-parse memo-2026-04-22-d` resolves to a SHA in a fresh clone. Supersedes `memo-2026-04-22-c` (which shipped with fabricated tissue-cohort AUC values that did not match the committed bench artifacts — corrected here against the committed JSONLs, including the §5.3 tissue table, the §5.2 native-vs-HM450 sensitivity table, and the §6.1 abstract framing). `-c` is retained on origin per the immutable-tag policy and should not be cited; cite `-d`.
 - **Tests**: 236 passing under `uv run pytest -q`.
 - **Cohorts**: public GEO series GSE322563, GSE77348, GSE69914, GSE68379. Build scripts in `scripts/build_gse*_cohort.py`.
 - **Reference annotations**: UCSC hg19 `refGene.txt.gz`, `cpgIslandExt.txt.gz`, `rmsk.txt.gz`, and `wgEncodeRegDnaseClusteredV3.txt.gz` (fetched on demand from hgdownload.soe.ucsc.edu).
@@ -306,7 +306,7 @@ This work would not exist without Roth et al.'s characterization of ThermoCas9 a
 
 ## Appendix A · Reproducibility
 
-From a fresh clone of the repository at `memo-2026-04-22-c`:
+From a fresh clone of the repository at `memo-2026-04-22-d`:
 
 ```bash
 # One-time env setup

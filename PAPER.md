@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-c` (immutable pointer to the exact revision that produced this memo; supersedes `memo-2026-04-22-b` with the Δβ-only baseline benchmark added across all four cohorts, which prompted revisions to the §5.1 / §5.2 / §5.3 / §5.4 tables and the §6 Discussion framing — see `MANUSCRIPT.md` for the Bioinformatics-submission-shaped presentation that leads with this honest framing).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-d` (immutable pointer to the exact revision that produced this memo; supersedes `memo-2026-04-22-c` which had fabricated GSE69914 tissue-cohort AUC values in MANUSCRIPT.md that did not match the committed bench JSONL artifacts — see §5.3 and §6.1 of MANUSCRIPT.md for the corrected tables, now verified against the committed JSONLs).
 **Status.** Technical memo from an educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -875,13 +875,14 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Four tags matter (immutable-tag policy: never move; supersede by cutting a new dated tag):
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Five dated memo tags plus the stable-release tag, per the immutable-tag policy (never move; supersede by cutting a new dated tag):
   - `v0.4.0` — the stable-release V1 code. Default `probabilistic_mode` is `tumor_only`; V2.5 is not yet shipped at this tag.
   - `memo-2026-04-21` — preceding-day revision; predates the native EPIC v2 ingest.
   - `memo-2026-04-22` — initial revision: V2.5 experimental mode, native EPIC v2 ingest, P@K-interval benchmark contract, top-hit annotation pipeline.
-  - `memo-2026-04-22-b` — adds the post-self-review fixes: nested-repeat scan correctness, streaming-aggregator cross-cohort metadata parity, intra-cohort duplicate rejection, memory-claim docstring scrubs.
-  - `memo-2026-04-22-c` — **the exact revision that produced this memo.** Adds the Δβ-only baseline benchmark across all five cohort paths × three positives tiers (15 new `bench_*_naive.jsonl` artifacts), which revised the §5 tables and the §6 framing toward the honest interpretation ("V2.5 is not a universal AUC replacement for raw Δβ; its value is tissue-cohort robustness, tie-band-honest top-K reporting, and probability-scale composability"). Resolve to a SHA with `git rev-parse memo-2026-04-22-c` in a fresh clone.
-  Development continues on `main` past the tagged memo revision; cite `memo-2026-04-22-c` when citing this document.
+  - `memo-2026-04-22-b` — adds post-self-review fixes: nested-repeat scan correctness, streaming-aggregator cross-cohort metadata parity, intra-cohort duplicate rejection, memory-claim docstring scrubs.
+  - `memo-2026-04-22-c` — added the Δβ-only baseline benchmark across all five cohort paths × three positives tiers (15 `bench_*_naive.jsonl` artifacts), and introduced `MANUSCRIPT.md` as the Bioinformatics-submission-shaped sibling. **Retained but SHOULD NOT BE CITED**: MANUSCRIPT.md at this tag contains GSE69914 tissue-cohort AUC values (V1 = 0.861, V2.5 = 0.837) that do not match the committed bench JSONLs (actual: V1 = 0.660, V2.5 = 0.773). This was a manuscript-text / committed-artifact inconsistency, not a code bug.
+  - `memo-2026-04-22-d` — **the exact revision that produced this memo.** Corrects the MANUSCRIPT.md tissue-cohort tables and reframing against the committed JSONLs, and fixes a similar class of fabricated numbers in the §5.2 native-vs-HM450 sensitivity table. Also corrects three drift items flagged in an independent review (cover-letter mislabel of GSE77348 as "independent", over-stated claim that all scored JSONLs are committed, stale test count in PAPER.md appendix). Resolve to a SHA with `git rev-parse memo-2026-04-22-d` in a fresh clone.
+  Development continues on `main` past the tagged memo revision; cite `memo-2026-04-22-d` when citing this document.
 - **Submission-shaped companion**: `MANUSCRIPT.md` at the same tag is the Bioinformatics-submission-shaped cut-down of this memo (~340 lines vs ~960) with the headline framing led from the Δβ-baseline finding.
 - **Tests**: 236 passing under `uv run pytest -q`.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the committed per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
