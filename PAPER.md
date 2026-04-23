@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-v` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-w` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -25,9 +25,13 @@ a target-discovery validation. The headline result is a *rank-lift*
 finding on a small label set: on the n = 3 validated target probes
 from Roth et al. (2026) Fig. 5d, scored on Roth's own MCF-7/MCF-10A
 EPIC v2 cohort (GSE322563), the new composite (V2.5) places all
-three positives near the top of the ranking (AUC 0.990) while the
-deterministic V1 score reaches 0.821 and the deprecated V2
-`tumor_only` mode 0.928. Because n = 3, AUC is sensitive to the
+three positives near the top of the ranking (AUC 0.990), compared
+with raw Δβ-only at 0.974, an uncertainty-aware Δβ_z baseline at
+0.940, the deterministic V1 score at 0.821, and the deprecated V2
+`tumor_only` mode at 0.928. Δβ-only is itself a strong baseline at
+this primary endpoint; V2.5's margin over Δβ-only (+0.016) is
+small but consistent across the matched cell-line cohorts and label
+granularities tested (§5.1–§5.2). Because n = 3, AUC is sensitive to the
 exact negative universe and to the rank of each positive; the
 manuscript reports per-positive ranks and percentile ranks
 (§5.1) rather than treating AUC as definitive. A second matched
@@ -45,10 +49,15 @@ methylated at the sites where Roth's MCF-7 is unmethylated. V1
 remains the stable-release default; V2.5 is the recommended
 probabilistic ranking axis on every non-boundary cohort shape
 tested (matched cell-line at n = 2/2 and 3/3, and primary tissue
-at n = 305/50 — §5.1–§5.3), with the caveat that on n = 2/2
+at n = 305/50 — §5.1–§5.3), with two caveats: (a) on n = 2/2
 cell-line cohorts the visible top-K should be read as a top tied
-candidate class rather than a ranked shortlist (§6.1); all code
-and benchmark artifacts are public.
+candidate class rather than a ranked shortlist (§6.1); and (b) on
+primary tissue the shipped defaults σ_floor = 0.05 and δ = 0.2
+are not tissue-optimal — §5.3.1 / §5.3.2 show tissue AUC peaks at
+σ_floor ≈ 0.10 and prefers smaller δ, so tissue-cohort users
+should run the σ_floor / δ sweep on their cohort before relying on
+the shipped defaults (regime-specific presets are on the §6.3
+follow-up list). All code and benchmark artifacts are public.
 
 ---
 
@@ -1013,13 +1022,14 @@ endpoint.
 Four use profiles, in order from most-recommended to unsupported:
 
 **1. Recommended probabilistic ranking axis — V2.5 (differential).**
-Highest-AUC ranking axis at every cohort × label-granularity
-combination on GSE322563 HM450, GSE322563 native EPIC v2, GSE77348,
-and GSE69914 (§5.1–5.3). On tissue (GSE69914), `tumor_only` has
-higher raw AUC but its K=100 tie band makes it unusable as a
-discovery axis; V2.5 (tie band = 2 at K=100) is the highest usable
-axis. Tie bands are reported per benchmark and P@K intervals are
-honest.
+Highest-AUC probabilistic ranking axis on every matched cell-line
+cohort × label-granularity combination tested (GSE322563 HM450,
+GSE322563 native EPIC v2, GSE77348; §5.1–§5.2). On primary tissue
+(GSE69914), `tumor_only` has higher raw AUC but its K=100 tie
+band makes it unusable as a discovery axis; V2.5 (tie band = 2 at
+K=100) is the **highest usable discovery axis** on tissue rather
+than the raw-AUC leader. Tie bands are reported per benchmark and
+P@K intervals are honest.
 
 What V2.5 *is* on low-`n` matched cell-line cohorts (n=2/2 to 3/3)
 is a **rank-lift axis**: it lifts validated targets near the top of
@@ -1278,7 +1288,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-v`** for this document. 236 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-w`** for this document. 236 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).

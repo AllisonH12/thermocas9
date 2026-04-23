@@ -76,12 +76,17 @@ thermocas-framework/
 | **Cross-validation benchmark harness** (P@K, R@K, ROC-AUC)  | **V3 — implemented**                  |
 | **CLI: `--spacer`, `benchmark`, `inspect`**         | **V3 — implemented**                          |
 | Repo readiness (git, CHANGELOG, CI workflow)        | **V3 — implemented**                          |
-| End-to-end synthetic + CLI pipelines + tests        | **V3 — 144 tests**                            |
+| End-to-end synthetic + CLI pipelines + tests        | **V3 — implemented**                          |
 | **Real-data validation** (TCGA-BRCA, 3 M candidates, 890 samples) | **V3.1 — implemented; AUC 0.66 on gene-targeted Roth positives** |
 | **Input integrity hardening** (16 reviewer-cycle fixes)           | **V3.1 — implemented**                        |
 | **Known-limitations documented** (V2 biology assumption, pan-cancer memory) | **V3.1 — implemented**              |
-| **V2 formulation review** (additive log-odds / cohort-typed prior) | deferred pending cell-line benchmark       |
-| End-to-end tests + real-data pipeline                             | **182 tests** (in-process + CLI + mocked GDC + Beta math + live GDC smoke) |
+| **V2 formulation review** (differential-protection replacement)  | **V2.5 — complete** (see PAPER.md §3, §5.1; replaces the threshold-based `p_prot` with `p_diff = P(β_n − β_t > δ)`) |
+| **Cell-line benchmark** (MCF-7/MCF-10A matched comparisons)       | **complete** — GSE322563 HM450 + native EPIC v2, GSE77348; PAPER.md §5.1–§5.2 |
+| **Tissue benchmark** (n ≳ 30 per side)                            | **complete** — GSE69914 (305 tumors + 50 healthy-donor controls); PAPER.md §5.3 |
+| **Out-of-distribution boundary case**                             | **documented** — GSE68379 cross-series with external normals; PAPER.md §5.4 |
+| **Sensitivity sweeps** (σ_floor ∈ {0.02, 0.05, 0.10, 0.15}; δ ∈ {0.1, 0.2, 0.3, 0.4, 0.5}) | **complete** — PAPER.md §5.3.1 / §5.3.2 |
+| **Descriptive AUC uncertainty** (permutation null + negative bootstrap) | **complete** — PAPER.md §5.1.2 |
+| End-to-end tests + real-data pipeline                             | **236 tests** (in-process + CLI + mocked GDC + Beta math + live GDC smoke) |
 
 ## Quickstart
 
@@ -411,18 +416,25 @@ gene-targeted positives, V1 `final_score` hit AUC 0.656 while V2
 `p_therapeutic_selectivity` hit 0.553 (worse than the naive differential at
 0.629).
 
-**Practical guidance:**
+**Practical guidance (current — supersedes the legacy V2 table that
+appeared here while the cell-line benchmark was still pending):**
 
-| Normal comparator behavior | Recommended score axis |
+| Cohort regime | Recommended score axis |
 |---|---|
-| Normal tissue methylates the target (cell-line-specific: MCF-10A, HMEC, etc.) | V2 `p_therapeutic_selectivity` |
-| Normal tissue does not methylate the target (adjacent-normal bulk, expressed genes) | V1 `final_score` or `naive_selectivity` |
-| Unknown or mixed | V1 `final_score` |
+| Matched cell-line, n = 2/2 to 3/3 (MCF-7/MCF-10A and similar) | **V2.5 `tumor_plus_differential_protection`** as the probabilistic ranking axis (read top-K as a *top tied candidate class*, not a ranked shortlist; see PAPER.md §6.1). V1 `final_score` retained as the deterministic stable-release default. |
+| Primary tissue, n ≳ 30 per side | **V2.5 `tumor_plus_differential_protection`** as the highest *usable* probabilistic discovery axis. Note: PAPER.md §5.3.1 / §5.3.2 show the shipped defaults σ_floor = 0.05 and δ = 0.2 are not tissue-optimal — tissue AUC peaks at σ_floor ≈ 0.10 and prefers smaller δ. Run the per-cohort sweep before relying on the defaults. |
+| Cross-series transported labels (e.g. Sanger MCF-7 vs Roth MCF-7) | **Unsupported** — PAPER.md §5.4 documents the GSE68379 boundary case; AUC inverts. Do not pool cross-series cohorts into the primary endpoint without a label-transport check. |
+| Diagnostic / AUC sanity check only | `tumor_only` — competitive AUC on tissue but `tie_band_size_at_k` at K=100 is in the thousands; not a discovery axis. |
+| Adjacent-normal bulk (expressed genes) | V1 `final_score` or raw Δβ-only — both are documented baselines (PAPER.md §5.1); V2.5 is also defensible here but has not been benchmarked in this regime. |
 
-The code is mathematically correct; the V2 scoring axis is specialized to
-cell-line-style matched comparisons. Reformulating V2 (additive log-odds,
-weighted geometric mean, or a cohort-typed `normal_is_methylated` flag) is
-deferred until the cell-line-to-cell-line benchmark lands.
+The legacy V2 `tumor_plus_normal_protection` mode is retained in the
+mode enum for audit and reproducibility but is **not recommended for
+new work** — the threshold-based `p_protected_normal` factor is
+anti-predictive on bulk normal comparators (above), and the V2.5
+`tumor_plus_differential_protection` mode is the explicit
+reformulation referenced as deferred in earlier README revisions.
+The cell-line-to-cell-line benchmark referenced in those earlier
+revisions is now PAPER.md §5.1 (GSE322563 + GSE77348 + GSE69914).
 
 ### Pan-cancer aggregation: two paths
 
