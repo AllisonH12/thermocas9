@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-u` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-v` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -201,12 +201,25 @@ cohort-level mean contrast — see §3.3.)
 ### 3.2 Choice of δ
 
 An offline δ sweep over {0.2, 0.3, 0.4, 0.5} on the GSE77348 surrogate
-selected δ = 0.2 by joint optimization of AUC and `P@100`. Higher δ
-values monotonically reduce both — the factor becomes too strict to
-include candidates with moderate but real differentials. This default
-is exposed as `differential_delta` in the cohort configuration. The
-δ used is recorded on every emitted `ProbabilisticScore` record so
-the margin in effect is recoverable from a single output row.
+selected δ = 0.2 by joint optimization of AUC and `P@100` against the
+*pre-repair* (gene-universe) positives that were in use at the time
+of selection. Under that pre-repair tuning objective, larger δ values
+monotonically reduced both metrics — the factor was too strict to
+admit candidates with moderate but real differentials.
+
+The post-repair sensitivity story is more nuanced and is reported in
+§5.3.2: against the Roth-validated label set, δ = 0.3 (and on some
+cohort × tier rows, δ = 0.4) marginally outperforms δ = 0.2 on the
+matched cell-line cohorts; tissue (GSE69914) prefers smaller δ.
+We do not retune δ post hoc against the post-repair labels, because
+doing so would invalidate the dev-cohort separation discipline of
+§4.0. δ = 0.2 is therefore retained as the shipped default; readers
+wanting the full sensitivity surface should consult §5.3.2.
+
+The default is exposed as `differential_delta` in the cohort
+configuration. The δ used is recorded on every emitted
+`ProbabilisticScore` record so the margin in effect is recoverable
+from a single output row.
 
 ### 3.3 What `p_diff` is a probability over
 
@@ -1134,25 +1147,26 @@ In priority order, not committed to any timeline:
    probe density, and (b) a whole-genome candidate catalog, on at
    least one cohort per regime. Goal: quantify how AUC and tied-band
    sizes move with the denominator (§6.2 limitation 3).
-3. **Bootstrap and permutation intervals on AUC.** Add negative-set
-   resampling and label-permutation null distributions to every
-   `BenchmarkResult` JSONL so the n = 3 primary endpoint is reported
-   with descriptive uncertainty intervals, not as a point estimate.
-4. **δ sensitivity sweep across all cohorts** at δ ∈ {0.1, 0.2, 0.3,
-   0.4, 0.5}, with non-development cohorts labeled as post hoc.
-   Report AUC and tied-band stability at each δ.
-5. **An uncertainty-aware Δβ baseline**, e.g.
-   `Δβ_z = (β_n − β_t) / sqrt(σ_t² + σ_n²)` using the same IQR-derived
-   σ as V2.5's `p_diff`. This isolates the contribution of `p_targ`
-   and `p_trust` over and above an effect-size-with-uncertainty
-   ranker built from the same per-side dispersion signal.
-6. **`p_diff` re-derivation under SE-on-mean variance** (§3.3) as a
+3. **Regime-specific default selection.** §5.3.1 (σ_floor) and
+   §5.3.2 (δ) both show that tissue and matched cell-line cohorts
+   prefer different defaults. Define and ship a tissue preset
+   (likely σ_floor closer to 0.10 and δ closer to 0.1) and a
+   matched cell-line preset (current defaults), with the choice
+   selected by an explicit cohort-regime field rather than left
+   for the user to discover.
+4. **`p_diff` re-derivation under SE-on-mean variance** (§3.3) as a
    second probabilistic axis, so users can choose between the
    biological-overlap and the cohort-power interpretations.
-7. **A second independent-lab MCF-7 / MCF-10A EPIC cohort**, if one
+5. **A continuous observation-confidence model** to replace the
+   `EvidenceClass` discrete-bin scheme: a learned or calibrated
+   confidence function over exact probe-distance, local probe
+   density, mask quality, platform, and local concordance. This
+   would address the central remaining coarseness of the §3.4
+   measurement model.
+6. **A second independent-lab MCF-7 / MCF-10A EPIC cohort**, if one
    becomes public, to establish reproducibility of the V2.5 claim at
    n ≥ 3 on matched cell-line pairs.
-8. **Formal SCREEN cCRE Registry integration** when a non-challenged
+7. **Formal SCREEN cCRE Registry integration** when a non-challenged
    download path becomes available. The top-hit annotation pipeline
    already ships nearest-gene, CpG-island context, RepeatMasker
    overlap, and ENCODE DNase-HS cluster breadth (§5.5); DNase-HS is
@@ -1264,7 +1278,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-u`** for this document. 236 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-v`** for this document. 236 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).

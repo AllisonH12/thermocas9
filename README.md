@@ -295,8 +295,20 @@ NOT the Roth samples):**
 with `p_targ` destroys the signal. `tumor_only` mode avoids this, but
 its top-100 collapses onto candidates where both tumor AND normal are
 low-methylated (always-unmethylated loci, not cancer-selective) — AUC
-and P@100 diverge. **This is why `V1 final_score` remains the recommended
-discovery ranking, and `tumor_only` is framed as an analysis-only axis.**
+and P@100 diverge. The shipped recommendation today (see the mode
+table above and PAPER.md §6.1):
+
+- `V1 final_score` is the **stable-release default** — deterministic,
+  `tie_band = 1` on every cohort tested, kept for backward
+  compatibility and top-K determinism.
+- `V2.5 tumor_plus_differential_protection` is the **recommended
+  probabilistic ranking axis** on every non-boundary cohort shape
+  tested (matched cell-line at n = 2/2 and 3/3 and primary tissue at
+  n = 305/50). On n = 2/2 cell-line cohorts the visible top-K
+  should be read as a top tied candidate class rather than a ranked
+  shortlist (see §6.1).
+- `V2 tumor_only` is **analysis-only** — competitive AUC on tissue
+  but `tie_band@K=100` is in the thousands; not a discovery axis.
 
 A differential-based `p_prot` (`P(β_normal − β_tumor > δ)` rather than
 the threshold-based `P(β_normal > 0.5)`) is the natural next step for
