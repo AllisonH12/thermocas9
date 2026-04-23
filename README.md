@@ -442,19 +442,27 @@ against hg38.
 
 ## Reproducibility
 
-Manuscript / memo PDFs (`MANUSCRIPT.pdf`, `PAPER.pdf`) at any
-`memo-2026-04-22-*` tag are byte-identical from a fresh clone given
-the same toolchain version pair (verified on `pandoc 3.9` + `typst
-0.14.2`). The render helper (`scripts/render_paper_pdf.sh`) sources
-the date from the source MD's `**Date.**` line and exports
-`SOURCE_DATE_EPOCH` so Typst embeds a deterministic
-`CreationDate` / `ModDate`. A different `typst` minor version will
-produce a different PDF from the same source — that is renderer
-drift across versions, not pipeline non-determinism. Run
-`scripts/verify_manuscript_claims.py` before cutting any new
+Manuscript / memo PDFs (`MANUSCRIPT.pdf`, `PAPER.pdf`) at
+**`memo-2026-04-22-k` and later** tags are byte-identical from a
+fresh clone given the same toolchain version pair (verified on
+`pandoc 3.9` + `typst 0.14.2`). The render helper
+(`scripts/render_paper_pdf.sh`) sources the date from the source
+MD's `**Date.**` line and exports `SOURCE_DATE_EPOCH` so Typst
+embeds a deterministic `CreationDate` / `ModDate`. A different
+`typst` minor version will produce a different PDF from the same
+source — that is renderer drift across versions, not pipeline
+non-determinism. Earlier tags in the `memo-2026-04-22-*` series
+do not have this guarantee: `-i` and earlier had a render-script
+bug that leaked title-block metadata into the rendered PDF body,
+and `-j` still injected wall-clock `CreationDate` / `ModDate` so
+re-renders diff at the metadata level even when content is
+identical. See the PAPER.md tag ledger for the per-tag history.
+
+Run `scripts/verify_manuscript_claims.py` before cutting any new
 `memo-*` tag; it cross-checks numeric / universal claims in
 `MANUSCRIPT.md`, `PAPER.md`, and `README.md` against the committed
-bench JSONLs and source-code constants.
+bench JSONLs and source-code constants. The script's docstring
+enumerates exactly what it checks and three known coverage gaps.
 
 ## Citation
 

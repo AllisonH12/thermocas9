@@ -10,9 +10,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 > Captures the activity since the V2.5 release notes below: Δβ-only
 > baseline, MANUSCRIPT.md introduction, figure regeneration, render-
 > pipeline reproducibility, manuscript-claim verifier, and the dated
-> memo-tag policy that drove the `-c` through `-k` revision cycle.
+> memo-tag policy that drove the `-c` through `-n` revision cycle.
 > Stable release is still `v0.4.0`; the "for-submission" anchor is
-> the immutable tag `memo-2026-04-22-l`.
+> the immutable tag `memo-2026-04-22-n`.
+> Tag deltas since `-l`:
+>   - `-m` corrected the cover-letter mislabel of GSE69914 as
+>     "tumor-normal pairs" (cohort is unpaired by design — 305
+>     sporadic tumors + 50 healthy donors with adjacent-normal
+>     arms excluded), and rewrote the `verify_manuscript_claims.py`
+>     docstring to honestly enumerate exactly which `check_*`
+>     functions are wired in `main()` (the prior docstring claimed
+>     "every AUC value in every markdown table" while the relevant
+>     function was unwired, and overstated README coverage).
+>   - `-n` narrowed README.md's "Reproducibility" section
+>     scope-claim from "any `memo-2026-04-22-*` tag" to
+>     "`memo-2026-04-22-k` and later" (PDF byte-identity is only
+>     achieved from `-k` onward; earlier tags had a metadata-leak
+>     bug or wall-clock-stamped PDFs), and updated this CHANGELOG
+>     entry's submission anchor from `-l` to `-n`.
 
 ### Added — submission artifacts
 
@@ -119,7 +134,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   cross-document drift (MANUSCRIPT vs PAPER vs README staleness).
   PAPER.md tag ledger documents per-tag what each revision
   fixed and what each retains-but-should-not-cite. Cite
-  `memo-2026-04-22-l` for the current submission-freeze state.
+  `memo-2026-04-22-n` for the current submission-freeze state.
 
 ### Reporting framing — corrected
 
