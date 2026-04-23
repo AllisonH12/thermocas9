@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-q` (immutable pointer to the exact revision that produced this memo; see the tag ledger in §"Data and code availability" for the per-tag history of the submission-freeze cycle).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-r` (immutable pointer to the exact revision that produced this memo; see the tag ledger in §"Data and code availability" for the per-tag history of the submission-freeze cycle).
 **Status.** Technical memo from an educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -778,18 +778,19 @@ they are.)
 
 In priority order, not committed to any timeline:
 
-1. ~~Native EPIC v2 probe annotation + catalog rebuild~~ **Done.**
-   Shipped after this revision; results in §5.2. The HM450-intersect
-   shortcut is now sensitivity-bracketed rather than an open caveat.
-2. Annotation-pass extension: mappability, repeat overlap, and ENCODE
-   cCRE intersection to move top-20 shortlists from "interesting
-   genes" to "experimentally prioritized target sites".
-3. A second independent-lab MCF-7 / MCF-10A EPIC cohort, if one
-   becomes public, to establish reproducibility of the V2.5 claim at
-   n ≥ 3 on matched cell-line pairs.
-4. Wet-lab editing validation at the top V2.5 candidates on matched
+1. Wet-lab editing validation at the top V2.5 candidates on matched
    cell-line substrates — the terminal step and the one that actually
    changes the scientific claim.
+2. A second independent-lab MCF-7 / MCF-10A EPIC cohort, if one
+   becomes public, to establish reproducibility of the V2.5 claim at
+   n ≥ 3 on matched cell-line pairs.
+3. Formal SCREEN cCRE Registry integration when a non-challenged
+   download path becomes available. The top-hit annotation pipeline
+   already ships nearest-gene, CpG-island context, RepeatMasker
+   overlap, and ENCODE DNase-HS cluster breadth (§5.5); DNase-HS
+   is the v1 regulatory-activity proxy for the formal cCRE Registry,
+   which currently sits behind a JavaScript challenge on
+   screen.wenglab.org and cannot be fetched directly.
 
 ---
 
@@ -895,7 +896,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-q`** for this document. The `v0.4.0` tag is the stable-release V1 code (default `probabilistic_mode` remains `tumor_only` there; V2.5 is not shipped at that tag). Earlier dated `memo-2026-04-22-*` revisions from the submission-freeze cycle are retained on origin per the "tags never move" policy; their provenance is in `git log memo-2026-04-22-q..main -- PAPER.md` and the commit history. 236 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-r`** for this document. The `v0.4.0` tag is the stable-release V1 code (default `probabilistic_mode` remains `tumor_only` there; V2.5 is not shipped at that tag). Earlier dated `memo-2026-04-22-*` revisions from the submission-freeze cycle are retained on origin per the "tags never move" policy; their provenance is in `git log memo-2026-04-22-r..main -- PAPER.md` and the commit history. 236 tests pass under `uv run pytest -q`.
 - **Submission-shaped companion**: `MANUSCRIPT.md` at the same tag is the Bioinformatics-submission-shaped cut-down of this memo.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the committed per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
