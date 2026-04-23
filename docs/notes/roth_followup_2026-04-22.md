@@ -2,7 +2,7 @@
 
 **Status.** Draft. Edit before sending.
 **Audience.** Dr. Luca Roth (and the corresponding-author team on Roth et al., *Nature* 2026).
-**Framework.** Code/results at `memo-2026-04-22-t` of <https://github.com/AllisonH12/thermocas9>.
+**Framework.** Code/results at `memo-2026-04-22-u` of <https://github.com/AllisonH12/thermocas9>.
 **Purpose.** Close the loop on the HM450-intersect shortcut from our earlier note, confirm the native EPIC v2 path reproduces the same biological story, and offer the annotated shortlist for their own sanity-checking. No ask.
 
 ---
@@ -24,11 +24,12 @@ Following up on our earlier note about GSE322563. A correction and a confirmatio
 
 **Confirmation.** The first draft of our pipeline harmonized EPIC v2 probe IDs to HM450 by stripping the `_BC##`/`_TC##`/`_TO##`/`_BO##` beadchip-design suffix and intersecting with the HM450 universe (~80.7 % retention). We've since re-run the analysis against the **native EPIC v2 probe set** — 147,928 probes on chr5/6/10, lifted hg38 → hg19 from GPL33022 — with no HM450 intersect.
 
-The two paths agree:
+The two paths agree on the headline conclusions:
 
 1. **Δβ distributions** on the MCF-7 vs MCF-10A differential are consistent between HM450-intersect and native runs.
-2. **Top-ranked candidates at K=20** overlap between the two paths up to within one position per hit. Either path identifies the same in-island promoter CpGs (e.g. `KCNIP2 −264`, `CALHM2 +364`, `CELF2 −94`).
-3. **The HM450-intersect shortcut did not distort the V2.5 scoring claim.** We had to check: given the retention rate, it was a reasonable reviewer question.
+2. **Validated-target AUC agrees to within the n=2/2 noise floor.** V2.5 AUC on the n = 3 Roth-validated probes is 0.990 (HM450-intersect) vs 0.986 (native EPIC v2) — a 0.003 movement, well inside the tied-band noise floor on this cohort. Per-positive ranks shift more (e.g. ESR1: 2,575 → 5,746; EGFLAM: 64,433 → 158,502; full table at `examples/validated_positive_ranks.md`), reflecting the larger native catalog (~5.2M vs ~3.0M candidates), but the AUC ranking conclusion is preserved.
+3. **Top-K windows share several high-scoring examples** between the two paths (e.g. promoter CpGs at *KCNIP2*, *CALHM2*, *CELF2* surface in both top-20 windows), but the windows are *not* position-preserved — both top-20s are 20-record windows inside several-hundred-record tied bands at K=100, so the absolute ordering inside each window depends on the documented `candidate_id` ascending tie-break.
+4. **The HM450-intersect shortcut did not distort the V2.5 scoring claim.** We had to check: given the retention rate, it was a reasonable reviewer question.
 
 We take this as closing the obvious "did you lose something by intersecting to HM450?" concern. The native path is now the primary in our memo (§4.4, §5.2).
 
@@ -54,4 +55,4 @@ Columbia University
 - **Don't oversell V2.5**: the message leads with the confirmation that the HM450 shortcut wasn't hiding anything, not with "we built a better scorer." V2.5 gets one parenthetical mention.
 - **Don't attach the repo tarball**. Link to the tagged GitHub revision. If they want to run anything they can clone.
 - **Include both the TSV and the .md** if they ask for the shortlist. The .md is the one they'll actually read.
-- **Revision checkpoint**: if this note sits more than 48 h before sending, re-verify the tag reference (`git rev-parse memo-2026-04-22-t` should still resolve).
+- **Revision checkpoint**: if this note sits more than 48 h before sending, re-verify the tag reference (`git rev-parse memo-2026-04-22-u` should still resolve).

@@ -4,9 +4,11 @@
 # ///
 """Descriptive AUC uncertainty intervals for the n=3 primary endpoint.
 
-Given the small positive count, classical AUC confidence intervals are
-not well-defined. We instead report two descriptive distributions per
-cohort × scoring axis:
+Given the small positive count (n_pos = 3), classical AUC confidence
+intervals can be defined but are coarse and dominated by the rank
+of each positive — they are not very informative as inferential
+statistics. We therefore report two descriptive distributions per
+cohort × scoring axis instead:
 
 1. **Permutation null.** Draw n_pos = 3 records uniformly at random from
    the full candidate set, compute their AUC under the same tie-handling

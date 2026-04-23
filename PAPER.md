@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-t` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-u` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -43,7 +43,11 @@ panel is documented as an out-of-distribution label-transport
 boundary case, not a generalization test, because Sanger's MCF-7 is
 methylated at the sites where Roth's MCF-7 is unmethylated. V1
 remains the stable-release default; V2.5 is the recommended
-probabilistic ranking axis for matched cell-line cohorts; all code
+probabilistic ranking axis on every non-boundary cohort shape
+tested (matched cell-line at n = 2/2 and 3/3, and primary tissue
+at n = 305/50 — §5.1–§5.3), with the caveat that on n = 2/2
+cell-line cohorts the visible top-K should be read as a top tied
+candidate class rather than a ranked shortlist (§6.1); all code
 and benchmark artifacts are public.
 
 ---
@@ -188,8 +192,11 @@ p_therapeutic_selectivity = p_targ × p_diff × p_trust
 ```
 
 This makes no absolute-threshold claim about the normal side. It asks
-only whether the normal-vs-tumor gap exceeds δ in the sense of a
-normal-approximation confidence interval on the per-probe summaries.
+only what fraction of normal-vs-tumor β pairs sampled from the
+per-side empirical distributions would exceed δ, under independent
+normal approximations to those per-side distributions. (This is a
+*population-overlap* statistic, not a confidence interval on a
+cohort-level mean contrast — see §3.3.)
 
 ### 3.2 Choice of δ
 
@@ -601,9 +608,11 @@ and Δβ-only would also compress.
 
 #### 5.1.2 Descriptive AUC uncertainty
 
-With `n_pos = 3` no inferential AUC confidence interval is
-well-defined. We instead report two descriptive distributions
-(reproducible via `uv run scripts/auc_uncertainty.py`):
+At `n_pos = 3`, exact / permutation / bootstrap AUC intervals can
+be defined but are coarse and dominated by the rank of each
+positive — they are not very informative or stable as inferential
+statistics. We therefore report two descriptive distributions
+instead (reproducible via `uv run scripts/auc_uncertainty.py`):
 
 - **Permutation null** — 10,000 draws of three random candidates
   uniformly without replacement from the full candidate set; AUC
@@ -1033,11 +1042,15 @@ Sanger MCF-7 epigenetic drift breaks label transportability from
 Roth Fig. 5d. Inverted AUC is the expected scorer response; do not
 pool this cohort's numbers with §5.1.
 
-"Recommended" in profile 1 means that for a user running V2.5 on a
-cohort matching the §5.1 use profile, the reported benefit over V1
-is real. It does not mean V2.5 is safe to use on cohorts outside
-that profile without re-running the diagnostics in §5.3 and §5.4 on
-the new cohort.
+"Recommended" in profile 1 means that for a user running V2.5 on
+any cohort shape we have tested in §5.1–§5.3 (matched cell-line at
+n = 2/2 or 3/3, or primary tissue at n = 305/50), the reported
+ranking benefit over V1 is real. It does not mean V2.5 is safe to
+use on cohorts outside those profiles — in particular it does not
+mean V2.5 will work on cross-series transported labels (the §5.4
+GSE68379 boundary case is exactly the failure mode) — without
+re-running the §5.3.1 / §5.3.2 sensitivity diagnostics on the new
+cohort.
 
 ### 6.2 Limitations
 
@@ -1251,7 +1264,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-t`** for this document. 236 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-u`** for this document. 236 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
