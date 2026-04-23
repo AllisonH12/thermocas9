@@ -71,9 +71,14 @@ def fig1_mode_schematic() -> None:
         ax.text(x, 3.1, "×", ha="center", va="center",
                 fontsize=20, color=edge_color, fontweight="bold")
 
-    # Composite arrow + result
-    ax.annotate("", xy=(5, 1.4), xytext=(5, 2.55),
-                arrowprops=dict(arrowstyle="->", color=edge_color, lw=2))
+    # Composite arrows — one from each of the three factor boxes converging
+    # on the result box below. Previously only p_diff had an arrow, which
+    # visually implied only p_diff fed the result; the composite is
+    # p_targ × p_diff × p_trust, so all three arrows are drawn.
+    for x_factor in (1.5, 5.0, 8.5):
+        ax.annotate("", xy=(5, 1.45), xytext=(x_factor, 2.55),
+                    arrowprops=dict(arrowstyle="->", color=edge_color,
+                                    lw=1.5, alpha=0.85))
     ax.add_patch(mpatches.FancyBboxPatch(
         (3.0, 0.55), 4.0, 0.85,
         boxstyle="round,pad=0.08", linewidth=1.5,
@@ -106,11 +111,15 @@ def fig2_auc_bars() -> None:
     bench = REPO / "examples"
     # Multi-line short labels — keeps panel (a) x-ticks from colliding at
     # 4-cohort group width.
+    # Two-line cohort labels. GSE322563 gets a platform disambiguator
+    # (HM450 vs native EPIC v2) because it's the only cohort with two
+    # paths; GSE77348 and GSE69914 are HM450-only so the platform suffix
+    # would be redundant.
     cohorts = [
-        ("GSE322563\nHM450\n(Roth, n=2/2)",           "gse322563_roth_labels"),
-        ("GSE322563\nnative\n(EPIC v2, n=2/2)",       "gse322563_native_roth_labels"),
-        ("GSE77348\nHM450\n(δ-dev, n=3/3)",           "gse77348_roth_labels"),
-        ("GSE69914\nHM450\n(tissue, n=305/50)",       "gse69914_roth_labels"),
+        ("GSE322563 HM450\n(Roth, n=2/2)",              "gse322563_roth_labels"),
+        ("GSE322563 native\n(EPIC v2, n=2/2)",          "gse322563_native_roth_labels"),
+        ("GSE77348\n(δ-dev, n=3/3)",                    "gse77348_roth_labels"),
+        ("GSE69914\n(tissue, n=305/50)",                "gse69914_roth_labels"),
     ]
     label_sets = ["validated", "narrow", "wide"]
     axes_modes = [
@@ -165,18 +174,17 @@ def fig2_auc_bars() -> None:
         axR.bar(offsets, ys, width=width, color=color,
                 edgecolor="#202124", linewidth=0.4)
     axR.axhline(0.5, color="#dadce0", linestyle="--", linewidth=1)
-    # Label each bar group with "<cohort-short> <tier>". Join the first two
-    # lines of the cohort label (GSE code + platform/path) with a space, so
-    # "GSE322563\nHM450\n..." → "GSE322563 HM450" and similarly "GSE322563
-    # native" — this keeps HM450 and native paths distinguishable in (b).
+    # Label each bar group with "<cohort-short> <tier>". The first line of
+    # the cohort label already encodes the GSE code plus any platform
+    # disambiguator ("GSE322563 HM450" / "GSE322563 native" / "GSE77348" /
+    # "GSE69914"), so we just take it as-is.
     def _short(cohort_label: str) -> str:
-        lines = cohort_label.split(chr(10))
-        return " ".join(lines[:2])  # e.g. "GSE322563 HM450"
+        return cohort_label.split(chr(10))[0]
 
     axR.set_xticks(x2)
     axR.set_xticklabels(
         [f"{_short(c)}\n{ls}" for (c, ls) in groups],
-        fontsize=6.0, rotation=30, ha="right",
+        fontsize=6.5, rotation=30, ha="right",
     )
     axR.set_ylim(0, 1.05)
     axR.set_title("(b) Sensitivity: AUC across label granularities\n"
@@ -185,9 +193,9 @@ def fig2_auc_bars() -> None:
     axR.spines["top"].set_visible(False)
     axR.spines["right"].set_visible(False)
 
-    fig.suptitle("Figure 2 · Cross-cohort AUC by score axis — "
-                 "4 axes × 4 cohort paths × 3 label tiers",
-                 fontsize=11, fontweight="bold", y=1.02)
+    # No in-figure suptitle — the markdown caption below the figure in
+    # MANUSCRIPT.md / PAPER.md carries the "Figure 2." header. An in-figure
+    # title duplicated the "Figure 2" label when rendered in the PDF.
     plt.tight_layout()
     fig.savefig(OUT / "fig2_auc_bars.png", dpi=200, bbox_inches="tight")
     fig.savefig(OUT / "fig2_auc_bars.svg",       bbox_inches="tight")
@@ -283,14 +291,36 @@ def fig3_topgene_heatmap() -> None:
     ax.set_xlim(-0.5, len(col_genes) - 0.5)
     ax.set_ylim(len(rows) - 0.5, -3.2)
 
-    # Title sits above the column headers, well clear of the heatmap body.
-    # No in-figure caption block: the body caption in PAPER.md (Figure 3.
-    # Per-(axis × cohort) top-20 gene presence...) carries that load. An
-    # in-figure caption was overlapping the bottom-most gene rows when
-    # rendered in the PDF.
-    fig.suptitle(
-        "Figure 3 · Top-20 gene presence per (axis × cohort) — tie-window-aware",
-        fontsize=11, fontweight="bold", y=0.985,
+    # No in-figure suptitle — the markdown "**Figure 3.**" caption below
+    # the embed carries the header. Duplicating "Figure 3" inside the PNG
+    # produced a double-labeling effect when rendered in the PDF.
+
+    # In-figure legend: blue cell = present, grey cell = absent;
+    # blue column header = deterministic top-K (tie_band ≤ 2);
+    # red column header = 20-row window inside a large tied band.
+    # Placed in the bottom-right, outside the heatmap body.
+    legend_items = [
+        mpatches.Patch(facecolor="#1a73e8", edgecolor="#1a73e8", label="gene in cohort's top-20"),
+        mpatches.Patch(facecolor="#f1f3f4", edgecolor="#cfcfcf", label="gene NOT in cohort's top-20"),
+    ]
+    leg = ax.legend(
+        handles=legend_items, loc="upper left", bbox_to_anchor=(1.01, 1.0),
+        fontsize=7.5, frameon=False, title="Cell fill",
+        title_fontsize=8,
+    )
+    ax.add_artist(leg)
+
+    # A second legend just below it explaining column-header colors.
+    header_items = [
+        mpatches.Patch(facecolor="none", edgecolor="#1a73e8", linewidth=2,
+                       label="tie_band ≤ 2 (deterministic top-K)"),
+        mpatches.Patch(facecolor="none", edgecolor="#d93025", linewidth=2,
+                       label="tie_band ≫ K (20-row window inside tied band)"),
+    ]
+    ax.legend(
+        handles=header_items, loc="upper left", bbox_to_anchor=(1.01, 0.88),
+        fontsize=7.5, frameon=False, title="Column-header color",
+        title_fontsize=8,
     )
 
     plt.tight_layout()

@@ -143,7 +143,14 @@ awk '
 # (e.g. ![Figure 1](docs/figures/fig1...)) need to resolve from the
 # repo root, not from /tmp where TMP lives. --resource-path tells
 # pandoc where to look for those.
+# `-f markdown-implicit_figures` stops pandoc from wrapping every solo
+# image in a typst figure block. Otherwise typst auto-prefixes the
+# alt text with "Figure N:", which collides with the markdown
+# "**Figure N.**" bold caption paragraph immediately below — the
+# rendered PDF would show "Figure N" three times per figure (typst
+# auto-prefix + alt text + bold caption).
 pandoc "$TMP" -o "$OUT" --pdf-engine=typst \
+    -f markdown-implicit_figures \
     --resource-path="${REPO_ROOT}" \
     --metadata title="$TITLE" \
     --metadata subtitle="$SUBTITLE" \
