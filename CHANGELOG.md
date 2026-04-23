@@ -12,7 +12,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 > pipeline reproducibility, manuscript-claim verifier, and the dated
 > memo-tag policy that drove the `-c` through `-n` revision cycle.
 > Stable release is still `v0.4.0`; the "for-submission" anchor is
-> the immutable tag `memo-2026-04-22-n`.
+> the immutable tag `memo-2026-04-22-o`.
 > Tag deltas since `-l`:
 >   - `-m` corrected the cover-letter mislabel of GSE69914 as
 >     "tumor-normal pairs" (cohort is unpaired by design — 305
@@ -28,6 +28,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 >     achieved from `-k` onward; earlier tags had a metadata-leak
 >     bug or wall-clock-stamped PDFs), and updated this CHANGELOG
 >     entry's submission anchor from `-l` to `-n`.
+>   - `-o` fixed an unclosed parenthetical in PAPER.md `**Code.**`
+>     (line 5) by collapsing the inline tag-history summary to a
+>     one-sentence pointer to the tag ledger.
 
 ### Added — submission artifacts
 
@@ -134,7 +137,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   cross-document drift (MANUSCRIPT vs PAPER vs README staleness).
   PAPER.md tag ledger documents per-tag what each revision
   fixed and what each retains-but-should-not-cite. Cite
-  `memo-2026-04-22-n` for the current submission-freeze state.
+  `memo-2026-04-22-o` for the current submission-freeze state.
 
 ### Reporting framing — corrected
 
