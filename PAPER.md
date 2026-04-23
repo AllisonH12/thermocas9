@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-r` (immutable pointer to the exact revision that produced this memo; see the tag ledger in §"Data and code availability" for the per-tag history of the submission-freeze cycle).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-s` (immutable pointer to the exact revision that produced this memo; see the tag ledger in §"Data and code availability" for the per-tag history of the submission-freeze cycle).
 **Status.** Technical memo from an educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -896,7 +896,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-r`** for this document. The `v0.4.0` tag is the stable-release V1 code (default `probabilistic_mode` remains `tumor_only` there; V2.5 is not shipped at that tag). Earlier dated `memo-2026-04-22-*` revisions from the submission-freeze cycle are retained on origin per the "tags never move" policy; their provenance is in `git log memo-2026-04-22-r..main -- PAPER.md` and the commit history. 236 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-s`** for this document. The `v0.4.0` tag is the stable-release V1 code (default `probabilistic_mode` remains `tumor_only` there; V2.5 is not shipped at that tag). Earlier dated `memo-2026-04-22-*` revisions from the submission-freeze cycle are retained on origin per the "tags never move" policy; their provenance is in `git log memo-2026-04-22-s..main -- PAPER.md` and the commit history. 236 tests pass under `uv run pytest -q`.
 - **Submission-shaped companion**: `MANUSCRIPT.md` at the same tag is the Bioinformatics-submission-shaped cut-down of this memo.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the committed per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
@@ -963,11 +963,3 @@ This memo describes a framework built as an educational / research
 project. ThermoCas9's biochemical characterization and the validated
 target sites are entirely due to Roth et al.; any errors in the
 re-implementation of the scoring or benchmarking are this memo's.
-
-The deep-self-review process behind the code (documented in
-`V2_5_REVIEW.md`) caught a series of bugs that would have otherwise
-affected the headline claim: a composite-consistency validator gap on
-`ProbabilisticScore`, an input-order-dependent tie-break in
-`evaluate_ranking`, a prefix-ID tie-break bug in the top-hit annotator,
-and an early-termination bug in the overlap-detection loop of the
-gene annotator. Each of these is covered by a dedicated regression test.
