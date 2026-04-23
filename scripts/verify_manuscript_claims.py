@@ -497,6 +497,131 @@ def check_figure_captions(errors: list[str]) -> None:
     _check_figure_captions_in(PAPER, errors)
 
 
+def check_tag_span_claims(errors: list[str]) -> None:
+    """Cross-check narrative prose in the public docs + CHANGELOG for stale
+    tag-span / tag-count claims that drift as new memo tags are cut.
+
+    Patterns this catches:
+      * "-c through -X" or "`-c` through `-X`" where X != the latest
+        `memo-2026-04-22-*` suffix letter on disk. Seen twice:
+        CHANGELOG.md said "-c through -n" and "-c through -l" at -o.
+      * "`-c` → `-X`" for the narrower fabricated-numbers span which
+        should stay at "-e" (out-of-scope for this check: narrative
+        sometimes intentionally scopes to just the fabricated-number
+        class, which is `-c` → `-e`, not a sliding span).
+      * "N dated memo tags" where N != `git tag -l 'memo-*' | wc -l`.
+
+    Rationale: the submission-freeze cycle has now produced count /
+    span claims in narrative prose five separate times that drifted
+    as more tags were cut. Same class of bug as the "Three axes"
+    pre-Δβ and "6,500+ on every cohort" claims the existing detectors
+    already cover.
+    """
+
+    # Latest dated memo-2026-04-22-* tag as the authoritative endpoint
+    # for any "-c through -X" range claim.
+    try:
+        tags = subprocess.run(
+            ["git", "-C", str(REPO), "tag", "-l", "memo-2026-04-22-*"],
+            capture_output=True, text=True, timeout=10, check=True,
+        ).stdout.splitlines()
+    except Exception as e:
+        errors.append(f"TAG_SPAN: could not list memo-2026-04-22-* tags: {e}")
+        return
+
+    # Filter to those with a single-letter suffix (-b, -c, ..., -z) and pick
+    # the alphabetically latest. The initial `memo-2026-04-22` (no suffix)
+    # and any "future date" tags are out of range for the -c-onward cycle.
+    suffixed = [t for t in tags if re.fullmatch(r"memo-2026-04-22-[a-z]", t)]
+    if not suffixed:
+        errors.append("TAG_SPAN: no suffixed memo-2026-04-22-[a-z] tags on disk")
+        return
+    latest_suffix = max(t[-1] for t in suffixed)
+
+    total_dated = len([t for t in tags if re.fullmatch(r"memo-\d{4}-\d{2}-\d{2}(-[a-z])?", t)])
+    # Also count memo-2026-04-21 or any other memo-YYYY-MM-DD format.
+    all_memo_tags = subprocess.run(
+        ["git", "-C", str(REPO), "tag", "-l", "memo-*"],
+        capture_output=True, text=True, timeout=10, check=True,
+    ).stdout.splitlines()
+    all_memo_count = len([t for t in all_memo_tags if t.strip()])
+
+    docs = (MANUSCRIPT, PAPER, README, REPO / "CHANGELOG.md")
+    for doc_path in docs:
+        if not doc_path.exists():
+            continue
+        text = doc_path.read_text()
+
+        # Pattern A: "-c through -X" or "`-c` through `-X`"
+        historical_markers = (
+            "SHOULD NOT BE CITED", "Retained but", "was undocumented",
+            "was still", "Superseded by", "memo-2026-04-22-*",  # history/scope
+            "underwent", "was behind", "wasn't propagated",
+        )
+        for m in re.finditer(r"`?-c`?\s+(?:through|→|->)\s+`?-([a-z])`?", text):
+            span_end = m.group(1)
+            back = text.rfind("\n\n", 0, m.start())
+            ctx = text[max(0, back): m.end() + 200]
+            # Skip historical retrospectives that explicitly scope to the
+            # fabricated-numbers class (-c through -e) — a narrower
+            # intentional claim.
+            if "fabricated" in ctx and span_end == "e":
+                continue
+            # Skip tag-ledger entries describing what was true AT a past
+            # revision. These are not live scope claims about HEAD; they
+            # are historical provenance and should be preserved as-is.
+            if any(marker in ctx for marker in historical_markers):
+                continue
+            # Also skip if the match is inside a markdown block quoted by
+            # the pattern of a ledger entry: "  - `memo-2026-04-22-X` — ...".
+            line_start = text.rfind("\n", 0, m.start()) + 1
+            line = text[line_start: text.find("\n", m.end()) if text.find("\n", m.end()) != -1 else len(text)]
+            if re.match(r"\s*-\s+`memo-2026-04-22-[a-z]`\s+—", line):
+                continue
+            if span_end != latest_suffix:
+                errors.append(
+                    f"{doc_path.name}: stale tag-span claim '-c through "
+                    f"-{span_end}' — latest memo-2026-04-22-* suffix on "
+                    f"disk is '-{latest_suffix}'. Consider replacing with "
+                    f"'-c onward' to avoid further drift."
+                )
+
+        # Pattern B: "N dated memo tags" where N is spelled out in English.
+        # Apply the same historical-context filter used above — quoted past
+        # claims in the tag ledger (e.g. "Five dated memo tags" describing
+        # what a superseded revision had wrong) are not live overclaims.
+        num_words = {
+            "One": 1, "Two": 2, "Three": 3, "Four": 4, "Five": 5, "Six": 6,
+            "Seven": 7, "Eight": 8, "Nine": 9, "Ten": 10, "Eleven": 11,
+            "Twelve": 12, "Thirteen": 13, "Fourteen": 14, "Fifteen": 15,
+            "Sixteen": 16, "Seventeen": 17, "Eighteen": 18, "Nineteen": 19,
+            "Twenty": 20,
+        }
+        for word, val in num_words.items():
+            for m in re.finditer(rf"\b{word}\s+dated\s+memo\s+tag", text):
+                if val == all_memo_count:
+                    continue
+                back = text.rfind("\n\n", 0, m.start())
+                ctx = text[max(0, back): m.end() + 200]
+                if any(marker in ctx for marker in historical_markers):
+                    continue
+                # Also skip if the claim is inside a quoted/retrospective
+                # phrasing like "said X" / "rewrote Y" / "corrected Z".
+                if any(phrase in ctx for phrase in (
+                    '"Five dated memo', '"N dated memo',
+                    "header said", "rewrote", "corrected",
+                )):
+                    continue
+                errors.append(
+                    f"{doc_path.name}: stale '{word} dated memo tags' "
+                    f"claim — actual count is {all_memo_count}. "
+                    f"Consider making this count-free to avoid further "
+                    f"drift."
+                )
+
+    return
+
+
 def check_test_count(errors: list[str]) -> None:
     """Run pytest --collect-only and sum per-file counts. The `-q` summary
     line "N passed" is suppressed under subprocess capture in recent
@@ -542,6 +667,7 @@ def main() -> int:
     check_artifact_counts(errors)
     check_test_count(errors)
     check_figure_captions(errors)
+    check_tag_span_claims(errors)
     # The AUC-in-tables scan is noisy; keep it opt-in.
     # check_table_auc_values(errors)
 

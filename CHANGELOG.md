@@ -10,9 +10,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 > Captures the activity since the V2.5 release notes below: Δβ-only
 > baseline, MANUSCRIPT.md introduction, figure regeneration, render-
 > pipeline reproducibility, manuscript-claim verifier, and the dated
-> memo-tag policy that drove the `-c` through `-n` revision cycle.
+> memo-tag policy that drove the same-day revision cycle from `-c`
+> onward (see the PAPER.md tag ledger for per-tag provenance).
 > Stable release is still `v0.4.0`; the "for-submission" anchor is
-> the immutable tag `memo-2026-04-22-o`.
+> the immutable tag `memo-2026-04-22-p`.
 > Tag deltas since `-l`:
 >   - `-m` corrected the cover-letter mislabel of GSE69914 as
 >     "tumor-normal pairs" (cohort is unpaired by design — 305
@@ -31,6 +32,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 >   - `-o` fixed an unclosed parenthetical in PAPER.md `**Code.**`
 >     (line 5) by collapsing the inline tag-history summary to a
 >     one-sentence pointer to the tag ledger.
+>   - `-p` rewrote five stale count/span claims that drifted as new
+>     memo tags were cut (PAPER.md "Five dated memo tags"; MANUSCRIPT
+>     §"Data and code availability" "-c, -d, -e" enumeration;
+>     CHANGELOG references to "-c through -n", "-c → -h", "-c through
+>     -l") to count-free / "-c onward" wording. Extended
+>     `verify_manuscript_claims.py` with a `check_tag_span_claims`
+>     detector so this class stops recurring.
 
 ### Added — submission artifacts
 
@@ -102,7 +110,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   artifact + test counts; figure-caption gene lists. Must pass
   before any subsequent dated memo tag is cut. This script
   should have existed before `-c` and would have prevented the
-  fabricated-numbers issues that drove the `-c` → `-h` re-cuts.
+  fabricated / mis-matched-to-artifact number issues that
+  specifically drove the `-c` → `-e` re-cuts (fabricated tissue
+  AUCs, native-table AUC fabrications, and the mis-quoted
+  `p_targ` threshold). Later tags in the same cycle corrected
+  different classes — false-universal quantifiers, figure
+  captions, rendering pipeline, cross-document drift — that are
+  not in this script's scope as currently wired.
 - **`scripts/render_paper_pdf.sh`** — generalized to accept a
   source path as `$1` (default `PAPER.md`); per-document title
   metadata; `**Date.**` parsing from source MD;
@@ -129,7 +143,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Submission-freeze revisions are tagged
   `memo-YYYY-MM-DD[-suffix]` per the "tags never move" policy.
-  The `-c` through `-l` cycle on `2026-04-22` corrected three
+  The `-c` onward cycle on `2026-04-22` corrected three
   classes of error in successive rounds: (a) fabricated AUC
   values in MANUSCRIPT.md prose that did not match the committed
   bench JSONLs; (b) false universal quantifiers ("at every
@@ -137,7 +151,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   cross-document drift (MANUSCRIPT vs PAPER vs README staleness).
   PAPER.md tag ledger documents per-tag what each revision
   fixed and what each retains-but-should-not-cite. Cite
-  `memo-2026-04-22-o` for the current submission-freeze state.
+  `memo-2026-04-22-p` for the current submission-freeze state.
 
 ### Reporting framing — corrected
 
