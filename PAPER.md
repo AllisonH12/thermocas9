@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-aa` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ab` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -57,17 +57,23 @@ panel is documented as an out-of-distribution label-transport
 boundary case, not a generalization test, because Sanger's MCF-7 is
 methylated at the sites where Roth's MCF-7 is unmethylated. V1
 remains the stable-release default; V2.5 is the recommended
-probabilistic ranking axis on every non-boundary cohort shape
-tested (matched cell-line at n = 2/2 and 3/3, and primary tissue
-at n = 305/50 — §5.1–§5.3), with two caveats: (a) on n = 2/2
-cell-line cohorts the visible top-K should be read as a top tied
-candidate class rather than a ranked shortlist (§6.1); and (b) on
-primary tissue the shipped defaults σ_floor = 0.05 and δ = 0.2
-are not tissue-optimal — §5.3.1 / §5.3.2 show tissue AUC peaks at
-σ_floor ≈ 0.10 and prefers smaller δ, so tissue-cohort users
-should run the σ_floor / δ sweep on their cohort before relying on
-the shipped defaults (regime-specific presets are on the §6.3
-follow-up list). All code and benchmark artifacts are public.
+probabilistic ranking axis **among the shipped benchmark modes** on
+every non-boundary cohort shape tested (matched cell-line at
+n = 2/2 and 3/3, and primary tissue at n = 305/50 — §5.1–§5.3),
+with three caveats: (a) on n = 2/2 cell-line cohorts the visible
+top-K should be read as a top tied candidate class rather than a
+ranked shortlist (§6.1); (b) on primary tissue the shipped
+defaults σ_floor = 0.05 and δ = 0.2 are not tissue-optimal —
+§5.3.1 / §5.3.2 show tissue AUC peaks at σ_floor ≈ 0.10 and
+prefers smaller δ, so tissue-cohort users should run the
+σ_floor / δ sweep on their cohort before relying on the shipped
+defaults (regime-specific presets are on the §6.3 follow-up
+list); and (c) a fixed-bandwidth sigmoid ablation on the gap
+factor *outperforms* the shipped V2.5 composite on tissue by
++0.09 AUC (§5.2.1), so V2.5 is the best *shipped* probabilistic
+axis on tissue but not the best probabilistic formulation we have
+tested there. Resolving this is a §6.3 priority. All code and
+benchmark artifacts are public.
 
 ---
 
@@ -833,12 +839,15 @@ native EPIC v2 catalog (5.22M candidates vs the HM450 catalog's
 
 | label set | n_pos | n_neg (HM450 / native) | axis | HM450-intersect AUC | native EPIC v2 AUC | Δ |
 |---|---:|---:|---|---:|---:|---:|
+| validated | 3 | 2,979,994 / 5,224,079 | Δβ-only | 0.974 | 0.961 | −0.013 |
 | validated | 3 | 2,979,994 / 5,224,079 | V1 | 0.821 | 0.933 | +0.112 |
 | validated | 3 | 2,979,994 / 5,224,079 | tumor_only | 0.928 | 0.936 | +0.008 |
 | validated | 3 | 2,979,994 / 5,224,079 | **V2.5 differential** | **0.990** | **0.986** | **−0.003** |
+| narrow | 28 | 2,979,969 / 5,224,054 | Δβ-only | 0.912 | 0.956 | +0.044 |
 | narrow | 28 | 2,979,969 / 5,224,054 | V1 | 0.884 | 0.938 | +0.054 |
 | narrow | 28 | 2,979,969 / 5,224,054 | tumor_only | 0.886 | 0.933 | +0.046 |
 | narrow | 28 | 2,979,969 / 5,224,054 | V2.5 differential | 0.942 | 0.983 | +0.040 |
+| wide | 142 | 2,979,855 / 5,223,940 | Δβ-only | 0.844 | 0.865 | +0.021 |
 | wide | 142 | 2,979,855 / 5,223,940 | V1 | 0.768 | 0.855 | +0.087 |
 | wide | 142 | 2,979,855 / 5,223,940 | tumor_only | 0.871 | 0.916 | +0.044 |
 | wide | 142 | 2,979,855 / 5,223,940 | V2.5 differential | 0.910 | 0.945 | +0.035 |
@@ -1205,15 +1214,26 @@ endpoint.
 
 Four use profiles, in order from most-recommended to unsupported:
 
-**1. Recommended probabilistic ranking axis — V2.5 (differential).**
-Highest-AUC probabilistic ranking axis on every matched cell-line
-cohort × label-granularity combination tested (GSE322563 HM450,
-GSE322563 native EPIC v2, GSE77348; §5.1–§5.2). On primary tissue
-(GSE69914), `tumor_only` has higher raw AUC but its K=100 tie
-band makes it unusable as a discovery axis; V2.5 (tie band = 2 at
-K=100) is the **highest usable discovery axis** on tissue rather
-than the raw-AUC leader. Tie bands are reported per benchmark and
-P@K intervals are honest.
+**1. Recommended probabilistic ranking axis among shipped modes — V2.5 (differential).**
+Highest-AUC shipped probabilistic ranking axis on every matched
+cell-line cohort × label-granularity combination tested (GSE322563
+HM450, GSE322563 native EPIC v2, GSE77348; §5.1–§5.2). On primary
+tissue (GSE69914), `tumor_only` has higher raw AUC but its K=100
+tie band makes it unusable as a discovery axis; V2.5 (tie band = 2
+at K=100) is the **highest usable discovery axis among the shipped
+modes** on tissue rather than the raw-AUC leader. Tie bands are
+reported per benchmark and P@K intervals are honest.
+
+**Caveat on the tissue recommendation.** The §5.2.1 factor ablation
+shows a fixed-bandwidth-sigmoid replacement of `p_diff` outperforms
+the shipped V2.5 composite on tissue by +0.09 AUC (0.864 vs 0.773
+at the validated label set). On the matched cell-line cohorts,
+sigmoid / hard-threshold / full `p_diff` all produce the same AUC
+within 0.001 (§5.2.1). So the "recommended" framing here is
+*within the shipped benchmark modes*; it is not a claim that
+`p_diff`'s specific shape is the best probabilistic formulation
+we have tested, especially on tissue. The regime-specific
+reformulation is on the §6.3 follow-up list at elevated priority.
 
 What V2.5 *is* on low-`n` matched cell-line cohorts (n=2/2 to 3/3)
 is a **rank-lift axis**: it lifts validated targets near the top of
@@ -1482,7 +1502,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-aa`** for this document. 236 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ab`** for this document. 236 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
