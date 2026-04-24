@@ -2,7 +2,7 @@
 
 **Status.** Draft. Edit before sending.
 **Audience.** Dr. Luca Roth (and the corresponding-author team on Roth et al., *Nature* 2026).
-**Framework.** Code/results at `memo-2026-04-22-ai` of <https://github.com/AllisonH12/thermocas9>.
+**Framework.** Code/results at `memo-2026-04-22-aj` of <https://github.com/AllisonH12/thermocas9>.
 **Purpose.** Close the loop on the HM450-intersect shortcut from our earlier note, confirm the native EPIC v2 path reproduces the same biological story, and offer the annotated shortlist for their own sanity-checking. No ask.
 
 ---
@@ -55,4 +55,4 @@ Columbia University
 - **Don't oversell V2.5**: the message leads with the confirmation that the HM450 shortcut wasn't hiding anything, not with "we built a better scorer." V2.5 gets one parenthetical mention.
 - **Don't attach the repo tarball**. Link to the tagged GitHub revision. If they want to run anything they can clone.
 - **Include both the TSV and the .md** if they ask for the shortlist. The .md is the one they'll actually read.
-- **Revision checkpoint**: if this note sits more than 48 h before sending, re-verify the tag reference (`git rev-parse memo-2026-04-22-ai` should still resolve).
+- **Revision checkpoint**: if this note sits more than 48 h before sending, re-verify the tag reference (`git rev-parse memo-2026-04-22-aj` should still resolve).

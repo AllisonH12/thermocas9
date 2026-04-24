@@ -54,3 +54,6 @@ data/raw/hg19/chr1[1-9].fa.gz
 data/raw/hg19/chr2[0-2].fa.gz
 data/raw/hg19/chrX.fa.gz
 data/raw/hg19/chrY.fa.gz
+
+# limma per-probe TSVs — ~150MB total, reproducible from scripts/run_limma_per_cohort.py
+data/derived/limma_*_probes.tsv

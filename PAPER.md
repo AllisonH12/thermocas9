@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ai` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-aj` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -561,7 +561,7 @@ Four axes are benchmarked on every cohort:
 - **V2 `tumor_only`** — `p_targ × p_trust`. Retained for audit; default in v0.4.0.
 - **V2.5 `tumor_plus_differential_protection`** — `p_targ × p_diff × p_trust` with δ = 0.2.
 
-**On the absence of an established DMR-style baseline.** Standard
+**The limma-eBayes DMR baseline.** Standard
 differential-methylation tools (`limma`/`minfi`/`DMRcate`) rank
 CpG **probes** or contiguous **regions**, not per-PAM Cas9 target
 candidates. Each ThermoCas9 candidate is a specific `NNNNCGA` /
@@ -569,18 +569,23 @@ candidates. Each ThermoCas9 candidate is a specific `NNNNCGA` /
 cytosine's own β, inferred from the nearest assayed probe via the
 `EvidenceClass` distance model (§4.0, §3.5). A DMR-tool output is
 therefore not directly a ranking over our candidate universe;
-mapping one onto our universe requires either (a) collapsing our
-candidates to their nearest probe and inheriting the probe's rank —
-which drops per-site resolution and confounds all candidates that
-share a nearest probe — or (b) reimplementing the DMR tool's
-per-probe statistic (e.g. empirical-Bayes moderated `t`-statistic
-on the same `β_tumor_*` / `β_normal_*` summary inputs) and feeding
-it into our per-candidate-id tie-break. The Δβ-only and Δβ_z
-baselines (§5.1) already exercise option (a) at the simplest
-statistic; a per-candidate moderated-`t` baseline via option (b) is
-§6.3 future work. The trade-off, honestly: DMR-tool omission is a
-real methods-journal weakness the paper should not hide, and we
-list it as such.
+mapping one requires computing the statistic at the probe level
+first and then assigning each candidate its nearest-probe value.
+We implement the probe-level → candidate-mapped limma-eBayes
+baseline directly on the sample-level β matrices of the three
+primary cohorts (sample-level β recoverable for all three;
+`scripts/limma_ebayes.py` implements Smyth 2004's empirical-Bayes
+moderated `t`-statistic in pure Python, validated against closed-
+form behaviour in the d0 → ∞ limit and against uniform null-p
+distributions on synthetic data; `scripts/run_limma_per_cohort.py`
+wires the cohort adapters). The result is reported alongside the
+other baselines in §5.1 and §5.2.2; limma-eBayes AUC is 0.959
+(GSE322563 HM450) / 0.991 (native EPIC v2) / 0.962 (GSE77348) /
+**0.573 on GSE69914 tissue** — respectable on cell lines but
+near-random on tissue, where the `p_targ` (tumor-side
+unmethylation) gate of V2.5 is what drives the tissue recovery
+from 0.57 to 0.86 that a pure probe-level moderated-t statistic
+cannot.
 
 ### 4.4 Platform harmonization and catalog scope
 
@@ -693,6 +698,7 @@ independent.
 |---|---:|---:|
 | Δβ-only (`β_n − β_t`) | 0.974 | 0.972 |
 | Δβ_z (uncertainty-aware Δβ) | 0.940 | 0.956 |
+| limma-eBayes moderated-`t` (probe-level → candidate-mapped) | 0.959 | 0.962 |
 | V1 `final_score` | 0.821 | 0.968 |
 | V2 `tumor_only` | 0.928 | 0.912 |
 | V2.5-diff (`tumor_plus_differential_protection`) | 0.990 | 0.982 |
@@ -1144,6 +1150,31 @@ to bandwidth choice at δ = 0.2), `tie_band@100 = 1` on cell-line
 (vs up to 1,500 for V2.5), `tie_band@100 ≤ 6` on tissue (vs 1 for
 V2.5). **No cohort × dimension cell prefers shipped V2.5 over
 `gap_sigmoid`.**
+
+**Cross-cohort comparison against the limma-eBayes DMR baseline**
+(§4.3 exclusion-rationale paragraph; cross-cohort panel at
+`examples/limma_cross_cohort_panel.md`):
+
+| cohort | limma-eBayes AUC | V2.5-diff AUC | V2.5-sigmoid AUC | limma tie@100 | V2.5-sigmoid tie@100 |
+|---|---:|---:|---:|---:|---:|
+| GSE322563 HM450      | 0.959 | 0.989 | 0.988 | 91 | 1 |
+| GSE322563 native v2  | 0.991 | 0.998 | 0.998 | 39 | 1 |
+| GSE77348             | 0.962 | 0.982 | 0.981 | 115 | 1 |
+| **GSE69914 (tissue)**    | **0.573** | 0.778 | **0.862** | 57 | 6 |
+
+limma-eBayes is a respectable matched-cell-line DMR baseline (AUC
+0.96 under a 0.999-probe-filtered candidate mapping), but trails
+V2.5-sigmoid by 0.02–0.03 AUC on cell lines and **collapses to
+near-random (0.57) on tissue**. The compositional skeleton's
+`p_targ × p_trust` wrapping is what converts a ~chance probe-level
+statistic on bulk-tissue data into a 0.86-AUC usable discovery
+axis; the skeleton is the durable contribution, not the gap
+factor's specific shape. limma-eBayes also has larger tie bands
+(39–115 at K=100) than V2.5-sigmoid (=1) on cell-line cohorts, so
+its top-K is intermediate in usability — better than V2.5-diff's
+421–1,493-record bands but not as clean as V2.5-sigmoid's.
+Reproducible via `scripts/run_limma_per_cohort.py` +
+`scripts/limma_candidate_ranking.py` + `scripts/limma_cross_cohort_panel.py`.
 
 This is the "V2.5's genome-wide low-n tied bands explode" branch
 of the reviewer's decision tree. The paper's recommendation
@@ -1648,14 +1679,13 @@ In priority order, not committed to any timeline:
    density, mask quality, platform, and local concordance. This
    would address the central remaining coarseness of the §3.4
    measurement model.
-6. **Per-candidate moderated-`t` DMR baseline** (§4.3 rationale):
-   implement an empirical-Bayes moderated `t`-statistic over the
-   same per-side β summaries and evidence-class inputs used by
-   V2.5, feed it through the same `candidate_id`-ascending
-   tie-break, and report AUC + per-positive ranks alongside
-   Δβ-only / Δβ_z. This is the methods-journal-expected
-   established-DMR comparator and fills the baseline-set gap
-   named in §4.3.
+6. ~~Per-candidate moderated-`t` DMR baseline~~ **(done in this tag,
+   §4.3 / §5.1 / §5.2.2):** limma-eBayes moderated-`t` on
+   sample-level β matrices for GSE322563, GSE77348, GSE69914;
+   probe-level first, then candidate-mapped via the V2.5
+   `observation.probe_id` field. AUC reported in §5.1 alongside
+   Δβ-only / Δβ_z; WG cross-cohort panel in
+   `examples/limma_cross_cohort_panel.md`.
 6. **A second independent-lab MCF-7 / MCF-10A EPIC cohort**, if one
    becomes public, to establish reproducibility of the V2.5 claim at
    n ≥ 3 on matched cell-line pairs.
@@ -1783,7 +1813,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ai`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-aj`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
