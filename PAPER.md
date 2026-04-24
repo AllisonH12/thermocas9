@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-av` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-aw` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -104,53 +104,29 @@ inputs in total per candidate × cohort pair.
 
 ---
 
-## 2 · The V2 misspecification
+## 2 · From V2 to V2.5 (summary; full audit trail in Appendix A)
 
-### 2.1 First-pass composite
-
-The first-pass composite followed a standard decomposition:
+The first-pass composite was
 
 ```
 p_therapeutic_selectivity = p_targ × p_prot × p_trust
 ```
 
-- `p_targ = P(β_tumor < 0.30)` — probability that the tumor's PAM cytosine is unmethylated enough for ThermoCas9 to cleave. Estimated via a method-of-moments Beta fit to `(mean, IQR/1.349)` with the regularized incomplete beta computed in pure stdlib via Lentz's continued fraction; falls back to a piecewise-linear CDF when the Beta moments are ill-defined.
-- `p_prot = P(β_normal > 0.50)` — probability that the normal's PAM cytosine is methylated enough to protect the normal cell.
-- `p_trust` — confidence factor that scales with `EvidenceClass` (0.95 at EXACT, 0.15 at REGIONAL, 0.0 at UNOBSERVED) and saturates linearly in `min(n_tumor, n_normal)` up to `ramp_n = 30`.
-
-### 2.2 Empirical failure of `p_prot`
-
-We ran a factor ablation on a structural surrogate for the Roth
-MCF-7 vs. MCF-10A comparison: GEO series GSE77348, an independent 2016
-breast cell-line methylation series on HM450 (not the Roth samples).
-With 1,687 gene-region-filtered "positives" at the Roth genes, the
-measured AUCs were:
-
-| axis | AUC (loose) | AUC (tight) |
-|---|---:|---:|
-| `v2_tumor_only` (p_targ × p_trust) | 0.733 | 0.770 |
-| `p_targ` alone | 0.683 | 0.717 |
-| V1 `final_score` | 0.657 | 0.628 |
-| `naive_selectivity` (β_n − β_t) | 0.608 | 0.571 |
-| `p_targ × p_prot` | 0.503 | 0.488 |
-| **`p_prot` alone** | **0.384** | **0.343** |
-
-`p_prot` is anti-predictive. Multiplying it against `p_targ` destroys
-the signal. The cause is the semantics: `P(β_normal > 0.5)` assumes
-that the normal comparator *methylates the target*. That assumption
-holds for Roth's specific MCF-10A cell line at the three *ESR1* /
-*GATA3* / *EGFLAM* probes they chose to validate (genes that are
-silenced in non-tumorigenic mammary epithelium) but does not generalize
-to bulk adjacent-normal cohorts or even to MCF-10A at gene-body probes.
-
-### 2.3 V2.4 — keep the composite, drop `p_prot` by default
-
-The intermediate fix kept the composite but allowed users to opt in
-or out of the anti-predictive factor. Default changed to
-`tumor_only` = `p_targ × p_trust`. This improved global AUC but the
-top-100 collapsed onto "always-unmethylated" loci (candidates where
-both tumor *and* normal are low-methylated) — good AUC, unusable for
-target discovery. The deeper fix was needed.
+with `p_prot = P(β_normal > 0.50)`. A factor ablation on the
+GSE77348 MCF-7 vs MCF-10A surrogate showed `p_prot` is
+**anti-predictive** under broader cohort conditions (AUC 0.384 alone;
+multiplying it against `p_targ` collapsed the composite from 0.733 to
+0.503). The cause is semantic: `P(β_normal > 0.5)` assumes the normal
+comparator methylates the target, which holds for Roth's specific
+MCF-10A cell line at the three *ESR1* / *GATA3* / *EGFLAM* probes
+they chose to validate but does not generalize. The intermediate
+V2.4 fix dropped `p_prot` to the `tumor_only` mode (`p_targ ×
+p_trust`); that improved AUC but the top-100 collapsed onto
+"always-unmethylated" loci (good AUC, unusable for discovery), so a
+deeper fix — replacing the threshold with a differential gap factor —
+was needed. **Appendix A** carries the full V2 → V2.4 audit trail
+(first-pass composite definition, factor-ablation table on
+GSE77348, and the V2.4 default-mode change rationale).
 
 ---
 
@@ -1328,7 +1304,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-av`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-aw`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
@@ -1342,6 +1318,67 @@ the scripts referenced throughout §4–§5 and in the committed provenance
 files under `data/derived/*PROVENANCE*`. Large scored JSONLs are
 gitignored but reproducible from the public GEO inputs, frozen catalogs,
 cohort YAMLs, and scripts in this tag.
+
+---
+
+## Appendix A · V2 → V2.4 audit trail (historical formulations)
+
+This appendix preserves the full audit trail for the threshold-based
+V2 composite and its V2.4 intermediate, moved out of the main body
+in `memo-2026-04-22-aw` so the main paper carries the final-method
+narrative (Δβ-only / V1 / V2.5-diff / V2.5-sigmoid / limma-style
+moderated-`t`). The V2 / V2.4 modes remain selectable via
+`probabilistic_mode` (`tumor_plus_normal_protection` and
+`tumor_only` respectively) for backward-compatible reproduction of
+pre-V2.5 scored JSONLs; they are not recommended for new discovery
+runs.
+
+### A.1 V2 first-pass composite
+
+The first-pass composite followed a standard decomposition:
+
+```
+p_therapeutic_selectivity = p_targ × p_prot × p_trust
+```
+
+- `p_targ = P(β_tumor < 0.30)` — probability that the tumor's PAM cytosine is unmethylated enough for ThermoCas9 to cleave. Estimated via a method-of-moments Beta fit to `(mean, IQR/1.349)` with the regularized incomplete beta computed in pure stdlib via Lentz's continued fraction; falls back to a piecewise-linear CDF when the Beta moments are ill-defined.
+- `p_prot = P(β_normal > 0.50)` — probability that the normal's PAM cytosine is methylated enough to protect the normal cell.
+- `p_trust` — confidence factor that scales with `EvidenceClass` (0.95 at EXACT, 0.15 at REGIONAL, 0.0 at UNOBSERVED) and saturates linearly in `min(n_tumor, n_normal)` up to `ramp_n = 30`.
+
+### A.2 Empirical failure of `p_prot`
+
+We ran a factor ablation on a structural surrogate for the Roth
+MCF-7 vs. MCF-10A comparison: GEO series GSE77348, an independent 2016
+breast cell-line methylation series on HM450 (not the Roth samples).
+With 1,687 gene-region-filtered "positives" at the Roth genes, the
+measured AUCs were:
+
+| axis | AUC (loose) | AUC (tight) |
+|---|---:|---:|
+| `v2_tumor_only` (p_targ × p_trust) | 0.733 | 0.770 |
+| `p_targ` alone | 0.683 | 0.717 |
+| V1 `final_score` | 0.657 | 0.628 |
+| `naive_selectivity` (β_n − β_t) | 0.608 | 0.571 |
+| `p_targ × p_prot` | 0.503 | 0.488 |
+| **`p_prot` alone** | **0.384** | **0.343** |
+
+`p_prot` is anti-predictive. Multiplying it against `p_targ` destroys
+the signal. The cause is the semantics: `P(β_normal > 0.5)` assumes
+that the normal comparator *methylates the target*. That assumption
+holds for Roth's specific MCF-10A cell line at the three *ESR1* /
+*GATA3* / *EGFLAM* probes they chose to validate (genes that are
+silenced in non-tumorigenic mammary epithelium) but does not generalize
+to bulk adjacent-normal cohorts or even to MCF-10A at gene-body probes.
+
+### A.3 V2.4 intermediate — keep the composite, drop `p_prot` by default
+
+The intermediate fix kept the composite but allowed users to opt in
+or out of the anti-predictive factor. Default changed to
+`tumor_only` = `p_targ × p_trust`. This improved global AUC but the
+top-100 collapsed onto "always-unmethylated" loci (candidates where
+both tumor *and* normal are low-methylated) — good AUC, unusable for
+target discovery. The deeper fix — V2.5's differential gap factor
+(§3) — was needed.
 
 ---
 
