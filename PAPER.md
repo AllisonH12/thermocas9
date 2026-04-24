@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-au` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-av` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -1106,7 +1106,27 @@ TENM2, MAT2B). Full annotated TSVs are committed under
 probes appears in any top-20; the primary endpoint is rank lift/AUC, not
 top-20 recovery.
 
-### 5.6 EvidenceClass distribution — full catalogs vs top-100 windows
+### 5.6 p_trust sensitivity — base weights and ramp_n
+
+Validated-label AUC is exactly invariant to `ramp_n ∈ {10, 20, 30,
+50, 100}` within each cohort. The reason is structural: the
+`p_trust` ramp is `min(1, min(n_t, n_n) / ramp_n)`; with per-cohort
+uniform `(n_t, n_n)` (verified across 100k sampled records on every
+cohort: a single distinct pair), `ramp_n` reduces to a global
+multiplicative scale on every record's `p_therapeutic_selectivity`,
+which is rank-preserving. AUC is also near-invariant (Δ ≤ 0.001) to
+the per-`EvidenceClass` base-weight set on the three matched
+cell-line cohorts, because their top-100 windows are 100/100 EXACT
+records (§5.7 below). On GSE69914 tissue (top-100 = 33 EXACT / 67
+PROXIMAL_CLOSE), AUC moves up to ±0.006 across an aggressive
+(0.95/0.85/0.65/0.35), shipped (0.95/0.75/0.45/0.15), and
+conservative (0.99/0.50/0.20/0.05) base-weight set — small enough
+that the shipped setting is within `≲ 0.006` of the per-cohort best
+on every cohort × tier combination tested. Full sweep in
+`examples/p_trust_sensitivity_sweep.{tsv,md}` at this tag;
+reproduce via `uv run python scripts/p_trust_sensitivity_sweep.py`.
+
+### 5.7 EvidenceClass distribution — full catalogs vs top-100 windows
 
 The `p_trust` factor's discrete `EvidenceClass` lever (§3.5) controls
 how strongly a candidate's evidence weight is scaled by distance from
@@ -1308,7 +1328,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-au`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-av`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
