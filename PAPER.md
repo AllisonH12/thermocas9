@@ -1,8 +1,8 @@
-# Differential-protection probabilistic scoring for methylome-guided ThermoCas9 target-site ranking
+# Compositional probabilistic scoring and tie-band-aware benchmarking for methylome-guided ThermoCas9 target-site ranking
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ad` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ae` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -1016,7 +1016,14 @@ closely (0.435–0.660). V2.5's tissue story is therefore a recovery
 over Δβ_z), not a modest margin as on cell lines. `tumor_only` has
 a higher raw AUC (0.803–0.874) but its K=100 tied band makes its
 top-K unusable; V2.5 is the highest usable probabilistic discovery
-axis on tissue (see §6.1).
+axis on tissue **among the shipped modes** (see §6.1). The §5.2.1
+factor-ablation sweep further shows that a fixed-bandwidth sigmoid
+replacement of `p_diff` outperforms shipped V2.5 here by +0.05 to
++0.09 AUC across four tested bandwidths (0.821–0.864 vs 0.773), so
+the shipped-V2.5 tissue claim is best read as "best usable tissue
+axis in the current release", not "best tested tissue formulation
+in the codebase"; the `gap_sigmoid` alternative is documented in
+§6.3 as the regime-specific follow-up.
 
 Two findings:
 
@@ -1590,7 +1597,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ad`** for this document. 236 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ae`** for this document. 236 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).

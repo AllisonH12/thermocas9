@@ -4,7 +4,7 @@
 
 **Date.** 2026-04-22.
 
-Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-22-ad`.
+Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-22-ae`.
 
 ---
 
@@ -16,7 +16,7 @@ Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-
 `p_therapeutic_selectivity = p_targetable_tumor × p_differential_protection × p_observation_trustworthy`,
 where `p_differential_protection = P(β_normal − β_tumor > δ)` is estimated by an independent-normal approximation on per-probe summary statistics (IQR-based σ estimate with a σ_floor = 0.05). We benchmark against three baselines — a literature-naive Δβ-only ranker, the deterministic V1 score, and a first-pass V2 `tumor_only` formulation — across four public methylation cohorts: GSE322563 (Roth's own MCF-7/MCF-10A EPIC v2 samples; primary endpoint), GSE77348 (development cohort on which δ was tuned), GSE69914 (305 sporadic breast tumors + 50 healthy-donor breast tissue samples — unpaired by design; adjacent-normal arms were excluded), and GSE68379 (Sanger breast cell-line panel paired with external healthy-donor normals — an out-of-distribution / cross-series boundary case). **On matched cell-line cohorts, Δβ-only is already a strong baseline** (validated AUC 0.96–0.97); V2.5's margin over it is consistently positive but small (+0.010 to +0.080 across all nine tier × path rows on GSE322563 (HM450 path + native EPIC v2 path) and GSE77348). **On tissue, Δβ-only collapses** (GSE69914 validated 0.591; 0.435–0.477 on narrow/wide), **V1 also degrades** (0.435–0.660 across tiers, at-chance on wide), and **V2.5 differential is the highest-AUC discovery axis** (0.711–0.773 across tiers, `tie_band@100 = 2`). The deprecated V2 `tumor_only` mode has the highest raw AUC on tissue (0.803–0.874) but `tie_band@100 = 6540` makes its top-K unusable — it is retained as a diagnostic, not a discovery axis. Both probabilistic axes invert correctly on the out-of-distribution boundary (GSE68379: Δβ 0.15–0.20; V2.5 < 0.5). V2.5 earns its complexity in three places: (i) highest-AUC discovery axis at every **non-boundary** cohort × tier combination tested — 12/12 rows across GSE322563 HM450, GSE322563 native, GSE77348, GSE69914; the GSE68379 out-of-distribution cohort correctly inverts for all axes and is reported separately; (ii) tie-band-honest top-K reporting (`precision_at_k_{min, max}` and `tie_band_size_at_k` on every BenchmarkResult); (iii) a probability-scale interpretation that lets downstream pipelines compose per-site scores with other probabilistic inputs. **The shipped recommendation is V1 as the stable-release default** (backward compatibility; `tie_band = 1` by construction regardless of cohort shape) **and V2.5 as the recommended research mode on all non-boundary cohort shapes tested (matched cell-line and tissue) at the shipped defaults σ_floor = 0.05, δ = 0.2**, with Δβ-only retained as a published baseline. On tissue cohorts the shipped defaults are not tissue-optimal — PAPER.md §5.3.1 / §5.3.2 show tissue AUC peaks at σ_floor ≈ 0.10 and prefers smaller δ — so tissue-cohort users should run the σ_floor / δ sweep on their cohort before relying on the shipped defaults. A factor ablation (PAPER.md §5.2.1) further shows that a fixed-bandwidth sigmoid replacement of `p_diff` *outperforms* the shipped V2.5 composite on tissue by +0.09 AUC at the validated label set (0.864 vs 0.773), while matching V2.5 within ≤0.001 AUC on every matched cell-line cohort. The tissue headline is therefore that V2.5 is the best *shipped* probabilistic axis on tissue, not the best probabilistic formulation tested; regime-specific reformulation is a committed follow-up. The package adds a k-way-merge pan-cancer aggregator for genome-scale atlas builds and a per-candidate annotation pipeline (nearest gene, CpG-island context, RepeatMasker overlap, ENCODE DNase-HS cluster breadth) with a Markdown shortlist aimed at experimental collaborators.
 
-**Availability and implementation.** `thermocas` is open source at <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-ad` for the version evaluated here. 236 unit tests pass under `uv run pytest -q`. Python 3.11+, BSD-3.
+**Availability and implementation.** `thermocas` is open source at <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-ae` for the version evaluated here. 236 unit tests pass under `uv run pytest -q`. Python 3.11+, BSD-3.
 
 **Contact.** <allisonhmercer@gmail.com>
 
@@ -249,7 +249,7 @@ The formal SCREEN cCRE Registry is gated behind a JavaScript challenge on `scree
 
 On matched cell-line cohorts — where the PAM cytosine's methylation state cleanly separates the tumor and normal arms — raw Δβ is already a strong baseline and V2.5 improves on it by a consistent but small margin (+0.010 to +0.080 across all nine tier × path rows on GSE322563 and GSE77348). **V2.5 does not dominate Δβ by a large AUC margin on easy cohorts, and we do not claim it does** — the practical case for V2.5 over Δβ on such cohorts is structural, not a matter of AUC supremacy. What V2.5 *does* do, relative to all three baselines, is summarized below:
 
-1. **V2.5 is the highest-AUC discovery axis at every matched-cell-line and tissue cohort × tier combination tested.** (The OOD boundary case GSE68379 correctly inverts for all axes and is reported separately in §5.4; it is not pooled with the discovery-mode comparisons here.) Row-by-row margins:
+1. **V2.5 is the highest-AUC discovery axis *among the shipped modes* at every matched-cell-line and tissue cohort × tier combination tested.** (The OOD boundary case GSE68379 correctly inverts for all axes and is reported separately in §5.4; it is not pooled with the discovery-mode comparisons here. The PAPER.md §5.2.1 factor-ablation sweep also shows a fixed-bandwidth sigmoid replacement of `p_diff` beats shipped V2.5 on tissue by +0.05 to +0.09 AUC across four bandwidths, while matching shipped V2.5 within 0.02 AUC on matched cell-line; `gap_sigmoid` is on the follow-up list below.) Row-by-row margins:
     - V2.5 over Δβ-only on 9 matched-cell-line rows: **+0.010 to +0.080**, consistently positive.
     - V2.5 over V1 on 9 matched-cell-line rows: **+0.014 to +0.169**, small on GSE77348 (~+0.015) and moderate-to-large on GSE322563 (up to +0.169 on HM450 validated). No single "typical" margin — the magnitude depends on the cohort.
     - V2.5 over V1 on the 3 tissue rows: **+0.113, +0.172, +0.291** (validated, narrow, wide).
@@ -260,14 +260,14 @@ On matched cell-line cohorts — where the PAM cytosine's methylation state clea
 4. **V2.5 produces a probability-scale interpretation.** Each per-site `p_therapeutic_selectivity ∈ [0, 1]` is composable with downstream probabilistic inputs (target-mutation models, gRNA off-target probabilities, delivery-efficiency priors). Δβ is a signed similarity and V1 is a weighted-sum heuristic; neither is directly multiplied into such a chain.
 5. **On the OOD boundary (GSE68379), both probabilistic axes and Δβ-only invert correctly** below 0.5 — the scorers are consistently identifying that the Roth label set does not transport to Sanger MCF-7. This is a sanity check, not a generalization claim.
 
-This is the methodologically honest framing: Δβ is a strong baseline that should be reported alongside any new methylation-guided Cas9 scorer, V2.5 is the right research mode across *all* cohort shapes we tested (matched cell-line *and* tissue), and V1 remains the stable-release default for reasons of backward compatibility and its deterministic `tie_band = 1` top-K — *not* because V1 wins AUC anywhere. §6.2 below states the shipping logic explicitly.
+This is the methodologically honest framing: Δβ is a strong baseline that should be reported alongside any new methylation-guided Cas9 scorer, V2.5 is the right research mode *among the shipped modes* across all non-boundary cohort shapes we tested (matched cell-line *and* tissue), and V1 remains the stable-release default for reasons of backward compatibility and its deterministic `tie_band = 1` top-K — *not* because V1 wins AUC anywhere. On tissue, PAPER.md §5.2.1 documents a tested fixed-bandwidth sigmoid formulation (`gap_sigmoid`) that beats shipped V2.5 by +0.05 to +0.09 AUC across four bandwidths; it is the intended tissue mode on the regime-preset follow-up (§7), not yet shipped. §6.2 below states the shipping logic explicitly.
 
 ### 6.2 Decision hierarchy
 
 Three truths coexist:
 
 1. **V1 `final_score` is the stable-release default** (tagged `v0.4.0`). Its continuous deterministic score gives `tie_band = 1` on every cohort tested — top-K is never tie-break-dependent, regardless of replicate count or cohort shape. V1 is the default because of this property and for backward-compatibility with existing users, not because it wins AUC anywhere.
-2. **V2.5 is the recommended research mode on all cohort shapes we tested**, because it is the highest-AUC discovery axis on both matched cell-line cohorts (small margins) and tissue cohorts (large margins). The cohort-YAML key is `probabilistic_mode: tumor_plus_differential_protection`.
+2. **V2.5 is the recommended research mode *among the shipped modes* on all non-boundary cohort shapes we tested**, because it is the highest-AUC shipped discovery axis on both matched cell-line cohorts (small margins) and tissue cohorts (large margins; with the §5.2.1 caveat that a fixed-bandwidth `gap_sigmoid` beats shipped V2.5 on tissue by +0.05 to +0.09 AUC and is on the regime-preset follow-up list in §7). The cohort-YAML key is `probabilistic_mode: tumor_plus_differential_protection`.
 3. **V2 `tumor_only` is retained as a diagnostic**, not a discovery axis. Its tied bands at K = 100 are **5,271–14,914 across the five cohort paths tested** (GSE68379 5,271; GSE69914 6,540; GSE322563 HM450 10,005; GSE77348 11,848; GSE322563 native 14,914) — in every case large enough that ordering within the top-100 is determined by tie-break, not by score. Its raw AUC can lead (as on GSE69914 tissue, 0.803–0.874), but its top-K is not usable for target-shortlist construction.
 
 The decision table below is the literal recommended hierarchy.
@@ -288,8 +288,10 @@ Two bodies of prior art are adjacent but non-overlapping. Generic CRISPR guide-s
 ### 6.5 Next steps
 
 1. Prospective wet-lab validation of 3–5 top V2.5 candidates on MCF-7 vs MCF-10A (β-pyrosequencing + ThermoCas9 editing readout). This is the terminal step that changes the scientific claim.
-2. A second independent-lab matched MCF-7/MCF-10A EPIC v2 cohort if one becomes public, to replicate the V2.5 headline at `n ≥ 3` rather than `n = 2`.
-3. Formal SCREEN cCRE Registry integration when a non-challenged download path becomes available.
+2. **Regime-specific presets with a `gap_sigmoid` tissue mode.** PAPER.md §5.2.1 shows a fixed-bandwidth sigmoid replacement of `p_diff` outperforms shipped V2.5 on GSE69914 tissue by +0.05 to +0.09 AUC across four bandwidths (bandwidth-robust, not a one-point result), while matching shipped V2.5 within 0.02 AUC on every matched cell-line cohort. The intended shipping shape (PAPER.md §6.3): a `regime` field in the cohort YAML selecting `matched_cell_line` (gap = `p_diff`, σ_floor = 0.05, δ = 0.2), `primary_tissue` (gap = `gap_sigmoid`, σ_fixed ≈ 0.05–0.07, δ = 0.1), or `boundary` (explicit OOD acknowledgment). Shipping this is the highest-priority follow-up that the MANUSCRIPT abstract's "regime-specific reformulation is a committed follow-up" sentence refers to.
+3. A per-candidate moderated-`t` baseline (empirical-Bayes `t`-statistic over the same β-summary inputs the shipped modes consume), to fill the established-DMR-comparator gap the paper currently exercises only at the simpler Δβ-only / Δβ_z baselines.
+4. A second independent-lab matched MCF-7/MCF-10A EPIC v2 cohort if one becomes public, to replicate the V2.5 headline at `n ≥ 3` rather than `n = 2`.
+5. Formal SCREEN cCRE Registry integration when a non-challenged download path becomes available.
 
 ---
 
@@ -301,7 +303,7 @@ Two bodies of prior art are adjacent but non-overlapping. Generic CRISPR guide-s
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-ad` for the exact revision evaluated here. BSD-3 licensed. `git rev-parse memo-2026-04-22-ad` resolves to a SHA in a fresh clone. Supersedes all prior same-day dated memo tags; see the PAPER.md tag ledger for per-tag provenance (what each tag added and what was corrected in the next one). A `scripts/verify_manuscript_claims.py` guard enforces a set of *selected known-risk* numerical claims — constants (`src/thermocas/probabilistic.py`), universal-quantifier wording, artifact counts, figure captions, and the tag-span claims most recently caught in reviewer cycles — against the committed bench JSONLs and package source. It is not a full table-AUC verifier; new numerical claims should be audited by hand or added to the `check_*` function set. Run it before cutting any subsequent tag.
+- **Code**: <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-ae` for the exact revision evaluated here. BSD-3 licensed. `git rev-parse memo-2026-04-22-ae` resolves to a SHA in a fresh clone. Supersedes all prior same-day dated memo tags; see the PAPER.md tag ledger for per-tag provenance (what each tag added and what was corrected in the next one). A `scripts/verify_manuscript_claims.py` guard enforces a set of *selected known-risk* numerical claims — constants (`src/thermocas/probabilistic.py`), universal-quantifier wording, artifact counts, figure captions, and the tag-span claims most recently caught in reviewer cycles — against the committed bench JSONLs and package source. It is not a full table-AUC verifier; new numerical claims should be audited by hand or added to the `check_*` function set. Run it before cutting any subsequent tag.
 - **Tests**: 236 passing under `uv run pytest -q`.
 - **Cohorts**: public GEO series GSE322563, GSE77348, GSE69914, GSE68379. Build scripts in `scripts/build_gse*_cohort.py`.
 - **Reference annotations**: UCSC hg19 `refGene.txt.gz`, `cpgIslandExt.txt.gz`, `rmsk.txt.gz`, and `wgEncodeRegDnaseClusteredV3.txt.gz` (fetched on demand from hgdownload.soe.ucsc.edu).
@@ -321,7 +323,7 @@ This work would not exist without Roth et al.'s characterization of ThermoCas9 a
 
 ## Appendix A · Reproducibility
 
-From a fresh clone of the repository at `memo-2026-04-22-ad`:
+From a fresh clone of the repository at `memo-2026-04-22-ae`:
 
 ```bash
 # One-time env setup
