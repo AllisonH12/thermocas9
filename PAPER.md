@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-y` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-z` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -702,20 +702,19 @@ instead (reproducible via `uv run scripts/auc_uncertainty.py`):
 
 What this table does and does not say:
 
-- **It shows that none of the four axes reach their observed AUC by
-  chance.** The one-sided *p* is ≤ 0.021 on every cohort × axis
-  cell. The rank-lift signal at `n_pos = 3` is real for every axis
-  tested, not just for V2.5.
-- **V2.5's *p* is at the resolution floor on all three cohorts.**
-  V2.5 is `p ≤ 1 × 10⁻⁴` on every cohort (the resolution floor of
-  10,000 draws). On GSE322563 HM450 this is at least two orders of
-  magnitude stricter than V1 (`p = 0.021`); on native EPIC v2 and
-  GSE77348 the gap is smaller (V1 `p = 0.002` and `3 × 10⁻⁴`
-  respectively), so the matched cell-line result is cleaner on the
-  HM450 path than on the other two. A finer-grained null (e.g. 10⁶
-  draws) would be needed to distinguish V2.5 from the other strong
-  axes here; with a 10⁴-draw null several axes sit at the
-  resolution floor.
+- **It shows that none of the listed axes reach their observed AUC
+  by chance.** The one-sided *p* is ≤ 0.021 on every cohort × axis
+  cell in the table. The rank-lift signal at `n_pos = 3` is real
+  for every listed axis, not just for V2.5.
+- **V2.5 is the only axis at the resolution floor on all three
+  cohorts.** V2.5 has `p ≤ 1 × 10⁻⁴` on every cohort (the
+  resolution floor of 10,000 draws). On GSE322563 HM450 this is at
+  least two orders of magnitude stricter than V1 (`p = 0.021`); on
+  native EPIC v2 and GSE77348 the other listed axes sit above the
+  10⁴-draw floor (V1 `p = 0.002` and `3 × 10⁻⁴` respectively), so
+  the HM450 gap against V1 is cleaner than the native or GSE77348
+  gap. A finer-grained null (e.g. 10⁶ draws) would be needed to
+  measure V2.5's distance from the resolution floor directly.
 - **This is an against-random check, not a superiority test between
   axes.** The null asks "does this axis separate these three
   positives from random triples?" Direct pairwise comparison
@@ -1397,7 +1396,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-y`** for this document. 236 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-z`** for this document. 236 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
