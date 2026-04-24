@@ -255,7 +255,7 @@ Fig. 5d validated target coordinates (`EGFLAM T11`, `ESR1 T17`,
 thermocas benchmark ... --score-field p_therapeutic_selectivity ...
 #                         (with probabilistic_mode: tumor_plus_gap_sigmoid)
 
-# audit / AUC-parity vs pre-`memo-2026-04-22-ao` scored JSONLs (cell-line only):
+# audit / AUC-parity vs pre-`memo-2026-04-22-ar` scored JSONLs (cell-line only):
 thermocas benchmark ... --score-field p_therapeutic_selectivity ...
 #                         (with probabilistic_mode: tumor_plus_differential_protection)
 
@@ -275,7 +275,7 @@ on every matched cell-line WG catalog (vs V2.5-diff's 421 / 1,127 /
 1,493 on the same WG catalogs), and AUC +0.05 to +0.08 over V2.5-diff
 on GSE69914 tissue across a bandwidth-robust sweep. V2.5-diff is
 retained as a selectable mode for backward compatibility and AUC
-parity with pre-`memo-2026-04-22-ao` scored JSONLs, but is no longer
+parity with pre-`memo-2026-04-22-ar` scored JSONLs, but is no longer
 the recommended discovery axis on any tested regime. `tumor_only`
 stays framed as analysis-only. See `V2_5_REVIEW.md` §8 for the full
 3-cohort × 3-label-set × 3-mode matrix.
@@ -336,12 +336,16 @@ table above and PAPER.md §6.1):
 - `V2 tumor_only` is **analysis-only** — competitive AUC on tissue
   but `tie_band@K=100` is in the thousands; not a discovery axis.
 
-A differential-based `p_prot` (`P(β_normal − β_tumor > δ)` rather than
-the threshold-based `P(β_normal > 0.5)`) is the natural next step for
-restoring the missing selectivity signal without reintroducing the
-static-threshold assumption. **Wired in as V2.5**:
-`probabilistic_mode = "tumor_plus_differential_protection"` with
-`differential_delta = 0.2` (default).
+**Historical context.** A differential-based `p_prot`
+(`P(β_normal − β_tumor > δ)` rather than the threshold-based
+`P(β_normal > 0.5)`) was the intermediate repair shipped to fix the V2
+`p_prot` failure above. It became `probabilistic_mode =
+"tumor_plus_differential_protection"` (V2.5-diff) with
+`differential_delta = 0.2`. For new discovery runs, V2.5-diff is
+superseded by V2.5-sigmoid (`tumor_plus_gap_sigmoid`) per the
+recommendation table at the top of this section and PAPER.md §5.2.2.
+V2.5-diff is retained as a selectable mode for backward compatibility
+and AUC parity with pre-`memo-2026-04-22-ar` scored JSONLs.
 
 #### Label-repair note (important)
 
@@ -368,7 +372,7 @@ benchmark.
 
 #### Cross-cohort matrix under repaired labels
 
-> **Historical V2.5-diff matrix** (pre-`memo-2026-04-22-ao`). Retained
+> **Historical V2.5-diff matrix** (pre-`memo-2026-04-22-ar`). Retained
 > here for AUC parity against scored JSONLs predating the V2.5-sigmoid
 > ship; the current recommended discovery axis is V2.5-sigmoid
 > (`tumor_plus_gap_sigmoid`, see the recommendation table above and
@@ -397,7 +401,7 @@ Three findings (V2.5-diff era):
    penalized more.
 2. **On primary tissue, `tumor_only` has higher AUC but unusable top-K.**
    V2.5-diff is the second-best AUC axis there *among the three columns
-   shown*; V2.5-sigmoid (added in `memo-2026-04-22-ao`) reaches AUC 0.862
+   shown*; V2.5-sigmoid (added in `memo-2026-04-22-ar`) reaches AUC 0.862
    on the same cohort and is the recommended tissue axis (PAPER.md
    §5.2.2). V2.5-diff is the only probabilistic axis in this table whose
    top-K is interpretable on tissue (`tie_band = 2`).
@@ -414,7 +418,7 @@ appeared here).** V2.5-sigmoid (`tumor_plus_gap_sigmoid`) is the
 cohort shape tested (matched cell-line at n = 2/2 to 3/3 *and* primary
 tissue at n = 305/50), for the reasons summarized in the recommendation
 table above. V2.5-diff is retained as a selectable mode for backward
-compatibility and AUC parity with pre-`memo-2026-04-22-ao` scored
+compatibility and AUC parity with pre-`memo-2026-04-22-ar` scored
 JSONLs. V1 `final_score` stays the deterministic stable-release default
 for backward compatibility and `tie_band = 1` top-K. `tumor_only` stays
 analysis-only.
