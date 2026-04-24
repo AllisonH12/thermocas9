@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-z` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-aa` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -24,14 +24,24 @@ This paper is a **scoring-method and benchmarking** contribution, not
 a target-discovery validation. The headline result is a *rank-lift*
 finding on a small label set: on the n = 3 validated target probes
 from Roth et al. (2026) Fig. 5d, scored on Roth's own MCF-7/MCF-10A
-EPIC v2 cohort (GSE322563), the new composite (V2.5) places all
-three positives near the top of the ranking (AUC 0.990), compared
-with raw Δβ-only at 0.974, an uncertainty-aware Δβ_z baseline at
-0.940, the deterministic V1 score at 0.821, and the deprecated V2
-`tumor_only` mode at 0.928. Δβ-only is itself a strong baseline at
-this primary endpoint; V2.5's margin over Δβ-only (+0.016) is
-small but consistent across the matched cell-line cohorts and label
-granularities tested (§5.1–§5.2). Because n = 3, AUC is sensitive to the
+EPIC v2 cohort (GSE322563), V2.5 places all three positives near the
+top of the ranking under both ingest paths:
+
+- **Native EPIC v2** (5.2 M candidates from the faithful EPIC v2
+  ingest on the same cohort): V2.5 AUC **0.986**, compared with
+  V1 `final_score` 0.933 and Δβ-only 0.961.
+- **HM450-intersect** (2.98 M candidates; the cohort's EPIC v2
+  probes harmonized to the HM450 universe — 80.7% retention — for
+  cross-cohort comparability with GSE77348 / GSE69914): V2.5 AUC
+  **0.990**, V1 0.821, Δβ-only 0.974.
+
+Both paths are primary endpoints for GSE322563 and are reported
+symmetrically throughout §5.1. HM450-intersect is the path that
+admits cross-cohort comparison because GSE77348 and GSE69914 are
+HM450 cohorts; native EPIC v2 is the path that is faithful to
+Roth's own ingest. The V2.5 − Δβ-only margin is +0.016 on the
+HM450 path and +0.025 on the native path — small but positive on
+both, and consistent across label granularities (§5.2). Because n = 3, AUC is sensitive to the
 exact negative universe and to the rank of each positive; the
 manuscript reports per-positive ranks and percentile ranks
 (§5.1) rather than treating AUC as definitive. A second matched
@@ -843,6 +853,72 @@ materially distorting the headline V2.5 claim. Tied bands grow
 modestly with the larger catalog (V2.5 differential: 190 → 421;
 tumor_only: 10,005 → 14,914; V1 stays at 1).
 
+#### 5.2.1 Factor ablation: does `p_diff` do the work, or does the floor?
+
+The §3.5 binding-rate diagnostic shows that `σ_floor = 0.05` is the
+binding constraint on σ_Δ for essentially every observed record on
+matched cell-line cohorts (99.5–99.9% both-sides). That raises an
+obvious reviewer question: if σ_floor is determining σ_Δ almost
+everywhere on cell lines, is `p_diff`'s per-site σ-adaptive structure
+actually adding anything, or is the composite effectively
+`p_targ × sigmoid((Δβ − δ) / σ_fixed) × p_trust` with a constant
+bandwidth?
+
+We replace `p_diff` with two simpler gap factors, keeping `p_targ`,
+`p_trust`, and δ = 0.2 unchanged (reproducible via
+`uv run scripts/factor_ablation_vs_sigmoid.py`):
+
+- **sigmoid**: `sigmoid((Δβ − δ) / σ_fixed)` with
+  σ_fixed = √2 × σ_floor ≈ 0.0707 — the σ_Δ V2.5 sees when the floor
+  binds on both sides (the modal case, §3.5).
+- **hard threshold**: `1[Δβ > δ]` — tests whether smoothness matters
+  at all.
+
+AUC at the n = 3 Roth-validated positives:
+
+| cohort | V2.5 (full `p_diff`) | sigmoid ablation | hard-threshold ablation |
+|---|---:|---:|---:|
+| GSE322563 HM450      | 0.990 | 0.989 | 0.990 |
+| GSE322563 native v2  | 0.986 | 0.986 | 0.988 |
+| GSE77348             | 0.982 | 0.982 | 0.986 |
+| **GSE69914 (tissue)**    | **0.773** | **0.864** | 0.497 |
+
+**Two findings, both candid.**
+
+1. **On matched cell-line cohorts, `p_diff`'s per-site structure
+   is not doing the work.** All three gap factors land within 0.001
+   AUC of each other on every cell-line row. The σ_floor is
+   dominating σ_Δ on essentially every observed record (§3.5), so
+   the per-site normal approximation collapses to a fixed-bandwidth
+   sigmoid in practice, and the bare hard threshold `Δβ > 0.2`
+   matches or slightly beats full V2.5 on all three cell-line
+   cohorts. **On low-`n` matched cell-line data, the value of
+   V2.5 is structural — probability-scale composition, tie-band-
+   honest top-K reporting, and the `p_targ / p_trust` wrapping —
+   not AUC improvement from `p_diff`'s shape.**
+
+2. **On tissue, the fixed-bandwidth sigmoid *beats* full V2.5 by
+   +0.09 AUC, and the hard threshold collapses to near-random.**
+   At n = 305/50, σ_floor binds on only 43% of records both-sides
+   (§3.5), so per-site σ_Δ actually has room to vary — and the
+   variation it produces evidently *hurts* the ranking on tissue
+   relative to a fixed bandwidth. The hard threshold collapse
+   (AUC 0.497) confirms smoothness itself is load-bearing on
+   tissue, unlike on cell lines. This is an **unresolved
+   finding**: `p_diff`'s tissue behavior is worse than a simpler
+   ablation, and the regime-specific re-derivation of `p_diff`
+   under an SE-on-mean variance (or under a per-cohort fixed
+   bandwidth) is elevated in §6.3.
+
+The honest reading of this table is that V2.5's cell-line AUC
+story could be reproduced by any `p_targ × (gap factor) × p_trust`
+composition with roughly the same δ; the cell-line AUC is not
+evidence that `p_diff` specifically is the right gap factor. The
+tissue story, by contrast, shows that `p_diff` is *demonstrably
+sub-optimal* there — which is honest news for the paper to carry
+and is the direct experimental basis for the regime-specific
+presets on the §6.3 list.
+
 ### 5.3 Tissue-cohort behavior — GSE69914 (high-`n`, tissue biology)
 
 GSE69914 (n = 305 / 50 primary breast vs. healthy donor tissue)
@@ -1265,13 +1341,23 @@ In priority order, not committed to any timeline:
    probe density, and (b) a whole-genome candidate catalog, on at
    least one cohort per regime. Goal: quantify how AUC and tied-band
    sizes move with the denominator (§6.2 limitation 3).
-3. **Regime-specific default selection.** §5.3.1 (σ_floor) and
-   §5.3.2 (δ) both show that tissue and matched cell-line cohorts
-   prefer different defaults. Define and ship a tissue preset
-   (likely σ_floor closer to 0.10 and δ closer to 0.1) and a
-   matched cell-line preset (current defaults), with the choice
-   selected by an explicit cohort-regime field rather than left
-   for the user to discover.
+3. **Regime-specific presets.** §5.3.1 (σ_floor) and §5.3.2 (δ) both
+   show that tissue and matched cell-line cohorts prefer different
+   defaults. Concrete shape of what to ship:
+
+   - `regime: matched_cell_line` → σ_floor = 0.05, δ = 0.2
+     (current shipped defaults).
+   - `regime: primary_tissue` → σ_floor = 0.10, δ = 0.1
+     (tissue-AUC-optimal per §5.3.1 and §5.3.2; requires n ≳ 30
+     per side to have desaturated `p_trust`).
+   - `regime: boundary` (explicit out-of-distribution acknowledgment;
+     all axes warn, do not run benchmark-rank-based claims).
+
+   Implementation path: add a `regime` field to the cohort YAML
+   loader; the field chooses a preset that overrides the two
+   individual scalars unless the user sets them directly. Default
+   remains `matched_cell_line` for backward compatibility. Tests:
+   one round-trip test per preset against a fixture BenchmarkResult.
 4. **`p_diff` re-derivation under SE-on-mean variance** (§3.3) as a
    second probabilistic axis, so users can choose between the
    biological-overlap and the cohort-power interpretations.
@@ -1396,7 +1482,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-z`** for this document. 236 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-aa`** for this document. 236 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
