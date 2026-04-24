@@ -7,7 +7,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased] — submission-freeze post-`memo-2026-04-22`
 
 > Submission-freeze cycle for the bioRxiv / *Bioinformatics* preprint.
-> Stable release is still `v0.4.0`; cite `memo-2026-04-22-am` for the
+> Stable release is still `v0.4.0`; cite `memo-2026-04-22-an` for the
 > current submission-freeze state. See `git log memo-2026-04-22..main`
 > for the full per-commit history.
 
@@ -47,18 +47,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Shipped recommendation
 
-- **V1 as the stable-release default** (backward compatibility +
-  `tie_band = 1` by construction regardless of cohort shape) and
-  **V2.5 as the recommended research mode among the shipped modes
-  on all non-boundary cohort shapes tested** (matched cell-line and
-  tissue), with Δβ-only retained as a published baseline. V2.5
-  beats V1 on tissue at every label granularity (+0.113 / +0.172 /
-  +0.291 validated / narrow / wide). Tissue caveat: PAPER.md §5.2.1
-  factor ablation shows a fixed-bandwidth sigmoid replacement of
-  `p_diff` outperforms shipped V2.5 on tissue by +0.09 AUC (0.864
-  vs 0.773); regime-specific reformulation is on the PAPER.md §6.3
-  follow-up list. So V2.5 is the best *shipped* tissue axis, not
-  the best tested probabilistic formulation for tissue.
+- **V1 as the overall package default** (backward compatibility +
+  `tie_band = 1` by construction regardless of cohort shape).
+- **V2.5-sigmoid (`tumor_plus_gap_sigmoid`) as the recommended
+  probabilistic discovery axis** across every tested non-boundary
+  cohort shape (matched cell-line at n = 2/2 to 3/3 and primary
+  tissue at n ≳ 30/side). Ships in this tag as a first-class
+  `probabilistic_mode` enum value with `sigma_fixed` cohort-YAML
+  field + iff-semantics validators. PAPER.md §5.2.2 WG panel:
+  matches V2.5-diff on matched cell-line AUC within 0.002 but
+  strictly beats V2.5-diff on top-K usability (`tie_band@100 = 1`
+  vs 421–1,493 under WG denominator), and improves tissue AUC by
+  +0.05 to +0.08.
+- **V2.5-diff (`tumor_plus_differential_protection`) retained for
+  backward compatibility and AUC parity** with pre-ag scored
+  JSONLs. Still a selectable mode, but no longer the recommended
+  discovery axis on any tested regime.
+- **Δβ-only / Δβ_z / V1 / V2 `tumor_only` / limma-eBayes** retained
+  as published baselines in §5.1 / §5.2.2.
 
 ---
 

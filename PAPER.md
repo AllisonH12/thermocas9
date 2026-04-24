@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-am` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-an` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -27,12 +27,22 @@ instances (§7); two ship in this tag, V2.5-diff
 approximation tail probability) and V2.5-sigmoid
 (`tumor_plus_gap_sigmoid`, a fixed-bandwidth logistic).
 
-**Headline results.** (1) On the n = 3 Roth-validated target probes
-(GSE322563 MCF-7/MCF-10A; both the HM450-intersect and native EPIC
-v2 ingest paths serve as primary endpoints): V2.5 axes place all
-three positives in the top percentile, with 10⁶-draw permutation-
-null p = 4×10⁻⁶ / 1.5×10⁻⁵ / 2.8×10⁻⁵ across the three primary
-cohorts — 4–20× stricter than the best Δβ-only baseline (§5.1.2).
+**Primary endpoint.** GSE322563 validated-label AUC (n = 3 Roth
+Fig. 5d target probes) evaluated under two ingest paths: an
+HM450-intersect path (for cross-cohort comparability with GSE77348
+and GSE69914) and a native EPIC v2 path (the faithful ingest).
+Both paths are reported symmetrically throughout §5.1.
+
+**Headline results.** (1) V2.5 axes place all three validated
+positives in the top percentile under both ingest paths. A
+10⁶-draw permutation null (§5.1.2) reports one-sided random-triple
+*p*-values of 4×10⁻⁶ / 1.5×10⁻⁵ / 2.8×10⁻⁵ for V2.5-diff on
+GSE322563 HM450 / GSE322563 native / GSE77348 — **lower random-null
+*p*-values than Δβ-only's 8.6×10⁻⁵ / 3.1×10⁻⁴ / 1.1×10⁻⁴ on the
+same cohorts** (against-random check, not a formal pairwise
+superiority test; the paired V2.5-vs-Δβ comparison is reported
+separately in §5.1.3 and floors at sign-flip *p* = 0.125 with
+`n_pos = 3`).
 (2) A frozen whole-genome panel (§5.2.2) shows V2.5-sigmoid
 matches V2.5-diff's AUC on matched cell-line cohorts within 0.002
 but strictly beats V2.5-diff's top-K usability — `tie_band@100 =
@@ -176,7 +186,7 @@ target discovery. The deeper fix was needed.
 
 ---
 
-## 3 · V2.5 · differential-protection probabilistic mode
+## 3 · V2.5 · two gap-factor instances (V2.5-diff and V2.5-sigmoid)
 
 **Terminology note.** "V2.5" names the *generation* of the
 compositional skeleton `p_targ × (gap factor) × p_trust`. Two
@@ -511,7 +521,7 @@ Three positives files result, at increasing granularity:
 
 ### 4.3 Score axes
 
-Six axes are benchmarked. For naming conventions see §7 Methods
+Seven axes are benchmarked. For naming conventions see §7 Methods
 (canonical axis-naming table):
 
 - **Δβ-only** (`naive_selectivity`) — `β_normal_mean − β_tumor_mean`. The literature-naive baseline: rank by the raw methylation gap with no uncertainty propagation or evidence weighting. Reported up front so the value of the additional factors is auditable against the simplest possible scoring axis.
@@ -1234,10 +1244,16 @@ Two findings:
    `p_trust` just multiplies by the class constant.
 
 2. **The mode ordering flips on tissue biology.** `tumor_only`
-   wins AUC (+0.03 to +0.15 over V2.5), but `tumor_only`'s tied
-   band is 6,540 at K = 100 — its top-K is not usable. V2.5 is the
-   only probabilistic axis with an interpretable top-K on tissue.
-   V1 collapses on tissue (AUC 0.44 on wide, below random).
+   wins raw AUC (+0.03 to +0.15 over V2.5-diff / V2.5-sigmoid),
+   but `tumor_only`'s tied band is 6,540 at K = 100 — its top-K is
+   not usable. Both V2.5 variants have interpretable top-K on
+   tissue (V2.5-diff `tie_band@100 = 2` chr5/6/10 / = 1 WG;
+   V2.5-sigmoid `tie_band@100 ≤ 6` across the tested bandwidth
+   family), and V2.5-sigmoid additionally wins on tissue AUC by
+   +0.05 to +0.08 (§5.2.1 / §5.2.2) — so V2.5-sigmoid is the
+   recommended tissue discovery axis, with V2.5-diff retained for
+   AUC-parity use. V1 collapses on tissue (AUC 0.44 on wide,
+   below random).
 
 ### 5.3.1 σ_floor sensitivity
 
@@ -1684,13 +1700,6 @@ In priority order, not committed to any timeline:
    density, mask quality, platform, and local concordance. This
    would address the central remaining coarseness of the §3.4
    measurement model.
-6. ~~Per-candidate moderated-`t` DMR baseline~~ **(done in this tag,
-   §4.3 / §5.1 / §5.2.2):** limma-eBayes moderated-`t` on
-   sample-level β matrices for GSE322563, GSE77348, GSE69914;
-   probe-level first, then candidate-mapped via the V2.5
-   `observation.probe_id` field. AUC reported in §5.1 alongside
-   Δβ-only / Δβ_z; WG cross-cohort panel in
-   `examples/limma_cross_cohort_panel.md`.
 6. **A second independent-lab MCF-7 / MCF-10A EPIC cohort**, if one
    becomes public, to establish reproducibility of the V2.5 claim at
    n ≥ 3 on matched cell-line pairs.
@@ -1701,6 +1710,23 @@ In priority order, not committed to any timeline:
    the v1 regulatory-activity proxy for the formal cCRE Registry,
    which currently sits behind a JavaScript challenge on
    screen.wenglab.org and cannot be fetched directly.
+8. **R `limma` parity check** (supplementary): a small-matrix
+   comparison of our pure-python Smyth (2004) implementation
+   (§4.3, §5.2.2) against canonical `limma::lmFit` + `limma::eBayes`
+   output to tighten the "limma-style, not full Bioconductor
+   workflow" framing into a direct parity table.
+
+**Completed in this tag** (previously listed here as follow-ups;
+cross-references preserved so readers can trace the roadmap
+evolution): (a) Per-candidate moderated-`t` DMR baseline —
+limma-eBayes on sample-level β matrices for GSE322563, GSE77348,
+GSE69914 (§4.3, §5.1, §5.2.2; cross-cohort panel at
+`examples/limma_cross_cohort_panel.md`). (b) 10⁶-draw permutation
+null on the primary endpoint (§5.1.2). (c) Whole-genome probe-
+window benchmark panel (§5.2.2; HM450 and native EPIC v2 WG
+catalogs with SHA256 provenance). (d) Shipped `gap_sigmoid` mode
+(V2.5-sigmoid) as a first-class `probabilistic_mode` enum value
+with iff-semantics validators (§7 Methods).
 
 ---
 
@@ -1842,7 +1868,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-am`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-an`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
