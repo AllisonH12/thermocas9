@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ac` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ad` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -13,12 +13,31 @@ Methylation-sensitive Cas9 variants target genomic loci that are
 hypomethylated in disease cells and methylated in matched normal
 cells. Selecting such loci from genome-scale array data is a ranking
 problem whose scoring axis must be cohort-agnostic and must report
-its own uncertainty. A first-pass probabilistic composite
-`p_targ × p_prot × p_trust` failed empirically — `p_prot` encoded
-a static "normal is methylated above 0.5" assumption that is
-anti-predictive on bulk normal comparators (AUC 0.38). We replace it
-with a differential factor `p_diff = P(β_normal − β_tumor > δ)` under
-an independent-normal approximation on per-probe summaries.
+its own uncertainty. The contribution of this paper is a
+*compositional scoring skeleton* `p_targ × (gap factor) × p_trust`
+paired with a tie-band-aware benchmarking contract
+(`precision_at_k_{min,max}`, `tie_band_size_at_k`, mid-rank
+Mann-Whitney AUC). The skeleton decouples three questions —
+"is the tumor side targetable?", "is the tumor-vs-normal gap large
+enough?", and "is the observation trustworthy?" — each of which
+downstream work can replace or improve independently.
+
+The shipped instance of the gap factor is
+`p_diff = P(β_normal − β_tumor > δ)`, estimated under an
+independent-normal approximation on per-probe β summaries
+(§3.1–§3.4). This replaces a first-pass threshold-based factor
+`p_prot = P(β_normal > 0.5)` which was anti-predictive on bulk
+normal comparators (AUC 0.38; §2.2). A factor-ablation experiment
+in §5.2.1 clarifies what `p_diff`'s specific shape is and is not
+doing: on low-`n` matched cell-line cohorts, where the σ_floor
+binds on 99.5–99.9% of records (§3.5), `p_diff` collapses to a
+fixed-bandwidth sigmoid in practice and the two are
+indistinguishable in AUC (within 0.001); on primary tissue, where
+σ_floor binds only ~43% of records both-sides, a fixed-bandwidth
+sigmoid ablation actually *outperforms* shipped `p_diff` by +0.09
+AUC. The load-bearing contribution is therefore the compositional
+skeleton and the benchmarking contract, not `p_diff`'s specific
+functional form.
 
 This paper is a **scoring-method and benchmarking** contribution, not
 a target-discovery validation. The headline result is a *rank-lift*
@@ -498,6 +517,27 @@ Four axes are benchmarked on every cohort:
 - **V2 `tumor_only`** — `p_targ × p_trust`. Retained for audit; default in v0.4.0.
 - **V2.5 `tumor_plus_differential_protection`** — `p_targ × p_diff × p_trust` with δ = 0.2.
 
+**On the absence of an established DMR-style baseline.** Standard
+differential-methylation tools (`limma`/`minfi`/`DMRcate`) rank
+CpG **probes** or contiguous **regions**, not per-PAM Cas9 target
+candidates. Each ThermoCas9 candidate is a specific `NNNNCGA` /
+`NNNNCCA` site whose methylation-sensitivity depends on the PAM
+cytosine's own β, inferred from the nearest assayed probe via the
+`EvidenceClass` distance model (§4.0, §3.5). A DMR-tool output is
+therefore not directly a ranking over our candidate universe;
+mapping one onto our universe requires either (a) collapsing our
+candidates to their nearest probe and inheriting the probe's rank —
+which drops per-site resolution and confounds all candidates that
+share a nearest probe — or (b) reimplementing the DMR tool's
+per-probe statistic (e.g. empirical-Bayes moderated `t`-statistic
+on the same `β_tumor_*` / `β_normal_*` summary inputs) and feeding
+it into our per-candidate-id tie-break. The Δβ-only and Δβ_z
+baselines (§5.1) already exercise option (a) at the simplest
+statistic; a per-candidate moderated-`t` baseline via option (b) is
+§6.3 future work. The trade-off, honestly: DMR-tool omission is a
+real methods-journal weakness the paper should not hide, and we
+list it as such.
+
 ### 4.4 Platform harmonization and catalog scope
 
 Two facts constrain interpretation of the reported numbers and
@@ -913,11 +953,40 @@ AUC at the n = 3 Roth-validated positives:
    variation it produces evidently *hurts* the ranking on tissue
    relative to a fixed bandwidth. The hard threshold collapse
    (AUC 0.497) confirms smoothness itself is load-bearing on
-   tissue, unlike on cell lines. This is an **unresolved
-   finding**: `p_diff`'s tissue behavior is worse than a simpler
-   ablation, and the regime-specific re-derivation of `p_diff`
-   under an SE-on-mean variance (or under a per-cohort fixed
-   bandwidth) is elevated in §6.3.
+   tissue, unlike on cell lines.
+
+**Bandwidth robustness of the tissue finding** (§5.2.1 single-point
+ablation used σ_fixed = √2 · σ_floor ≈ 0.0707; reproducible via
+`uv run scripts/sigmoid_bandwidth_sweep.py`):
+
+| cohort | σ_fixed=0.05 | σ_fixed≈0.0707 | σ_fixed=0.10 | σ_fixed=0.15 | shipped V2.5 |
+|---|---:|---:|---:|---:|---:|
+| GSE322563 HM450      | 0.990 | 0.989 | 0.989 | 0.977 | 0.990 |
+| GSE322563 native v2  | 0.986 | 0.986 | 0.985 | 0.976 | 0.986 |
+| GSE77348             | 0.982 | 0.982 | 0.979 | 0.965 | 0.982 |
+| **GSE69914 (tissue)**    | **0.862** | **0.864** | **0.830** | **0.821** | **0.773** |
+
+The tissue gain is **bandwidth-robust**: every tested σ_fixed in
+{0.05, 0.0707, 0.10, 0.15} beats shipped V2.5 on tissue (+0.05
+to +0.09 AUC). The single-point +0.09 in §5.2.1 is therefore not
+a lucky bandwidth choice. On matched cell-line cohorts, the
+sigmoid family matches shipped V2.5 within 0.02 AUC across the
+entire 3×-range bandwidth sweep (only σ_fixed = 0.15 drops
+noticeably, reflecting that a bandwidth much wider than σ_floor
+starts smearing out the gap signal).
+
+This shifts the interpretation: `p_diff`'s tissue underperformance
+is not an unresolved one-point observation — it is a demonstrated
+systematic tissue weakness across a 3×-range bandwidth family, and
+a fixed-bandwidth sigmoid is a credible candidate gap factor for
+tissue cohorts. Shipping it as an explicit alternative mode
+(`gap_sigmoid`) is elevated on §6.3; it is not yet shipped because
+the regime-specific preset work (§6.3 item 3) is the principled
+place to land it alongside the matched-cell-line / tissue /
+boundary presets, rather than as an orphan mode. For this paper
+the claim stays: V2.5 is the recommended shipped probabilistic
+axis, and §5.2.1 + this sweep together demonstrate a
+bandwidth-robust alternative formulation that should ship next.
 
 The honest reading of this table is that V2.5's cell-line AUC
 story could be reproduced by any `p_targ × (gap factor) × p_trust`
@@ -1365,19 +1434,30 @@ In priority order, not committed to any timeline:
    show that tissue and matched cell-line cohorts prefer different
    defaults. Concrete shape of what to ship:
 
-   - `regime: matched_cell_line` → σ_floor = 0.05, δ = 0.2
-     (current shipped defaults).
-   - `regime: primary_tissue` → σ_floor = 0.10, δ = 0.1
-     (tissue-AUC-optimal per §5.3.1 and §5.3.2; requires n ≳ 30
-     per side to have desaturated `p_trust`).
+   - `regime: matched_cell_line` → gap factor = `p_diff`,
+     σ_floor = 0.05, δ = 0.2 (current shipped defaults; indistinguishable
+     from the sigmoid family on cell lines per §5.2.1).
+   - `regime: primary_tissue` → gap factor = `gap_sigmoid`
+     (`sigmoid((Δβ − δ) / σ_fixed)`), σ_fixed ∈ {0.05, 0.0707}
+     (bandwidth-robust per the §5.2.1 sweep — any value in that
+     range beats shipped V2.5 on GSE69914 by +0.08 to +0.09 AUC),
+     δ = 0.1 (per §5.3.2), requires n ≳ 30 per side to have
+     desaturated `p_trust`. Alternatives to test before shipping:
+     the top ties at K = 100 on the sigmoid family across
+     GSE69914 label tiers (the §5.2.1 sweep only reports
+     validated-tier AUC).
    - `regime: boundary` (explicit out-of-distribution acknowledgment;
      all axes warn, do not run benchmark-rank-based claims).
 
    Implementation path: add a `regime` field to the cohort YAML
-   loader; the field chooses a preset that overrides the two
-   individual scalars unless the user sets them directly. Default
-   remains `matched_cell_line` for backward compatibility. Tests:
-   one round-trip test per preset against a fixture BenchmarkResult.
+   loader and a `gap_factor ∈ {p_diff, gap_sigmoid, ...}` enum to
+   `ProbabilisticMode`; the regime field chooses a preset that
+   overrides the scalars and the gap factor unless the user sets
+   them directly. Default remains `matched_cell_line` for backward
+   compatibility. Tests: one round-trip test per preset against a
+   fixture BenchmarkResult + a parity test verifying that
+   `matched_cell_line` with gap_factor = `p_diff` bit-matches the
+   current shipped scorer.
 4. **`p_diff` re-derivation under SE-on-mean variance** (§3.3) as a
    second probabilistic axis, so users can choose between the
    biological-overlap and the cohort-power interpretations.
@@ -1387,6 +1467,14 @@ In priority order, not committed to any timeline:
    density, mask quality, platform, and local concordance. This
    would address the central remaining coarseness of the §3.4
    measurement model.
+6. **Per-candidate moderated-`t` DMR baseline** (§4.3 rationale):
+   implement an empirical-Bayes moderated `t`-statistic over the
+   same per-side β summaries and evidence-class inputs used by
+   V2.5, feed it through the same `candidate_id`-ascending
+   tie-break, and report AUC + per-positive ranks alongside
+   Δβ-only / Δβ_z. This is the methods-journal-expected
+   established-DMR comparator and fills the baseline-set gap
+   named in §4.3.
 6. **A second independent-lab MCF-7 / MCF-10A EPIC cohort**, if one
    becomes public, to establish reproducibility of the V2.5 claim at
    n ≥ 3 on matched cell-line pairs.
@@ -1502,7 +1590,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ac`** for this document. 236 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ad`** for this document. 236 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).

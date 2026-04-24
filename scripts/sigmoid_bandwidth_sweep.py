@@ -1,0 +1,187 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# ///
+"""Sigmoid bandwidth sweep — tests whether §5.2.1's tissue gain is bandwidth-robust.
+
+The §5.2.1 factor ablation replaces `p_diff(σ_Δ)` with
+`sigmoid((Δβ − δ) / σ_fixed)` at the single bandwidth
+σ_fixed = √2 × σ_floor ≈ 0.0707 and reports a +0.09 AUC gain on
+tissue (GSE69914). A reviewer-salient question is whether that gain
+is robust to the bandwidth choice or an artifact of the one σ_fixed
+happening to be right on tissue.
+
+This script sweeps σ_fixed ∈ {0.05, 0.0707, 0.10, 0.15} on all four
+primary cohorts, holding p_targ, p_trust, and δ constant. The two
+endpoints are chosen deliberately:
+  - σ_fixed = 0.05 is the bare σ_floor; the bandwidth V2.5 uses when
+    only one side hits the floor.
+  - σ_fixed = 0.15 matches the widest σ_floor in the §5.3.1 sweep and
+    is roughly twice the "√2 × σ_floor" default.
+
+If the tissue-side sigmoid gain survives across the full range, the
+finding is robust and the gap-factor replacement is a real candidate
+mode; if the gain is a single-bandwidth artifact, §5.2.1 should be
+softened.
+
+Output: `examples/sigmoid_bandwidth_sweep.tsv` + `.md`.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+SCORED = REPO / "data" / "derived"
+POSITIVES = SCORED / "positives_roth_validated.txt"
+OUT_TSV = REPO / "examples" / "sigmoid_bandwidth_sweep.tsv"
+OUT_MD = REPO / "examples" / "sigmoid_bandwidth_sweep.md"
+
+DEFAULT_DELTA = 0.2
+SIGMA_FLOOR = 0.05
+BANDWIDTHS = [0.05, math.sqrt(2) * SIGMA_FLOOR, 0.10, 0.15]  # ≈ 0.0707 in the middle
+
+COHORTS = [
+    ("GSE322563 HM450",     "scored_gse322563_differential.jsonl"),
+    ("GSE322563 native v2", "scored_gse322563_native_differential.jsonl"),
+    ("GSE77348",            "scored_surrogate_differential.jsonl"),
+    ("GSE69914",            "scored_gse69914_differential.jsonl"),
+]
+
+
+def sigmoid_factor(mu_t, mu_n, delta, sigma_fixed):
+    x = (mu_n - mu_t - delta) / sigma_fixed
+    if x >= 0:
+        e = math.exp(-x)
+        return 1.0 / (1.0 + e)
+    e = math.exp(x)
+    return e / (1.0 + e)
+
+
+def auc_midrank(scored_path: Path, positives: set[str], sigma_fixed: float, delta: float) -> float:
+    rows: list[tuple[float, str]] = []
+    with scored_path.open() as fh:
+        for line in fh:
+            d = json.loads(line)
+            cid = d["candidate"]["candidate_id"]
+            obs = d["observation"]; prob = d["probabilistic"]
+            mu_t = obs.get("beta_tumor_mean"); mu_n = obs.get("beta_normal_mean")
+            p_t = prob["p_targetable_tumor"]; p_r = prob["p_observation_trustworthy"]
+            if mu_t is None or mu_n is None:
+                s = 0.0
+            else:
+                g = sigmoid_factor(mu_t, mu_n, delta, sigma_fixed)
+                s = p_t * g * p_r
+            rows.append((-s, cid))
+
+    n_total = len(rows); n_pos = len(positives); n_neg = n_total - n_pos
+    rows.sort()
+    asc_scores = [-k for k, _ in rows]; asc_scores.reverse()
+    asc_cids = [c for _, c in rows]; asc_cids.reverse()
+
+    midrank: dict[str, float] = {}
+    pos_rem = set(positives)
+    i = 0
+    while i < n_total and pos_rem:
+        s = asc_scores[i]; j = i
+        while j < n_total and asc_scores[j] == s:
+            j += 1
+        mid = (i + 1 + j) / 2.0
+        for k in range(i, j):
+            cid = asc_cids[k]
+            if cid in pos_rem:
+                midrank[cid] = mid; pos_rem.remove(cid)
+                if not pos_rem:
+                    break
+        i = j
+    return (sum(midrank.values()) - n_pos * (n_pos + 1) / 2.0) / (n_pos * n_neg)
+
+
+def main() -> None:
+    positives = set(line.strip() for line in POSITIVES.read_text().splitlines() if line.strip())
+    print(f"positives: {sorted(positives)}")
+    print(f"bandwidths: {[round(b, 4) for b in BANDWIDTHS]}")
+
+    table: dict[tuple[str, float], float] = {}
+    for cohort, fname in COHORTS:
+        path = SCORED / fname
+        if not path.exists():
+            print(f"SKIP {path}")
+            continue
+        for b in BANDWIDTHS:
+            print(f"  {cohort} × σ_fixed = {b:.4f} ...")
+            auc = auc_midrank(path, positives, b, DEFAULT_DELTA)
+            table[(cohort, b)] = auc
+            print(f"    AUC = {auc:.4f}")
+
+    OUT_TSV.parent.mkdir(parents=True, exist_ok=True)
+    with OUT_TSV.open("w") as fh:
+        fh.write("cohort\tsigma_fixed\tauc\n")
+        for (cohort, b), auc in table.items():
+            fh.write(f"{cohort}\t{b:.6f}\t{auc:.6f}\n")
+    print(f"wrote {OUT_TSV}")
+
+    # Comparison to shipped V2.5 on validated endpoint, from §5.2.1:
+    shipped_v25 = {
+        "GSE322563 HM450":     0.990,
+        "GSE322563 native v2": 0.986,
+        "GSE77348":            0.982,
+        "GSE69914":            0.773,
+    }
+
+    md = ["# Sigmoid bandwidth sweep — is the §5.2.1 tissue gain bandwidth-robust?",
+          "",
+          "Generated by `scripts/sigmoid_bandwidth_sweep.py`.",
+          "",
+          "Replaces `p_diff` with `sigmoid((Δβ − δ) / σ_fixed)` inside the",
+          "`p_targ × (gap factor) × p_trust` composite, sweeping σ_fixed over",
+          "{0.05, √2·σ_floor ≈ 0.0707, 0.10, 0.15}. δ = 0.2 held constant.",
+          "",
+          "AUC at the n = 3 Roth-validated positives:",
+          "",
+          "| cohort | σ_fixed=0.05 | σ_fixed≈0.0707 *(§5.2.1 point)* | σ_fixed=0.10 | σ_fixed=0.15 | shipped V2.5 |",
+          "|---|---:|---:|---:|---:|---:|"]
+    for cohort, _ in COHORTS:
+        cells = []
+        for b in BANDWIDTHS:
+            if (cohort, b) in table:
+                cells.append(f"{table[(cohort, b)]:.3f}")
+            else:
+                cells.append("—")
+        cells.append(f"{shipped_v25.get(cohort, float('nan')):.3f}")
+        md.append(f"| **{cohort}** | " + " | ".join(cells) + " |")
+
+    md.extend([
+        "",
+        "## Reading the table",
+        "",
+        "Two questions:",
+        "",
+        "1. **Is the matched cell-line parity robust across bandwidths?** The",
+        "   §5.2.1 finding was that V2.5 ≈ sigmoid on cell lines (within 0.001).",
+        "   Across this 3×-range bandwidth sweep on all three matched",
+        "   cell-line cohorts, the cell-line parity should persist — if it",
+        "   does, the §5.2.1 cell-line conclusion (σ_floor is doing the work,",
+        "   not p_diff's specific shape) is confirmed at more than one width.",
+        "",
+        "2. **Is the tissue gain robust to bandwidth choice?** The §5.2.1",
+        "   single-point sigmoid result on tissue was +0.09 AUC over shipped",
+        "   V2.5. If every bandwidth here beats shipped V2.5 on tissue, the",
+        "   tissue gain is a real property of the fixed-bandwidth family,",
+        "   not a one-point artifact — and the regime-specific",
+        "   reformulation in §6.3 can cite this as support. If only",
+        "   σ_fixed ≈ 0.0707 beats shipped V2.5, the §5.2.1 claim needs to",
+        "   be softened to 'single-point ablation result'.",
+        "",
+        "The row to read is the GSE69914 row against the shipped V2.5 number",
+        "0.773 — the number of bandwidths beating that floor is the",
+        "bandwidth-robustness check.",
+    ])
+    OUT_MD.write_text("\n".join(md))
+    print(f"wrote {OUT_MD}")
+
+
+if __name__ == "__main__":
+    main()
