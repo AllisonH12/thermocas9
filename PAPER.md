@@ -9,81 +9,37 @@
 
 ## Abstract
 
-Methylation-sensitive Cas9 variants target genomic loci that are
-hypomethylated in disease cells and methylated in matched normal
-cells. Selecting such loci from genome-scale array data is a
-ranking problem whose scoring axis must be cohort-agnostic and
-must report its own uncertainty.
+Methylation-sensitive Cas9 target selection is a ranking problem:
+candidates should be hypomethylated in disease cells, methylated in the
+matched normal comparator, and supported by trustworthy methylation
+evidence. We present a compositional probability-scale scoring skeleton,
+`p_targ × (gap factor) × p_trust`, paired with a tie-band-aware benchmark
+contract (`precision_at_k_{min,max}`, `tie_band_size_at_k`, mid-rank
+Mann-Whitney AUC). Two gap factors ship in this tag: V2.5-diff
+(`tumor_plus_differential_protection`) and V2.5-sigmoid
+(`tumor_plus_gap_sigmoid`).
 
-**Contribution.** A *compositional probability-scale scoring
-skeleton* — `p_targ × (gap factor) × p_trust` — paired with a
-tie-band-aware benchmarking contract (`precision_at_k_{min,max}`,
-`tie_band_size_at_k`, mid-rank Mann-Whitney AUC). The skeleton
-decouples three independently-replaceable questions: is the tumor
-side targetable, is the tumor-vs-normal gap large enough, and is
-the observation trustworthy? The gap-factor slot admits several
-instances (§7); two ship in this tag, V2.5-diff
-(`tumor_plus_differential_protection`, a per-site normal-
-approximation tail probability) and V2.5-sigmoid
-(`tumor_plus_gap_sigmoid`, a fixed-bandwidth logistic).
+The primary endpoint is GSE322563 validated-label AUC at the three Roth
+Fig. 5d target probes, evaluated under both HM450-intersect and native
+EPIC v2 ingest paths. V2.5 axes place all three positives in the top
+percentile; a 10⁶-draw random-triple null resolves the rank lift beyond
+the earlier 10⁴ floor, while the paired V2.5-vs-Δβ comparison remains
+descriptive at `n_pos = 3`. The strongest empirical result is on
+GSE69914 tissue: a probe-level limma-eBayes DMR baseline is competitive
+on matched cell lines but falls to AUC 0.573 on tissue, while
+V2.5-sigmoid reaches AUC 0.862 on the same candidate mapping. A frozen
+whole-genome panel shows V2.5-sigmoid matches V2.5-diff's cell-line AUC
+within 0.002, avoids V2.5-diff's whole-genome low-`n` top-K tied bands
+(`tie_band@100 = 1` vs 421–1,493), and improves tissue AUC by +0.05 to
++0.08.
 
-**Primary endpoint.** GSE322563 validated-label AUC (n = 3 Roth
-Fig. 5d target probes) evaluated under two ingest paths: an
-HM450-intersect path (for cross-cohort comparability with GSE77348
-and GSE69914) and a native EPIC v2 path (the faithful ingest).
-Both paths are reported symmetrically throughout §5.1.
-
-**Headline results.** (1) V2.5 axes place all three validated
-positives in the top percentile under both ingest paths. A
-10⁶-draw permutation null (§5.1.2) reports one-sided random-triple
-*p*-values of 4×10⁻⁶ / 1.5×10⁻⁵ / 2.8×10⁻⁵ for V2.5-diff on
-GSE322563 HM450 / GSE322563 native / GSE77348 — **lower random-null
-*p*-values than Δβ-only's 8.6×10⁻⁵ / 3.1×10⁻⁴ / 1.1×10⁻⁴ on the
-same cohorts** (against-random check, not a formal pairwise
-superiority test; the paired V2.5-vs-Δβ comparison is reported
-separately in §5.1.3 and floors at sign-flip *p* = 0.125 with
-`n_pos = 3`).
-(2) **The headline tissue result.** A probe-level limma-eBayes DMR
-baseline (Smyth 2004 empirical-Bayes moderated-t on sample-level
-β matrices, probe-level first then candidate-mapped) is
-competitive on matched cell lines (AUC 0.959–0.991) but
-**collapses to near-random on bulk tissue (GSE69914, AUC 0.573)**,
-while **V2.5-sigmoid recovers the same tissue cohort to AUC 0.862**
-— a +0.29 swing on the same probe-level statistical inputs. This
-is the strongest evidence that the compositional skeleton's
-`p_targ × p_trust` wrapping is the durable methodological
-contribution and the gap-factor shape is interchangeable.
-(3) A frozen whole-genome panel (§5.2.2) shows V2.5-sigmoid
-matches V2.5-diff's AUC on matched cell-line cohorts within 0.002
-but strictly beats V2.5-diff's top-K usability — `tie_band@100 =
-1` vs 421–1,493 at WG scale — and improves tissue AUC over
-V2.5-diff by +0.05 to +0.08 across a bandwidth-robust sweep.
-
-**Shipping recommendation** (three distinct senses):
-
-- **Overall package default**: V1 (`final_score`), deterministic
-  continuous score with `tie_band = 1` by construction. Backward
-  compatibility + top-K determinism.
-- **Recommended probabilistic discovery axis**: **V2.5-sigmoid**
-  (`tumor_plus_gap_sigmoid`). Ships as a selectable
-  `probabilistic_mode` enum value alongside V2.5-diff.
-- **Default `probabilistic_mode` enum value**: `tumor_only`
-  (V2 diagnostic axis). Unchanged for backward compatibility;
-  users opt into V2.5-diff or V2.5-sigmoid by setting the cohort
-  YAML's `probabilistic_mode` field explicitly.
-
-**Scope.** Scoring-method and benchmarking contribution on public
-methylation data; no prospective wet-lab validation. Headline n =
-3 primary endpoint means AUC is sensitive to each positive's rank
-— per-positive ranks + percentile ranks reported in §5.1, 10⁶-draw
-permutation null in §5.1.2. Cross-series label transport (Sanger
-GDSC breast panel) is an explicit out-of-distribution boundary
-case (§5.4), not a generalization claim.
-
-**Reproducibility.** Whole-genome catalogs frozen with SHA256
-provenance (`data/derived/catalog_hg19_wg*.PROVENANCE.{md,sha256}`);
-per-cohort gating TSVs + cross-cohort panels committed under
-`examples/`. All code public.
+The recommended probabilistic discovery axis is V2.5-sigmoid; V2.5-diff
+is retained for backward-compatible AUC parity, V1 remains the package
+default for deterministic top-K behavior, and `tumor_only` remains the
+default `probabilistic_mode` enum value for compatibility. This is a
+scoring-method and benchmarking contribution on public methylation data,
+not prospective editing validation. Whole-genome catalogs are SHA256-
+frozen and all benchmark artifacts are committed under `examples/`.
 
 ---
 
@@ -375,7 +331,7 @@ What changes between the low-`n` and high-`n` regimes is which factor
   evidence-class constant. The previously-tied subset spreads out by
   its underlying `p_targ × p_diff` values.
 
-The falsifiable prediction: the K = 100 tied band on V2.5 should be
+The falsifiable prediction: the K = 100 tied band on V2.5-diff should be
 large at n=2/3 per side and shrink to near-1 at n ≳ 30 per side. §5.1
 and §5.3 test this directly across cohorts ranging from n=2/2 to
 n=305/50.
@@ -424,59 +380,18 @@ everywhere, so changing its value re-shapes the whole composite.
 
 ### 4.0 Analysis plan: primary endpoint, sensitivity, boundary
 
-To guard against post-hoc optimization, the analysis design separates
-tuned components from evaluation. The hyperparameter `differential_delta`
-was tuned on a specific cohort, and that cohort is therefore *not*
-part of the protected primary endpoint. The plan below is not a
-formal pre-registered protocol with a third-party timestamp; it is
-an analysis plan whose ordering is independently verifiable from the
-git history (commit hashes given inline).
+The design separates tuned components from evaluation. It is not a
+third-party preregistration, but the ordering is recoverable from git:
+`differential_delta = 0.2` was fixed at commit `aece3de` on the
+GSE77348 surrogate before GSE322563 was ingested.
 
-- **Tuned, fixed before cross-cohort evaluation.**
-  `differential_delta = 0.2` was selected by an offline sweep over
-  {0.2, 0.3, 0.4, 0.5} on the GSE77348 MCF-7/MCF-10A surrogate
-  against the *pre-repair* (gene-universe) positives. The value was
-  fixed in code at commit `aece3de` ("V2.5: experimental
-  differential-protection probabilistic mode (opt-in)",
-  2026-04-20), *before* the GSE322563 (Roth) cohort was ingested or
-  benchmarked. GSE77348 is the **development cohort** for δ; results
-  on GSE77348 are tuned-on supporting evidence, not independent
-  confirmation. The label-repair exercise that produced the
-  Roth-validated positives is data preparation, not scoring-axis
-  tuning, and it post-dates the δ choice.
-
-- **Primary endpoint.** AUC at the `positives_roth_validated.txt`
-  label set (n = 3 Roth Fig. 5d target probes, hg38 → hg19-lifted)
-  on **GSE322563** (Roth's own MCF-7 / MCF-10A samples). This is
-  the single independent paper-comparable test. δ was not tuned
-  against this cohort; the label set was not derived from it.
-  Because n = 3, AUC is a *rank-lift* statistic on the three known
-  positives — read alongside the per-positive ranks and percentile
-  ranks reported in §5.1, not as a generalized discovery claim.
-
-- **Supporting evidence** (§5.1, §5.2). AUC on GSE77348 (the
-  development cohort for δ, MCF-7/MCF-10A on HM450). Same matched
-  cell-line biology as GSE322563 but profiled by a different lab on a
-  different platform, so cross-platform agreement on the V2.5 ordering
-  is informative — but it is *not* an independent cohort under the
-  analysis-plan discipline because δ was selected on it.
-
-- **Sensitivity analyses** (§5.2). The `narrow` (±50 bp) and `wide`
-  (±500 bp) label sets are alternative label granularities; the
-  cross-granularity AUC ordering stability is reported without
-  retuning δ. `P@K` intervals on tied bands are reported but are
-  expected to be uninformative on low-`n` cohorts (§3.5).
-
-- **Tissue-cohort behavior** (§5.3). GSE69914 (n = 305 / 50 primary
-  breast tissue) is *not* a paper-comparable test of Roth biology —
-  it probes whether the V2.5 architecture's low-`n` tied-band
-  behavior dissolves at high `n`, as predicted in §3.5.
-
-- **Out-of-distribution boundary case** (§5.4). GSE68379 (Sanger
-  GDSC breast panel × GSE69914 healthy normal) is *not* a
-  generalization cohort; it is a label-transportability test. It is
-  reported separately and is not pooled into any primary-endpoint
-  average.
+| Analysis role | Cohort / labels | Interpretation |
+|---|---|---|
+| Tuned component | GSE77348, pre-repair gene-universe labels | δ-development cohort; later AUC is tuned-on supporting evidence. |
+| Primary endpoint | GSE322563 validated Roth probes (`n_pos = 3`) | Independent paper-comparable rank-lift test; read with per-positive ranks. |
+| Sensitivity | narrow ±50 bp / wide ±500 bp labels, native EPIC v2 ingest | Stability checks without retuning. |
+| Tissue behavior | GSE69914, n = 305 / 50 | Tests high-`n` tissue behavior and tied-band dissolution, not Roth biology. |
+| Boundary | GSE68379 × GSE69914 normal | Label-transportability stress test; never pooled with discovery results. |
 
 ### 4.1 Cohorts
 
@@ -489,14 +404,15 @@ Four cohorts, all public HM450 or EPIC v2 methylation arrays:
 | **GSE69914** | primary breast tissue | 305 / 50 | HM450 | high-n tissue validation |
 | **GSE68379** | Sanger GDSC cell-line panel × GSE69914 healthy normal | 52 / 50 | HM450 | orthogonal (see §5.4) |
 
-Ingest details:
-
-- **GSE322563.** Supplementary β matrix `GSE322563_beta_matrix_EPIC_v2.txt.gz`. EPIC v2 probe IDs carry `_BC##` / `_TC##` / `_TO##` / `_BO##` beadchip suffixes; we strip to the canonical `cg*` identifier and intersect with HM450 — 80.7% retention. Roth-positive gene retention: ESR1 96%, EGFLAM 91%, VEGFA 90%, GATA3 83%. The main paper's data-availability statement prints `GSE32256`, which resolves to a *Paramecium* transcriptome series; the supplement's reporting summary correctly prints `GSE322563`. We verified the liftover by cross-checking our per-probe β values at the three Roth-Fig.-5d target positions against the paper's published β — every value agrees to two decimal places (EGFLAM 0.01/0.49; ESR1 0.07/0.94; GATA3 0.02/0.31).
-- **GSE77348.** Per-sample β values computed from Unmethylated / Methylated intensities (β = M / (M + U + 100)); restricted to untreated replicates.
-- **GSE69914.** Full SeriesMatrix β table; filtered to `status == 2` (sporadic breast cancer, non-BRCA1) for tumor and `status == 0` (healthy donor, non-BRCA1) for normal. Tumor-adjacent normals and BRCA1 carrier arms excluded.
-- **GSE68379.** Sanger processed matrix has integer row indices; we rebuild cg probe IDs via the Illumina GPL13534 manifest (485,577 data rows; row N → IlmnID N); filtered to 52 primary-site-breast cell lines. No in-study normal — paired cross-series with GSE69914 healthy normals.
-
-All cohort builder scripts are in `scripts/build_*.py`. Every run produces `tumor_summary.tsv` + `normal_summary.tsv` + `PROVENANCE.md` in the shared `LocalSummaryBackend` format; the scorer is platform-agnostic thereafter.
+All cohort builders live in `scripts/build_*.py` and emit the same
+`LocalSummaryBackend` format (`tumor_summary.tsv`, `normal_summary.tsv`,
+`PROVENANCE.md`). GSE322563 uses the Roth EPIC v2 β matrix; its HM450-
+intersect path strips beadchip suffixes from EPIC v2 probe IDs and
+retains 80.7% of probes, while the native EPIC v2 path is reported as a
+sensitivity. Per-probe β values at the three Roth target positions match
+the published values to two decimals. GSE77348 is restricted to untreated
+replicates, GSE69914 excludes adjacent-normal and BRCA1-carrier arms, and
+GSE68379 is used only as a cross-series boundary case.
 
 ### 4.2 Positives (label repair)
 
@@ -536,75 +452,26 @@ Seven axes are benchmarked. For naming conventions see §7 Methods
 - **V2.5-sigmoid** (`tumor_plus_gap_sigmoid`) — `p_targ × sigmoid((β_n − β_t − δ) / σ_fixed) × p_trust` with δ = 0.2 and σ_fixed ≈ 0.0707. The **recommended probabilistic discovery axis** on every non-boundary cohort shape tested (§5.2.2 whole-genome panel); ships as a first-class `probabilistic_mode` enum value in this tag.
 - **limma-eBayes** (moderated-t) — sample-level probe-level empirical-Bayes moderated t-statistic (Smyth 2004), then candidate-mapped via the nearest probe assigned in `observation.probe_id`. Included as the methods-journal-standard DMR baseline; §5.1 + §5.2.2 report AUC + tie-band alongside the other axes.
 
-**The limma-eBayes DMR baseline.** Standard
-differential-methylation tools (`limma`/`minfi`/`DMRcate`) rank
-CpG **probes** or contiguous **regions**, not per-PAM Cas9 target
-candidates. Each ThermoCas9 candidate is a specific `NNNNCGA` /
-`NNNNCCA` site whose methylation-sensitivity depends on the PAM
-cytosine's own β, inferred from the nearest assayed probe via the
-`EvidenceClass` distance model (§4.0, §3.5). A DMR-tool output is
-therefore not directly a ranking over our candidate universe;
-mapping one requires computing the statistic at the probe level
-first and then assigning each candidate its nearest-probe value.
-We implement the probe-level → candidate-mapped limma-eBayes
-baseline directly on the sample-level β matrices of the three
-primary cohorts (sample-level β recoverable for all three;
-`scripts/limma_ebayes.py` implements Smyth 2004's empirical-Bayes
-moderated `t`-statistic in pure Python, validated against closed-
-form behaviour in the d0 → ∞ limit and against uniform null-p
-distributions on synthetic data; `scripts/run_limma_per_cohort.py`
-wires the cohort adapters). **We describe this as a "limma-style
-empirical-Bayes moderated-t" rather than as "the R `limma`
-package's output" — the core Smyth (2004) variance-prior math is
-faithfully reproduced, but we do not call `limma::lmFit` or
-`limma::eBayes` directly, and the pipeline is not the full
-`minfi`/`limma` Bioconductor workflow (no quantile normalization,
-no cell-type deconvolution, no probe-mask filtering beyond
-`EvidenceClass`). A supplementary R-vs-Python parity table on a
-small matrix is on the §6.3 follow-up list; the current claim is
-that the moderated-t statistic we compute is Smyth's math, not
-that every downstream step matches a canonical `minfi` + `limma`
-run byte-for-byte. The result is reported alongside the
-other baselines in §5.1 and §5.2.2; limma-eBayes AUC is 0.959
-(GSE322563 HM450) / 0.991 (native EPIC v2) / 0.962 (GSE77348) /
-0.573 on GSE69914 tissue — respectable on cell lines but
-near-random on tissue, where the `p_targ` (tumor-side
-unmethylation) gate of V2.5 is what drives the tissue recovery
-from 0.57 to 0.86 that a pure probe-level moderated-t statistic
-cannot.
+**limma-eBayes baseline.** Standard DMR tools rank CpG probes or
+regions, not per-PAM candidates, so we compute a probe-level Smyth
+(2004) empirical-Bayes moderated `t` statistic from sample-level β
+matrices and map each candidate to its nearest probe via the same
+`EvidenceClass` assignment. This is a limma-style statistic implemented
+in pure Python, not a byte-identical `minfi` + `limma` Bioconductor
+workflow; an R parity check is future work. It is reported in §5.1 and
+§5.2.2 because it is the methods-reviewer baseline.
 
 ### 4.4 Platform harmonization and catalog scope
 
 Two facts constrain interpretation of the reported numbers and
 belong in the methodology, not as a footnote:
 
-- **Platform.** GSE322563 was profiled on Illumina EPIC v2
-  (GPL33022, ~937K probes); GSE77348, GSE69914, and GSE68379 are on
-  HM450 (GPL13534, ~485K probes). The primary GSE322563 results in
-  §5.1 use an HM450-intersect harmonization path (EPIC v2 probe IDs
-  stripped of beadchip-design suffixes — `_BC##`, `_TC##`, `_TO##`,
-  `_BO##` — then intersected with the HM450 universe; 80.7%
-  retention overall, 83–96% at the Roth-validated genes). To
-  quantify the cost of that shortcut, we also built a **native EPIC
-  v2 ingest** (script `build_epic_v2_probes.py` lifts GPL33022
-  hg38 → hg19 via pyliftover; 147,928 chr5/6/10 probes, 99.95%
-  liftover success; cohort builder
-  `build_gse322563_native_epic_v2_cohort.py` keeps native probe IDs
-  and produces a 5.22M-candidate catalog vs the HM450 catalog's
-  2.98M). Side-by-side at the validated label set on GSE322563:
-  V2.5 differential AUC 0.990 (HM450-intersect) → 0.986 (native EPIC
-  v2), a 0.003 difference well within the cohort's tied-band noise
-  floor. V1 gains the most under the native ingest (+0.05 to +0.11
-  AUC across label granularities) because its continuous score
-  ranks the validated targets higher relative to easy-negative
-  candidates added by the EPIC v2 probe density. The only axis
-  ordering that holds on **every** matched-cell-line tier × path
-  row (9/9) is V2.5 > V1 and V2.5 > Δβ-only; the relative order of
-  Δβ-only, V1, and V2 `tumor_only` below V2.5 reshuffles across
-  rows (e.g. `tumor_only` sits above Δβ-only on both GSE322563 wide
-  tiers; on GSE77348 `tumor_only` is the lowest at every tier).
-  Sensitivity table in §5.2; benchmark JSONLs at
-  `examples/gse322563_native_roth_labels/`.
+- **Platform.** GSE322563 is EPIC v2; the other cohorts are HM450. §5.1
+  uses the HM450-intersect path for cross-cohort comparability and §5.2
+  reports a native EPIC v2 sensitivity. The validated-label V2.5-diff
+  AUC changes by only 0.003 (0.990 → 0.986); V1 changes more, but the
+  matched-cell-line ordering V2.5-diff > V1 and V2.5-diff > Δβ-only holds on every
+  tier × path row.
 
 - **Catalog scope.** Three frozen probe-window catalogs are used
   across §5, each with its own SHA256-committed provenance file:
@@ -662,23 +529,14 @@ These three fields are on every emitted `BenchmarkResult` JSONL row.
 
 ![Cross-cohort AUC by score axis](docs/figures/fig2_auc_bars.png)
 
-**Figure 2.** Cross-cohort AUC. **(a)** Validated-label AUC on each
-cohort. GSE322563 is the independent primary endpoint; GSE77348 is
-the development cohort on which δ was tuned (§4.0) and is shown as
-supporting evidence; GSE69914 is the tissue-behavior check for the
-§3.5 tied-band prediction. V2.5 is the highest-AUC axis on both
-matched cell-line cohorts; on tissue `tumor_only` takes a small AUC
-lead but at a tied band of 6,540 (§5.3 + Fig. 3). V1 falls below
-random on the tissue wide-label set in (b). **(b)** Sensitivity over
-label granularity (validated → narrow ±50 bp → wide ±500 bp).
-**V2.5 remains the highest-AUC axis at every (matched cell-line
-cohort × granularity) cell**; the ordering among the lower axes
-(V1, `tumor_only`, Δβ-only) reshuffles between tiers — e.g.
-`tumor_only` overtakes Δβ-only at GSE322563 wide, and V1 overtakes
-Δβ-only at GSE77348 narrow / wide. The only stable ordering claim is
-V2.5 on top. Dashed line at AUC = 0.5 (random). The out-of-
-distribution GSE68379 cohort is not included here — it is plotted
-separately (§5.4).
+**Figure 2.** Historical V2.5-diff cross-cohort AUC sensitivity:
+validated labels by cohort in (a), and validated / narrow / wide label
+tiers in (b). The current recommended probabilistic axis is
+V2.5-sigmoid; §5.2.2 reports the whole-genome V2.5-sigmoid panel and
+the limma-eBayes baseline. This figure is retained to show that
+V2.5-diff's matched-cell-line rank lift is stable across label
+granularities, while lower-axis ordering reshuffles and tissue
+`tumor_only` wins raw AUC with unusable tied bands.
 
 ### 5.1 Primary endpoint — matched cell-line AUC at validated Roth probes
 
@@ -736,10 +594,10 @@ cell-line cohorts; V2.5's additional contribution is the
 tie-band-honest top-K reporting (§4.5) and the probability-scale
 composition with future factors, not the AUC point alone.
 
-On the independent primary endpoint (GSE322563 validated), V2.5 is
+On the independent primary endpoint (GSE322563 validated), V2.5-diff is
 the highest-AUC axis — +0.17 over V1 and +0.06 over the deprecated
 V2 `tumor_only` composite. On the development cohort (GSE77348
-validated), V2.5 is similarly the highest-AUC axis (+0.01 over V1,
+validated), V2.5-diff is similarly the highest-AUC axis (+0.01 over V1,
 +0.07 over `tumor_only`); this is consistent with the primary-
 endpoint result but is not an independent replication, since the
 same cohort selected δ = 0.2 pre-repair-labels (§4.0).
@@ -756,7 +614,7 @@ GSE69914, all four axes including Δβ-only, is at
 
 **GSE322563 HM450 (primary, N=2,979,997 candidates):**
 
-| gene | β_t | β_n | Δβ | V1 rank (%ile) | V2.5 rank (%ile) | Δβ-only rank (%ile) |
+| gene | β_t | β_n | Δβ | V1 rank (%ile) | V2.5-diff rank (%ile) | Δβ-only rank (%ile) |
 |---|---:|---:|---:|---:|---:|---:|
 | *ESR1*   | 0.07 | 0.94 | 0.87 | **844** (99.97%) | **2,575** (99.91%) | 4,742 (99.84%) |
 | *EGFLAM* | 0.02 | 0.49 | 0.48 | 839,106 (71.84%) | 64,433 (97.84%) | 67,620 (97.73%) |
@@ -764,7 +622,7 @@ GSE69914, all four axes including Δβ-only, is at
 
 **GSE77348 (development cohort for δ, N=2,979,997):**
 
-| gene | β_t | β_n | Δβ | V1 rank (%ile) | V2.5 rank (%ile) | Δβ-only rank (%ile) |
+| gene | β_t | β_n | Δβ | V1 rank (%ile) | V2.5-diff rank (%ile) | Δβ-only rank (%ile) |
 |---|---:|---:|---:|---:|---:|---:|
 | *ESR1*   | 0.03 | 0.87 | 0.84 | **1,618** (99.95%) | **3,965** (99.87%) | 8,733 (99.71%) |
 | *EGFLAM* | 0.005 | 0.34 | 0.33 | 257,041 (91.37%) | 124,925 (95.81%) | 178,663 (94.01%) |
@@ -772,12 +630,12 @@ GSE69914, all four axes including Δβ-only, is at
 
 **Reading the table.**
 *ESR1* drives the AUC story: it is in the top ~0.05% of the score
-distribution under V2.5 on both matched cell-line cohorts, with V1
+distribution under V2.5-diff on both matched cell-line cohorts, with V1
 also placing it well. *EGFLAM* and *GATA3* sit in the top 1–3%
-under V2.5 — meaningful rank lift over V1, but **outside the top
+under V2.5-diff — meaningful rank lift over V1, but **outside the top
 100 on every axis tested**. None of the three validated positives
 appears in any cohort's top-20 (§5.5). This is the operational
-meaning of "rank lift on n=3": V2.5 reliably places known positives
+meaning of "rank lift on n=3": V2.5-diff reliably places known positives
 in the top percentile of millions of candidates, but on n=2/2 cohorts
 the top tied band at K=100 is large enough that the validated
 positives sit *behind* a 190- to 421-record block of equally-scored
@@ -786,26 +644,16 @@ candidates.
 The ESR1-dominance also implies AUC is fragile: if ESR1 alone
 moved out of the top 10,000 on GSE322563, the AUC would drop
 from 0.990 to roughly the average of the other two positives'
-percentiles ≈ 0.985 (still high), but the AUC *gap* between V2.5
+percentiles ≈ 0.985 (still high), but the AUC *gap* between V2.5-diff
 and Δβ-only would also compress.
 
 #### 5.1.2 Descriptive AUC uncertainty
 
-At `n_pos = 3`, exact / permutation / bootstrap AUC intervals can
-be defined but are coarse and dominated by the rank of each
-positive — they are not very informative or stable as inferential
-statistics. We therefore report two descriptive distributions
-instead (reproducible via `uv run scripts/auc_uncertainty.py`):
-
-- **Permutation null** — 1,000,000 draws of three random candidates
-  uniformly without replacement from the full candidate set; AUC
-  computed under benchmark mid-rank tie handling. The empirical
-  *p*-value is `Pr(AUC_random_triple ≥ AUC_observed)`; the
-  resolution floor is 1/(10⁶+1) ≈ 1 × 10⁻⁶.
-- **Negative bootstrap** — 1,000 resamples of the negative set with
-  replacement (the three positive scores held fixed). The bootstrap
-  spread is small by construction here because we hold the
-  positives' ranks fixed; it is reported for completeness.
+At `n_pos = 3`, inferential AUC intervals are coarse and dominated by
+the rank of each positive. We therefore report a 1,000,000-draw
+random-triple null: draw three random candidates without replacement,
+compute AUC under the same mid-rank tie handling, and estimate
+`Pr(AUC_random_triple ≥ AUC_observed)`.
 
 | cohort | axis | observed AUC | random-triple null 2.5–97.5% | one-sided *p* (Pr ≥ obs) |
 |---|---|---:|---|---:|
@@ -819,85 +667,32 @@ instead (reproducible via `uv run scripts/auc_uncertainty.py`):
 | GSE77348             | Δβ-only        | 0.972 | [0.177, 0.823] | 1.1 × 10⁻⁴ |
 | **GSE77348**         | **V2.5 diff**  | **0.982** | [0.176, 0.823] | **2.8 × 10⁻⁵** |
 
-Values generated via
-`uv run scripts/auc_uncertainty.py --n-perm 1000000 --output-prefix examples/auc_uncertainty_1e6`;
-committed artifact at `examples/auc_uncertainty_1e6.md`. The earlier
-10⁴-draw run is preserved at `examples/auc_uncertainty.md` for
-historical comparison.
+V2.5-diff is the strictest listed axis on every row and sits below the
+old 10⁴-draw resolution floor, but this is an against-random check, not
+a superiority test between axes. The direct paired comparison with
+Δβ-only is descriptive (§5.1.3). Full output:
+`examples/auc_uncertainty_1e6.md`; the negative bootstrap is omitted
+from the body because holding the positives fixed makes the spread
+mechanically collapse to ±0.001.
 
-What this table does and does not say:
+#### 5.1.3 Paired per-positive rank lift: V2.5-diff vs Δβ-only
 
-- **It shows that none of the listed axes reach their observed AUC
-  by chance.** The one-sided *p* is ≤ 0.022 on every cohort × axis
-  cell in the table. The rank-lift signal at `n_pos = 3` is real
-  for every listed axis, not just for V2.5.
-- **V2.5 is resolved below the 10⁴-draw floor and is the strictest
-  axis on every cohort.** V2.5-diff sits at `p = 4 × 10⁻⁶` /
-  `1.5 × 10⁻⁵` / `2.8 × 10⁻⁵` on the three primary cohorts. The
-  gap against Δβ-only is now fully resolved: V2.5-diff is ~20×
-  stricter on GSE322563 HM450 (4e-6 vs 8.6e-5), ~20× on native
-  EPIC v2 (1.5e-5 vs 3.1e-4), and ~4× on GSE77348 (2.8e-5 vs
-  1.1e-4). V1 is the weakest axis on every cohort (2.2e-2 on
-  HM450, 1.3e-3 on native, 1.6e-4 on GSE77348).
-- **This is an against-random check, not a superiority test between
-  axes.** The null asks "does this axis separate these three
-  positives from random triples?" Direct pairwise comparison
-  between V2.5 and Δβ-only on the same positives is reported
-  separately in §5.1.3 and is correctly framed there as
-  descriptive, not inferential (sign-flip `p_one_sided = 0.125` at
-  `n_pos = 3`).
+The paired comparison with Δβ-only on the same three positives
+(`uv run scripts/paired_rank_lift_v25_vs_dbeta.py`):
 
-We do **not** report the negative-bootstrap spread in the body —
-because positive scores are held fixed and the negative pool is
-3 × 10⁶ records, the spread collapses to ±0.001 across every cell
-(see `examples/auc_uncertainty.md`). At this scale the negative
-pool is essentially a population, not a sample, so the bootstrap
-spread is mechanical rather than inferentially meaningful.
-
-#### 5.1.3 Paired per-positive rank lift: V2.5 vs Δβ-only
-
-The §5.1.2 permutation null tests each axis separately against
-uniformly-random 3-record positive triples. That answers whether
-each axis separates *these three* positives from the rest of the
-candidate set, but does not directly compare V2.5 against Δβ-only
-*on the same positives and same negative universe*. The direct
-paired comparison (reproducible via
-`uv run scripts/paired_rank_lift_v25_vs_dbeta.py`):
-
-| cohort | *ESR1* Δβ-only rank / V2.5 rank | *EGFLAM* Δβ / V2.5 | *GATA3* Δβ / V2.5 | positives where V2.5 &gt; Δβ-only |
+| cohort | *ESR1* Δβ-only rank / V2.5-diff rank | *EGFLAM* Δβ / V2.5-diff | *GATA3* Δβ / V2.5-diff | positives where V2.5-diff &gt; Δβ-only |
 |---|---:|---:|---:|:---:|
 | GSE322563 HM450      | 4,742 / 2,575   | 67,620 / 64,433   | 159,932 / 24,083  | **3 / 3** |
 | GSE322563 native v2  | 9,085 / 5,746   | 185,641 / 158,502 | 422,569 / 50,096  | **3 / 3** |
 | GSE77348             | 8,733 / 3,965   | 178,663 / 124,925 | 61,254 / 28,325   | **3 / 3** |
 
-On every matched cell-line cohort, V2.5 ranks **all three**
-validated positives higher than Δβ-only does. The aggregate rank
-lift (sum over the three positives of `r_Δβ − r_V2.5`) is
-+141,203 (HM450), +402,951 (native EPIC v2), and +91,435
-(GSE77348) — V2.5 moves each positive multiple thousand
-positions up the ranking on average.
-
-**Where V2.5's paired advantage concentrates.** The per-positive
-table makes a secondary observation visible: *GATA3* — the
-validated positive with the smallest raw β gap (Δβ ≈ 0.28 on
-GSE322563 HM450, vs ≈ 0.48 for EGFLAM and ≈ 0.87 for ESR1;
-§5.1.1) — is where V2.5's advantage over Δβ-only is largest on
-every cohort (+135,849 positions on HM450, +372,473 on native,
-+32,929 on GSE77348; cf. +2k–+27k for the other two positives).
-This is consistent with the intended role of `p_targ × p_trust`:
-they help most where the naive gap signal is weakest, not where
-it is already large. One positive is not a strong basis for a
-general claim, but the direction is the one the composite was
-designed to produce.
-
-**Statistical caveat.** A paired sign-flip permutation null (2³ =
-8 equiprobable sign patterns, each flipping independently which
-axis is "assigned" to which per-positive rank) floors the
-one-sided *p*-value at **0.125** when all three signs agree — which
-they do on every cohort here. With `n_pos = 3` this is the best
-resolution the paired test can achieve. Read it as a *descriptive*
-3-for-3 agreement with the direction of the V2.5 AUC improvement,
-not as an inferential significance result.
+V2.5-diff ranks all three positives above Δβ-only on every matched
+cell-line row. The largest lift concentrates at *GATA3*, the positive
+with the smallest raw β gap, consistent with the composite helping most
+where naive Δβ is weakest. The sign-flip paired null has only 2³
+patterns and floors at one-sided *p* = 0.125 when all three signs agree,
+so this is descriptive 3-for-3 directional evidence, not an inferential
+superiority claim.
 
 ### 5.2 Sensitivity analyses: label granularity and P@K intervals
 
@@ -905,7 +700,7 @@ not as an inferential significance result.
 ordering under weaker label definitions (narrow ±50 bp, wide
 ±500 bp):
 
-| cohort | label set | n_pos | n_neg | Δβ-only | V1 | tumor_only | V2.5 | V2.5 − Δβ-only |
+| cohort | label set | n_pos | n_neg | Δβ-only | V1 | tumor_only | V2.5-diff | V2.5-diff − Δβ-only |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | GSE322563 | validated | 3 | 2,979,994 | 0.974 | 0.821 | 0.928 | **0.990** | +0.016 |
 | GSE322563 | narrow | 28 | 2,979,969 | 0.912 | 0.884 | 0.886 | **0.942** | +0.030 |
@@ -914,7 +709,7 @@ ordering under weaker label definitions (narrow ±50 bp, wide
 | GSE77348 | narrow | 28 | 2,979,969 | 0.964 | 0.969 | 0.911 | **0.983** | +0.019 |
 | GSE77348 | wide | 142 | 2,979,855 | 0.910 | 0.931 | 0.887 | **0.949** | +0.039 |
 
-V2.5 remains the highest-AUC axis on both cohorts at every label
+V2.5-diff remains the highest-AUC axis on both cohorts at every label
 granularity. No retuning of `δ` between rows.
 
 **P@K intervals.** On `n = 2 / 2` and `n = 3 / 3` cohorts the score
@@ -960,14 +755,14 @@ native EPIC v2 catalog (5.22M candidates vs the HM450 catalog's
 | wide | 142 | 2,979,855 / 5,223,940 | tumor_only | 0.871 | 0.916 | +0.044 |
 | wide | 142 | 2,979,855 / 5,223,940 | V2.5 differential | 0.910 | 0.945 | +0.035 |
 
-The V2.5 primary-endpoint AUC moves by 0.003 (well within the
+The V2.5-diff primary-endpoint AUC moves by 0.003 (well within the
 tied-band noise floor on this n=2/2 cohort). V1 gains the most under
 native EPIC v2 — its continuous score ranks the validated targets
 higher relative to easy-negative candidates added by the larger
-catalog. The relative axis ordering (V2.5 > V1) is preserved across
+catalog. The relative axis ordering (V2.5-diff > V1) is preserved across
 both ingest paths. The HM450-intersect shortcut is therefore not
-materially distorting the headline V2.5 claim. Tied bands grow
-modestly with the larger catalog (V2.5 differential: 190 → 421;
+materially distorting the headline V2.5-diff claim. Tied bands grow
+modestly with the larger catalog (V2.5-diff: 190 → 421;
 tumor_only: 10,005 → 14,914; V1 stays at 1).
 
 #### 5.2.1 Factor ablation: does `p_diff` do the work, or does the floor?
@@ -993,35 +788,19 @@ We replace `p_diff` with two simpler gap factors, keeping `p_targ`,
 
 AUC at the n = 3 Roth-validated positives:
 
-| cohort | V2.5 (full `p_diff`) | sigmoid ablation | hard-threshold ablation |
+| cohort | V2.5-diff (full `p_diff`) | sigmoid ablation | hard-threshold ablation |
 |---|---:|---:|---:|
 | GSE322563 HM450      | 0.990 | 0.989 | 0.990 |
 | GSE322563 native v2  | 0.986 | 0.986 | 0.988 |
 | GSE77348             | 0.982 | 0.982 | 0.986 |
 | **GSE69914 (tissue)**    | **0.773** | **0.864** | 0.497 |
 
-**Two findings, both candid.**
-
-1. **On matched cell-line cohorts, `p_diff`'s per-site structure
-   is not doing the work.** All three gap factors land within 0.001
-   AUC of each other on every cell-line row. The σ_floor is
-   dominating σ_Δ on essentially every observed record (§3.5), so
-   the per-site normal approximation collapses to a fixed-bandwidth
-   sigmoid in practice, and the bare hard threshold `Δβ > 0.2`
-   matches or slightly beats full V2.5 on all three cell-line
-   cohorts. **On low-`n` matched cell-line data, the value of
-   V2.5 is structural — probability-scale composition, tie-band-
-   honest top-K reporting, and the `p_targ / p_trust` wrapping —
-   not AUC improvement from `p_diff`'s shape.**
-
-2. **On tissue, the fixed-bandwidth sigmoid *beats* full V2.5 by
-   +0.09 AUC, and the hard threshold collapses to near-random.**
-   At n = 305/50, σ_floor binds on only 43% of records both-sides
-   (§3.5), so per-site σ_Δ actually has room to vary — and the
-   variation it produces evidently *hurts* the ranking on tissue
-   relative to a fixed bandwidth. The hard threshold collapse
-   (AUC 0.497) confirms smoothness itself is load-bearing on
-   tissue, unlike on cell lines.
+Two findings follow. On matched cell lines, `p_diff`'s per-site
+structure is not doing the AUC work: all three gap factors land within
+0.001 AUC because σ_floor binds on essentially every record (§3.5). On
+tissue, the fixed-bandwidth sigmoid beats V2.5-diff by +0.09 AUC while
+the hard threshold collapses to chance. Smoothness matters on tissue;
+per-site σ adaptation does not help this label set.
 
 **Bandwidth robustness of the tissue finding** (§5.2.1 single-point
 ablation used σ_fixed = √2 · σ_floor ≈ 0.0707; reproducible via
@@ -1034,20 +813,10 @@ ablation used σ_fixed = √2 · σ_floor ≈ 0.0707; reproducible via
 | GSE77348             | 0.982 | 0.982 | 0.979 | 0.965 | 0.982 |
 | **GSE69914 (tissue)**    | **0.862** | **0.864** | **0.830** | **0.821** | **0.773** |
 
-The tissue gain is **bandwidth-robust**: every tested σ_fixed in
-{0.05, 0.0707, 0.10, 0.15} beats shipped V2.5 on tissue (+0.05
-to +0.09 AUC). The single-point +0.09 in §5.2.1 is therefore not
-a lucky bandwidth choice. On matched cell-line cohorts, the
-sigmoid family matches shipped V2.5 within 0.02 AUC across the
-entire 3×-range bandwidth sweep (only σ_fixed = 0.15 drops
-noticeably, reflecting that a bandwidth much wider than σ_floor
-starts smearing out the gap signal).
-
-This shifts the interpretation: `p_diff`'s tissue underperformance
-is not an unresolved one-point observation — it is a demonstrated
-systematic tissue weakness across a 3×-range bandwidth family, and
-a fixed-bandwidth sigmoid is a credible candidate gap factor for
-tissue cohorts.
+Every tested σ_fixed beats V2.5-diff on tissue (+0.05 to +0.09 AUC);
+on matched cell lines the sigmoid family stays within 0.02 AUC except
+at the widest bandwidth. The tissue result is therefore not a one-point
+artifact and motivates V2.5-sigmoid as the recommended gap factor.
 
 #### 5.2.2 Genome-wide panel: shipped V2.5 vs `gap_sigmoid` across all four cohorts
 
@@ -1090,43 +859,14 @@ committed panel is at `examples/genome_wide_panel.md`.
 | GSE77348              | **1,493** | 1 | 1 | 1 |
 | GSE69914 (tissue)     | 1         | 4 | 6 | 6 |
 
-**Four findings.**
-
-1. **AUC on matched cell-line cohorts is denominator-robust and
-   indistinguishable across axes.** Under the WG expansion (~7× on
-   HM450, ~7× on native EPIC v2), all matched cell-line axes land
-   within 0.001 of their chr5/6/10 AUC, and V2.5 / gap_sigmoid /
-   hard-threshold remain within 0.002 of each other. The §5.2.1
-   cell-line parity conclusion survives the denominator expansion.
-
-2. **On matched cell-line cohorts at WG scale, shipped V2.5's top-K
-   becomes unusable while `gap_sigmoid`'s stays clean.**
-   `tie_band@100` for shipped V2.5 on WG is **1,127 / 421 / 1,493**
-   across GSE322563 HM450 / native v2 / GSE77348 — top-100 sits
-   inside a 400- to 1,500-record tied band in every case. For
-   `gap_sigmoid` at every tested bandwidth, `tie_band@100 = 1` on
-   all three cell-line cohorts. This is the cell-line analog of the
-   low-`n` tied-band prediction in §3.5 extended to the wider
-   denominator: on n = 2/2 and 3/3 cohorts, the σ_floor binds on
-   ~99% of records (§3.5 binding rate), so p_diff × p_trust
-   saturates to the same value on a ~1,000-record band of clean
-   differential candidates that all share the same EvidenceClass.
-   `gap_sigmoid`'s fixed-bandwidth response resolves that band
-   continuously.
-
-3. **On tissue, `gap_sigmoid` wins on AUC (+0.05 to +0.08) and
-   keeps tie_band small** — §5.2.1 finding extended to the WG
-   denominator: +0.083 at σ = 0.0707 (0.862 vs 0.778), +0.083 at
-   σ = 0.05 (0.861 vs 0.778). Tie bands stay in single digits on
-   both axes.
-
-4. **Rank-lift remains the stable claim; top-100 discovery is
-   still not the headline.** P@100 is [0.000, 0.000] on every
-   cohort × axis at WG scale: none of the three Roth-validated
-   positives lands in the top 100 out of ~20–35M candidates under
-   any axis. AUC rank-lift and per-positive percentile ranks
-   (§5.1.1, now in `examples/genome_wide_panel.md` for WG) are
-   the stable claims.
+The WG panel resolves three questions. First, matched-cell-line AUC is
+denominator-robust: all axes remain within 0.002 of the chr5/6/10 rows.
+Second, V2.5-diff's low-`n` top-K degeneracy appears only at scale:
+`tie_band@100` expands to 421–1,493 records, while gap_sigmoid stays at
+1 on all matched cell-line WG cohorts. Third, the tissue gap_sigmoid
+advantage survives the WG denominator (+0.05 to +0.08 AUC) with
+single-digit tie bands. P@100 remains zero for the three Roth positives
+at WG scale; the stable claim is rank lift, not top-100 recovery.
 
 **Does `gap_sigmoid` on tissue need δ = 0.1 (per §5.3.2's `p_diff`
 finding) or δ = 0.2 (the shipped default)?** §5.3.2 showed `p_diff`
@@ -1140,24 +880,15 @@ to `gap_sigmoid`. Result (`examples/gse69914_wg_gating_delta_0_1.md`):
 | 0.0707  | 0.862 | 0.831 | **−0.031** |
 | 0.10    | 0.825 | 0.821 | −0.004 |
 
-The `p_diff` δ = 0.1 advantage does *not* transfer cleanly to
-`gap_sigmoid`: only the narrowest tested bandwidth (σ_fixed = 0.05)
-marginally improves at δ = 0.1, while the bandwidth-robust default
-σ_fixed ≈ 0.0707 actually *drops* by 0.031 AUC under δ = 0.1.
-δ = 0.2 is therefore retained as the shipped default for both
-modes (V2.5 and gap_sigmoid). The §5.3.2 δ = 0.1 tissue finding
-remains valid as a property of `p_diff`'s per-site σ_Δ behavior on
-tissue, but is not a generic tissue-mode default.
+The `p_diff` δ = 0.1 tissue advantage does not transfer cleanly to
+gap_sigmoid; at the default σ_fixed ≈ 0.0707, δ = 0.1 drops by 0.031
+AUC. δ = 0.2 is therefore retained as the cross-mode default.
 
-**Reading the cross-cohort tables together.** `gap_sigmoid` is
-**uniformly equal-or-better to shipped V2.5 across every cohort
-shape we have tested at WG scale**: AUC within 0.002 on matched
-cell-line, AUC +0.05 to +0.08 on tissue (at δ = 0.2 — the table
-above shows this is robust to δ ∈ {0.1, 0.2} at σ_fixed = 0.05 and
-to bandwidth choice at δ = 0.2), `tie_band@100 = 1` on cell-line
-(vs up to 1,500 for V2.5), `tie_band@100 ≤ 6` on tissue (vs 1 for
-V2.5). **No cohort × dimension cell prefers shipped V2.5 over
-`gap_sigmoid`.**
+Together, these tables support the current recommendation:
+gap_sigmoid is uniformly equal-or-better than V2.5-diff across every
+tested non-boundary cohort × denominator combination, with AUC parity
+on matched cell lines, higher AUC on tissue, and far smaller WG top-K
+tied bands.
 
 **Cross-cohort comparison against the limma-eBayes DMR baseline**
 (§4.3 exclusion-rationale paragraph; cross-cohort panel at
@@ -1170,40 +901,12 @@ V2.5). **No cohort × dimension cell prefers shipped V2.5 over
 | GSE77348             | 0.962 | 0.982 | 0.981 | 115 | 1 |
 | **GSE69914 (tissue)**    | **0.573** | 0.778 | **0.862** | 57 | 6 |
 
-limma-eBayes is a respectable matched-cell-line DMR baseline (AUC
-0.96 under a 0.999-probe-filtered candidate mapping), but trails
-V2.5-sigmoid by 0.02–0.03 AUC on cell lines and **collapses to
-near-random (0.57) on tissue**. The compositional skeleton's
-`p_targ × p_trust` wrapping is what converts a ~chance probe-level
-statistic on bulk-tissue data into a 0.86-AUC usable discovery
-axis; the skeleton is the durable contribution, not the gap
-factor's specific shape. limma-eBayes also has larger tie bands
-(39–115 at K=100) than V2.5-sigmoid (=1) on cell-line cohorts, so
-its top-K is intermediate in usability — better than V2.5-diff's
-421–1,493-record bands but not as clean as V2.5-sigmoid's.
-Reproducible via `scripts/run_limma_per_cohort.py` +
-`scripts/limma_candidate_ranking.py` + `scripts/limma_cross_cohort_panel.py`.
-
-This is the "V2.5's genome-wide low-n tied bands explode" branch
-of the reviewer's decision tree. The paper's recommendation
-(updated in §6.1 and the abstract) is therefore:
-
-- `gap_sigmoid` is the recommended probabilistic ranking axis
-  across all tested non-boundary cohort shapes.
-- Shipped V2.5 is retained for backward compatibility + AUC
-  parity, but is no longer recommended over `gap_sigmoid` on any
-  tested regime.
-- Both ship as selectable `probabilistic_mode` enum values
-  (`tumor_plus_differential_protection` for V2.5,
-  `tumor_plus_gap_sigmoid` for gap_sigmoid) in this tag. The
-  gap_sigmoid mode is implemented in `thermocas.probabilistic` as
-  `p_gap_sigmoid(obs, delta, sigma_fixed)`, with the matching
-  `CohortConfig` field `sigma_fixed` (default √2 × σ_floor ≈
-  0.0707; required strictly positive) and full pydantic-validator
-  enforcement of the mode-specific audit fields. End-to-end tests
-  in `tests/test_probabilistic.py` cover the new mode dispatch,
-  composite formula, iff field semantics, and the σ_fixed = 0
-  guard.
+limma-eBayes is a credible matched-cell-line DMR baseline but collapses
+to near-random on tissue, where V2.5-sigmoid reaches 0.862. That contrast
+is the clearest evidence that the compositional wrapper (`p_targ ×
+p_trust`) is doing work a pure probe-level differential statistic cannot.
+Reproducible artifacts: `examples/limma_cross_cohort_panel.md` and
+`examples/genome_wide_panel.md`.
 
 ### 5.3 Tissue-cohort behavior — GSE69914 (high-`n`, tissue biology)
 
@@ -1273,46 +976,13 @@ implementation constant in the V2.5 composite (§3.1). A sweep over
 | GSE77348             | 0.983 (1,019) | **0.982 (299)**   | 0.981 (1)     | 0.967 (1) |
 | GSE69914 (tissue)    | 0.705 (2)     | **0.773 (2)**     | 0.854 (1)     | 0.823 (4) |
 
-**Three findings.**
-
-1. **The matched cell-line invariant survives σ_floor variation.**
-   On all three matched cell-line cohorts (GSE322563 HM450,
-   GSE322563 native EPIC v2, GSE77348), AUC moves by ≤0.02 across
-   the entire 7.5×-range σ_floor sweep, and V2.5 remains the
-   highest-AUC axis at σ_floor ≤ 0.10 on all three cohorts. At the
-   far end of the sweep (σ_floor = 0.15) V2.5 on GSE77348 drops to
-   0.967, narrowly behind V1 at 0.968 and raw Δβ-only at 0.972
-   (§5.1); the matched-cell-line ranking conclusion is therefore
-   robust at the shipped default and across the tissue-suggested
-   σ_floor = 0.10, but is not "highest-AUC at every σ_floor"
-   unconditionally. The reviewer-salient conclusion is that small
-   σ_floor perturbations around the shipped default do not flip the
-   ranking.
-
-2. **σ_floor is a tied-band lever, not an AUC lever.** On the
-   low-`n` cell-line cohorts the K=100 tied band shrinks
-   monotonically from 719 → 190 → 1 → 1 (HM450); at σ_floor ≥ 0.10
-   the visible top-100 becomes a *genuine* top-100 with no tied
-   window. This is mechanistically what §3.5 predicts: a larger
-   σ_floor prevents both `p_targ` and `p_diff` from saturating to 1
-   on wide-IQR low-`n` records, so the composite stops collapsing
-   into uniform `p_trust` bands.
-
-3. **Tissue is genuinely σ_floor-sensitive.** GSE69914 AUC moves
-   non-monotonically across the sweep (0.705 → 0.773 → 0.854 →
-   0.823) and the AUC peak is at σ_floor = 0.10, not at the
-   shipped default of 0.05. Per-positive ranks at σ_floor = 0.10
-   on tissue: ESR1 stays at 87.95 percentile; EGFLAM rises from
-   53.5 → 73.7 percentile; GATA3 rises from 81.2 → 94.6
-   percentile. We do not retune the default on the basis of one
-   tissue cohort, but the finding *is* a real sensitivity that
-   tissue-cohort users should run for themselves: σ_floor 0.05 may
-   be the wrong default in regimes where per-side IQRs are
-   genuinely realistic and the floor is over-broadening σ_Δ. A
-   tissue-cohort default sweep is on the §6.3 follow-up list.
-
-The full per-positive rank grid at every σ_floor (4 cohorts × 3
-genes × 4 floors = 48 rows) is at
+Matched-cell-line AUC is robust near the shipped default: movement is
+≤0.02 across the 7.5× sweep, though at σ_floor = 0.15 GSE77348 drops
+slightly below V1 and raw Δβ-only. The stronger effect is top-K
+usability: on GSE322563 HM450 the K=100 tied band shrinks 719 → 190 → 1
+→ 1 as σ_floor increases. Tissue is genuinely σ_floor-sensitive:
+GSE69914 peaks at 0.854 when σ_floor = 0.10, not at the V2.5-diff
+default 0.05. Full per-positive grid:
 `examples/sigma_floor_sweep.md`.
 
 ### 5.3.2 δ sensitivity
@@ -1336,37 +1006,14 @@ originally selected; results at δ ≠ 0.2 on that row are *post hoc*
 sensitivity. The other three rows are honest sensitivity since δ was
 not selected against them.)
 
-**Three findings.**
-
-1. **The matched cell-line invariant survives δ variation.** All
-   three matched cell-line cohorts move by ≤ 0.014 AUC across the
-   entire 5×-range δ sweep, and V2.5 remains an order of magnitude
-   better than chance on every δ tested (compare with the §5.1.2
-   permutation-null `p ≤ 1 × 10⁻⁴` floor at δ = 0.2). The matched
-   cell-line ranking conclusion is δ-stable.
-
-2. **δ = 0.2 is borderline-conservative on cell lines.** δ = 0.3
-   slightly outperforms 0.2 on both GSE322563 paths and on GSE77348
-   while collapsing the K=100 tied band from hundreds → single-digit.
-   The substantive reason to stay at δ = 0.2 is that the larger
-   tied band functions as conservative triage: it flags more
-   candidates for secondary review (annotation, guide quality, etc.)
-   rather than committing the ranking to a narrow top-K at n = 2/2.
-   (We also cannot re-tune against the primary endpoint without
-   violating the development-cohort discipline of §4.0, but that is
-   a methodological constraint, not an argument for 0.2 over 0.3 on
-   its substantive merits.)
-
-3. **Tissue prefers smaller δ.** GSE69914 AUC drops monotonically
-   with δ (0.827 → 0.643), the inverse of the cell-line story. δ =
-   0.1 outperforms the default 0.2 by +0.05 AUC on tissue. As with
-   σ_floor (§5.3.1), this is a real tissue-specific sensitivity and
-   the appropriate response is a tissue-cohort default re-tune, not
-   re-tuning the default against a single tissue cohort. Listed as
-   §6.3 follow-up.
-
-The full per-positive rank grid at every δ (4 cohorts × 3 genes ×
-5 deltas = 60 rows) is at `examples/delta_sensitivity_sweep.md`.
+Matched-cell-line AUC is δ-stable (≤0.014 movement across the sweep).
+δ = 0.3 slightly improves AUC and shrinks tied bands, but δ = 0.2 is
+retained because it was fixed before primary evaluation and functions as
+conservative triage on low-`n` cohorts. Tissue shows the opposite
+direction for V2.5-diff: AUC drops from 0.827 at δ = 0.1 to 0.643 at
+δ = 0.5. This tissue-specific `p_diff` sensitivity does not transfer
+cleanly to gap_sigmoid (§5.2.2). Full grid:
+`examples/delta_sensitivity_sweep.md`.
 
 ### 5.4 Out-of-distribution boundary case — GSE68379
 
@@ -1410,327 +1057,88 @@ GSE68379's own β values would be circular (labels derived from the
 data under test). It remains in the documentation as a documented
 boundary case.
 
-![Top-20 gene presence per axis × cohort](docs/figures/fig3_topgene_heatmap.png)
-
-**Figure 3.** Per-(axis × cohort) top-20 gene presence, ordered so
-that the most-shared genes appear at the top. **Five columns**:
-GSE322563 HM450 V1, GSE322563 HM450 V2.5, GSE322563 native EPIC v2
-V2.5, GSE77348 V2.5, GSE69914 V2.5. Blue column headers mark cohorts
-where `tie_band ≤ 2` and the top-20 is the genuine top-20 of the
-score distribution; red column headers mark cohorts where
-`tie_band ≫ K` (190 / 421 / 299 for the three cell-line V2.5 cohorts)
-and the top-20 is a 20-record window inside the tied band selected
-by the documented `candidate_id` ascending tie-break. Bold-blue
-gene rows appear in **all three** cell-line V2.5 top-20 windows
-(GSE322563 HM450, GSE322563 native EPIC v2, GSE77348) — that
-intersection is *CELF2* and *XPNPEP1*. On the cell-line cohorts
-shared membership is window convergence inside large tied bands,
-not robust ranking convergence; AUC (Fig. 2) is the stable claim
-at low n. V1 on GSE322563 has `tie_band = 1` and samples a different
-(broader) genomic neighborhood — RET, ZMIZ1, DPYSL4 and other rows
-it surfaces are robust under that axis. The GSE69914 tissue column
-has `tie_band = 2` and **shares no genes with any of the three
-cell-line V2.5 columns** — V2.5 is cohort-specific, not returning a
-fixed gene list across regimes; the tissue top-20 maps to 9 distinct
-nearest-gene symbols (COL21A1, FOXC1, FOXCUT, MAS1L, MAT2B, MXI1,
-RUNX2, SCML4, TENM2) that are entirely disjoint from the cell-line
-shortlists.
-
 ### 5.5 Top-hit annotation (tie-window-aware)
 
-An annotation pass (nearest gene + TSS distance + feature class + CpG-
-island context, from UCSC `refGene` and `cpgIslandExt` hg19 tables)
-was run on the top-20 of each score axis × cohort. Important phrasing
-note: on cohorts with large tied bands at K=100, the "top-20" is a
-20-record *window* inside that tied band, selected by the documented
-tie-break policy (`candidate_id` ascending). The membership of this
-window is not a robust property of the scorer in the way AUC is — a
-different deterministic tie-break would surface a different slice of
-the same band. The claims below are therefore phrased in terms of
-"present in the benchmark-selected top-20 window," not "the model
-converges on this gene."
-
-On the two matched cell-line cohorts (GSE322563 tie_band = 190;
-GSE77348 tie_band = 299):
-
-- **Present in the GSE322563 V2.5 top-20 window** (chr10 slice under
-  `candidate_id` ascending): KCNIP2, CALHM2, SORCS3-AS1, LINC00710,
-  CELF2 (×2), XPNPEP1, CELF2-AS2, ADRB1 (×3), ABLIM1, GFRA1 (×3),
-  PLPP4, DMBT1, BUB3, CTBP2 (×2).
-- **Present in the GSE77348 V2.5 top-20 window**: PITX3, BTRC, SORCS1,
-  LINC02624, CELF2-DT, CELF2, XPNPEP1, ADRB1, AFAP1L2, GFRA1 (×3)
-  (full TSV committed).
-- **Shared between the two top-20 windows**: ADRB1, CELF2, GFRA1,
-  XPNPEP1 (4 genes). This is cross-cohort convergence inside the
-  `candidate_id`-ascending slice of the tied bands, not cross-cohort
-  convergence of the underlying ranking. AUC is the stable claim at
-  low `n`; top-20 membership is a window claim.
-
-On GSE322563, V1 `final_score` has `tie_band = 1` and so its top-20
-is a genuine ordering of the full candidate set, not a window slice.
-It surfaces different and overlapping genes:
-
-- **GSE322563 V1 top-20** (tie_band = 1): ZMIZ1, DPYSL4, RET,
-  LINC02669, ADRB1, KCNIP2, TRIM31 (×5), CNPY3-GNMT, TTBK1, GFRA1,
-  IRX1, CTBP2, ADGRA1, LINC01163, ME1, NRG3. RET is included and is
-  notable as a well-established therapeutic target in medullary
-  thyroid cancer and RET-rearranged NSCLC; this is a robust top-20
-  claim under the V1 axis. Overlap with the V2.5 top-20 window on
-  the same cohort: ADRB1, CTBP2, GFRA1, KCNIP2.
-
-On GSE69914 (tissue, `n = 305 / 50`, tie_band = 2) the top-20 is
-essentially a genuine top-20:
-
-- **GSE69914 V2.5 top-20**: RUNX2 (×5), SCML4 (×5), FOXCUT, FOXC1,
-  MAS1L, COL21A1, MXI1, TENM2 (×3), MAT2B. β differentials are
-  smaller (0.17–0.31) than on cell lines (0.79–0.96) — primary
-  tissue is cell-type-heterogeneous, β regresses toward the middle.
-  Zero gene overlap with the cell-line top-20 windows. This is the
-  expected behavior: on a genuine top-20 (not a tied-band slice),
-  V2.5 is cohort-specific and does not return a fixed gene list.
-
-None of the three Roth-*Fig.-5d*-validated probes (EGFLAM T11, ESR1
-T17, GATA3 T18) appear in any cohort's top-20 — they appear in the
-top ~1% of the scored set (rank-lifted by AUC) but not in the top-
-100 slice. This is the expected behavior on cohorts with large
-tied bands at K = 100 and is why AUC, not P@K, is the primary
-endpoint.
+An annotation pass (nearest gene, TSS distance, feature class, CpG
+island context) was run on each benchmark-selected top-20 window. On
+low-`n` cell-line cohorts, those "top-20" lists are not stable ranked
+shortlists: they are 20-record windows inside much larger tied bands
+selected by the documented `candidate_id` tie-break. The four genes
+shared between the GSE322563 and GSE77348 V2.5-diff top-20 windows
+(ADRB1, CELF2, GFRA1, XPNPEP1) should therefore be read as window
+convergence inside tied bands, not convergence of the underlying
+ranking. On GSE69914 tissue (`tie_band@100 = 2`), top-20 membership is
+much closer to a genuine ordering and maps to a disjoint tissue-specific
+set (including RUNX2, SCML4, FOXC1/FOXCUT, MAS1L, COL21A1, MXI1,
+TENM2, MAT2B). Full annotated TSVs are committed under
+`examples/*/top20_annotated_*.tsv`. None of the three Roth-validated
+probes appears in any top-20; the primary endpoint is rank lift/AUC, not
+top-20 recovery.
 
 ---
 
 ## 6 · Discussion
 
-### 6.1 Hierarchy of use
+### 6.1 Recommended use
 
-Five use profiles, in order from most-recommended to unsupported:
+| Use case | Recommended axis | Rationale |
+|---|---|---|
+| New probabilistic discovery runs on tested non-boundary regimes | **V2.5-sigmoid** (`tumor_plus_gap_sigmoid`) | AUC-equivalent to V2.5-diff on matched cell lines, higher AUC on tissue, and `tie_band@100 = 1` on every matched-cell-line WG cohort (§5.2.2). |
+| Backward-compatible probabilistic runs | V2.5-diff (`tumor_plus_differential_protection`) | Retained for AUC parity with earlier scored JSONLs; not preferred for new WG-scale discovery because low-`n` tied bands expand to 421–1,493 records. |
+| Stable package default / deterministic top-K | V1 `final_score` | Continuous score with `tie_band = 1`; retained for backward compatibility and deterministic lists, not AUC leadership. |
+| Diagnostic ablation | V2 `tumor_only` | Useful AUC sanity check; not a discovery axis because top-K collapses into thousands-record tied bands. |
+| Cross-series label transport (GSE68379-like) | Unsupported | Cell-line drift can invert label logic; do not pool with discovery-mode benchmarks. |
 
-**1. Recommended probabilistic ranking axis — `gap_sigmoid`.**
-`p_therapeutic_selectivity = p_targ × sigmoid((β_n − β_t − δ) / σ_fixed) × p_trust`
-with σ_fixed ≈ √2 × σ_floor ≈ 0.0707 and δ = 0.2 (the shipped
-default; δ = 0.1 is competitive only at σ_fixed = 0.05 on tissue
-and is not the cross-cohort default — see §5.2.2 δ × σ_fixed
-table). Ships in this tag as
-`probabilistic_mode: tumor_plus_gap_sigmoid`, with `sigma_fixed`
-exposed as a new cohort-YAML field (default inherited from the
-package constant). Uniformly equal-or-better to shipped V2.5
-across every tested non-boundary cohort × dimension combination
-(§5.2.2 cross-cohort panel): AUC within 0.002 of V2.5 on all three
-matched cell-line cohorts at WG scale; AUC +0.05 to +0.08 on
-tissue at both chr5/6/10 and WG; `tie_band@100 = 1` on every
-matched cell-line cohort at WG scale (vs V2.5's 421–1,493 on the
-same WG catalogs, making V2.5's top-K unusable at WG scale for
-n = 2/2 or 3/3 cohorts). `tumor_only` has higher raw AUC on
-tissue but its K = 100 tie band disqualifies it as a discovery
-axis.
-
-**2. Retained for backward compatibility and AUC parity — shipped V2.5 (differential).**
-`probabilistic_mode: tumor_plus_differential_protection`. AUC
-matches `gap_sigmoid` on matched cell-line cohorts within
-≤ 0.002 (§5.2.1 ablation; §5.2.2 WG confirmation), which means
-existing benchmarks under this mode remain valid. But V2.5's
-top-K usability at WG scale on low-`n` cell-line cohorts is
-poor — its tie_band@100 is 421 / 1,127 / 1,493 under the WG
-denominator on GSE322563 native / GSE322563 HM450 / GSE77348 —
-so V2.5 is no longer the preferred axis for discovery shortlists
-on any tested regime. On tissue it is demonstrably beaten on
-AUC by `gap_sigmoid` (§5.2.1 + §5.2.2). Retained because (a)
-cohort YAMLs in production that name V2.5 continue to produce
-valid AUC, and (b) the tie-band degradation is a WG-scale
-phenomenon — users on chr-restricted catalogs may not see it.
-
-What V2.5 *is* on low-`n` matched cell-line cohorts (n=2/2 to 3/3)
-is a **rank-lift axis**: it lifts validated targets near the top of
-the score distribution (per-positive ranks in §5.1, AUC summary in
-the §5.1 table). What V2.5 is *not* on low-`n` cohorts is a stable
-top-K shortlist; the visible top-20 is a 20-record window inside a
-190- to 421-record tied band, and should be treated as identifying
-a **top tied candidate class** rather than a ranked shortlist.
-Selecting individual loci out of that tied class for wet-lab
-follow-up requires secondary evidence (annotation, chromatin,
-guide-quality, off-target risk) layered on top of V2.5 — not
-re-tuning V2.5 itself. The §5.5 annotation pipeline is the first
-step toward that kind of secondary evidence; it is descriptive,
-not a re-ranking.
-
-**3. Default stable scoring axis — V1 `final_score`.**
-Deterministic, continuous-valued score; `tie_band = 1` on every
-cohort tested, so P@K is never tie-break-dependent. Its role is
-backward compatibility and top-K determinism, not AUC leadership —
-V2.5 outperforms V1 on AUC at every non-boundary cohort × tier
-combination tested (12/12 rows across §5.1–§5.3). On the GSE68379
-boundary case, AUCs are inverted or near-random for every axis, so
-AUC leadership is not a meaningful concept there (§5.4).
-
-**4. Diagnostic-only — V2 `tumor_only`.**
-Competitive AUC on tissue (§5.3), but `tie_band_size_at_k` at
-K = 100 spans 5,271–14,914 across the five cohort paths tested
-(see §5.3 cross-cohort matrix); top-K is not interpretable. Use only
-for AUC sanity checks against V2.5, `gap_sigmoid`, or V1.
-
-**5. Unsupported — any axis at GSE68379.**
-Sanger MCF-7 epigenetic drift breaks label transportability from
-Roth Fig. 5d. Inverted AUC is the expected scorer response; do not
-pool this cohort's numbers with §5.1.
-
-"Recommended" in profile 1 means: for a user running `gap_sigmoid`
-on any non-boundary cohort shape matching §5.1–§5.3 (matched
-cell-line at n = 2/2 or 3/3, or primary tissue at n ≳ 30/side),
-the reported ranking benefit over the other shipped modes is
-real at both the chr5/6/10 and whole-genome probe-window
-denominators (§5.2.2). It does not mean `gap_sigmoid` is safe to
-use on cross-series transported labels (the §5.4 GSE68379
-boundary case is exactly the failure mode) — the regime-check
-diagnostics in §5.3.1 / §5.3.2 / §5.2.2 should be re-run on any
-new cohort before relying on the recommendation.
+On low-`n` matched cell-line cohorts, the V2.5 generation should be read
+as a **rank-lift tool**, not a stable top-K shortlist generator. It
+lifts the three Roth positives into the top percentile of millions of
+candidates (§5.1), but the visible top-20 can be a window inside a
+hundreds-record tied band. Selecting individual wet-lab candidates from
+that class requires secondary evidence such as annotation, chromatin
+context, guide quality, and off-target risk.
 
 ### 6.2 Limitations
 
-(Platform harmonization and catalog scope are part of the methodology
-proper — §4.4 — because they materially shape what the reported AUCs
-mean. They are cited briefly here as the methodological constraints
-they are.)
-
-1. **Low-replicate tie bands.** On cohorts with `n < ramp_n = 30`,
-   `p_trust` saturates and produces tied bands of 100s–1000s of
-   records at the top of the probabilistic composite.
-   `tie_band_size_at_k` and `precision_at_k_{min, max}` are reported
-   per benchmark result so that P@K is read as an interval. The
-   problem dissolves at `n ≳ 30` (demonstrated on GSE69914; §5.3).
-
-2. **HM450/EPIC harmonization (see §4.4 + §5.2 sensitivity).** The
-   primary GSE322563 results in §5.1 use the HM450-intersect path
-   (80.7% retention). A native EPIC v2 ingest is now also shipped;
-   the V2.5 primary-endpoint AUC differs by 0.003 (0.990 → 0.986)
-   under native vs intersect — well within the tied-band noise
-   floor on this n=2/2 cohort. The shortcut is not materially
-   distorting the headline claim. V1 gains the most under native
-   (+0.05 to +0.11 across label granularities) but the relative
-   axis ordering V2.5 > V1 is preserved.
-
-3. **Catalog scope and the negative universe (see §4.4).** The §5.1
-   AUCs are on chr5 / chr6 / chr10 candidates filtered to within
-   ±500 bp of an HM450 probe — a restricted negative universe chosen
-   because the three chromosomes carry the Roth Fig. 5d validated
-   positives. AUC is a function of the negative set; §5.2.2 now
-   reports the whole-genome extension of this denominator
-   (19.8M HM450 candidates, 35.4M native EPIC v2 candidates, all
-   frozen with SHA256 provenance) for all four cohorts under both
-   V2.5-diff and V2.5-sigmoid. The WG panel confirms the chr5/6/10
-   AUC finding is denominator-robust (≤0.005 AUC movement under the
-   ~7× expansion) and surfaces the separate `tie_band@100`
-   regression on V2.5-diff at WG scale that motivated the
-   V2.5-sigmoid recommendation. The remaining untested dimensions
-   are (a) random-chromosome-matched controls at the same probe
-   density, and (b) cohorts outside the four tested GEO series. Both
-   are on the §6.3 follow-up list.
-
-4. **Cell-line drift.** GSE68379 (§5.4) establishes that MCF-7 in
-   one lab is not the same epigenetic object as MCF-7 in another.
-   Any V2.5 target shortlist generated on a given cohort must be
-   validated against the specific cell line that will be used in
-   the follow-up editing assay, not against a different lab's stock
-   of the same-named line.
-
-5. **σ floor.** The 0.05 floor on per-side σ prevents σ_Δ from
-   collapsing to zero at boundary β-values. A sweep over
-   σ_floor ∈ {0.02, 0.05, 0.10, 0.15} (§5.3.1) shows that the
-   matched-cell-line AUC ranking is robust to σ_floor (≤0.02 AUC
-   movement across a 7.5× sweep), but tissue-cohort AUC is genuinely
-   σ_floor-sensitive (peaks at 0.10, not the shipped default 0.05).
-   A tissue-specific default re-tune is a §6.3 follow-up; the value
-   is left at 0.05 for cross-cohort consistency.
-
-6. **Top-20 membership is a window claim on low-`n` cohorts.** As
-   §5.5 states, the cell-line top-20 lists are 20-record windows
-   inside 190- and 299-record tied bands, selected by the
-   documented tie-break policy. The four-gene overlap (ADRB1,
-   CELF2, GFRA1, XPNPEP1) is convergence of the benchmark-selected
-   window, not a robust claim about the underlying scorer ordering.
-   AUC is the stable metric on low-`n` cohorts; top-20 membership
-   becomes a stable metric at `n ≳ 30` (GSE69914, `tie_band = 2`).
-
-7. **No wet-lab validation in this work.** V2.5 is a target-
-   prioritization tool. The claim is AUC + tie-band-aware top-K
-   reporting on public methylation data, not actual editing
-   efficiency at any specific site. All named top hits are
-   unvalidated predictions at this stage.
+1. **Small validated set.** The primary endpoint has three positives.
+   AUC is therefore rank lift on three sites, not generalized discovery
+   evidence; per-positive ranks are reported in §5.1.
+2. **Low-replicate tied bands.** For `n < ramp_n = 30`, probabilistic
+   scores can form hundreds-to-thousands-record tied bands. The
+   benchmark reports `tie_band_size_at_k` and adversarial P@K intervals
+   so top-K claims remain explicit.
+3. **Catalog and platform scope.** §5.1 uses chr5/6/10 HM450-scope
+   negatives because the validated Roth targets live there; §5.2.2
+   extends the denominator to frozen WG HM450 and native EPIC v2
+   catalogs. Random-chromosome-matched controls remain future work.
+4. **Cell-line drift.** GSE68379 shows that same-named MCF-7 stocks can
+   have opposite methylation at Roth targets. Cohort-specific
+   methylation must be verified before editing follow-up.
+5. **V2.5-diff σ_floor.** The 0.05 per-side σ floor is a V2.5-diff
+   constant. It is robust on matched cell lines but tissue-sensitive
+   (§5.3.1). The current recommendation is V2.5-sigmoid, whose
+   fixed-bandwidth behavior is evaluated separately in §5.2.2.
+6. **Top-hit annotation is descriptive.** Low-`n` top-20 lists are
+   tie-window slices, not stable rankings. They require secondary
+   biological filters before wet-lab selection.
+7. **No prospective wet-lab validation.** The claim is scoring and
+   tie-band-aware benchmarking on public methylation data, not editing
+   efficiency at named sites.
 
 ### 6.3 Next steps
 
-In priority order, not committed to any timeline:
-
-1. **Wet-lab editing validation** at the top V2.5-sigmoid candidates
-   on matched cell-line substrates — the terminal step and the one
-   that actually changes the scientific claim.
-2. **Random-chromosome-matched negative-universe controls.** The
-   whole-genome half of the negative-universe sensitivity is done
-   (§5.2.2 reports AUC + tie_band@100 on all four cohorts against
-   the frozen WG catalogs). What remains is a matched-probe-density
-   random-chromosome control — e.g. sample 3 random chromosomes
-   whose combined HM450-probe density matches chr5/6/10 within 10%,
-   rebuild the catalog, re-score, and confirm that the §5.1
-   chr5/6/10 AUCs are not specifically a function of those three
-   chromosomes' CpG-island landscape.
-3. **Regime presets shipped on top of the gap_sigmoid mode.** The
-   gap_sigmoid mode itself ships in this tag
-   (`probabilistic_mode: tumor_plus_gap_sigmoid`, `sigma_fixed`
-   field on `CohortConfig`). What remains is a one-shot `regime`
-   selector that picks (gap factor, σ_fixed, δ) defaults per
-   cohort regime. Per the §6.1 recommendation — V2.5-sigmoid is
-   the recommended probabilistic discovery axis across every
-   tested non-boundary regime — all non-boundary presets should
-   name the same gap factor:
-
-     - `matched_cell_line` → (`tumor_plus_gap_sigmoid`,
-       σ_fixed ≈ 0.0707, δ = 0.2) — §5.2.2 WG panel shows this
-       matches V2.5-diff's cell-line AUC within 0.002 and strictly
-       beats V2.5-diff on WG top-K usability.
-     - `primary_tissue` → (`tumor_plus_gap_sigmoid`,
-       σ_fixed ≈ 0.0707, δ = 0.2) — same mode, same bandwidth;
-       §5.2.2's δ × σ_fixed rerun confirmed that `p_diff`'s δ = 0.1
-       tissue-AUC peak does not transfer cleanly to `gap_sigmoid`,
-       so δ = 0.2 is the cross-regime default.
-     - `boundary` → emit warnings, no rank claims.
-     - `backward_compat` → (`tumor_plus_differential_protection`,
-       σ_floor = 0.05, δ = 0.2) — an explicit opt-in to V2.5-diff
-       for users who need AUC parity with the pre-ag scored
-       JSONLs, not a default.
-4. **`p_diff` re-derivation under SE-on-mean variance** (§3.3) as a
-   second probabilistic axis, so users can choose between the
-   biological-overlap and the cohort-power interpretations.
-5. **A continuous observation-confidence model** to replace the
-   `EvidenceClass` discrete-bin scheme: a learned or calibrated
-   confidence function over exact probe-distance, local probe
-   density, mask quality, platform, and local concordance. This
-   would address the central remaining coarseness of the §3.4
-   measurement model.
-6. **A second independent-lab MCF-7 / MCF-10A EPIC cohort**, if one
-   becomes public, to establish reproducibility of the V2.5 claim at
-   n ≥ 3 on matched cell-line pairs.
-7. **Formal SCREEN cCRE Registry integration** when a non-challenged
-   download path becomes available. The top-hit annotation pipeline
-   already ships nearest-gene, CpG-island context, RepeatMasker
-   overlap, and ENCODE DNase-HS cluster breadth (§5.5); DNase-HS is
-   the v1 regulatory-activity proxy for the formal cCRE Registry,
-   which currently sits behind a JavaScript challenge on
-   screen.wenglab.org and cannot be fetched directly.
-8. **R `limma` parity check** (supplementary): a small-matrix
-   comparison of our pure-python Smyth (2004) implementation
-   (§4.3, §5.2.2) against canonical `limma::lmFit` + `limma::eBayes`
-   output to tighten the "limma-style, not full Bioconductor
-   workflow" framing into a direct parity table.
-
-**Completed in this tag** (previously listed here as follow-ups;
-cross-references preserved so readers can trace the roadmap
-evolution): (a) Per-candidate moderated-`t` DMR baseline —
-limma-eBayes on sample-level β matrices for GSE322563, GSE77348,
-GSE69914 (§4.3, §5.1, §5.2.2; cross-cohort panel at
-`examples/limma_cross_cohort_panel.md`). (b) 10⁶-draw permutation
-null on the primary endpoint (§5.1.2). (c) Whole-genome probe-
-window benchmark panel (§5.2.2; HM450 and native EPIC v2 WG
-catalogs with SHA256 provenance). (d) Shipped `gap_sigmoid` mode
-(V2.5-sigmoid) as a first-class `probabilistic_mode` enum value
-with iff-semantics validators (§7 Methods).
+1. Prospective wet-lab editing validation of top V2.5-sigmoid
+   candidates.
+2. Random-chromosome-matched negative-universe controls to complement
+   the completed WG panel.
+3. A one-shot `regime` YAML selector on top of the shipped
+   `tumor_plus_gap_sigmoid` mode.
+4. Alternative gap factors: SE-on-mean `p_diff`, exact
+   difference-of-Betas, or mixture-aware variants.
+5. Continuous observation-confidence modeling beyond discrete
+   `EvidenceClass` bins.
+6. A second independent-lab MCF-7 / MCF-10A EPIC cohort if one becomes
+   public.
+7. Formal SCREEN cCRE integration and an R `limma` parity check.
 
 ---
 
@@ -1760,28 +1168,10 @@ a `-diff` / `-sigmoid` qualifier refers to the *generation*
 (`tumor_plus_*`) and is used when a statement applies to both
 variants.
 
-**V1 `final_score`:**
-
-```
-sequence_score      = PamFamily.weight
-selectivity_score   = max(0, β_normal_mean − β_tumor_mean)
-                    + max(0, β_normal_q25  − β_tumor_q75)
-confidence_score    = EvidenceClass → {1.0, 0.7, 0.4, 0.1, 0.0}
-heterogeneity_pen   = weight × max(0, β_tumor_IQR − threshold)
-low_coverage_pen    = weight × max(0, (n_threshold − n_tumor) / n_threshold)
-final_score         = sequence × selectivity × confidence
-                    − heterogeneity_pen − low_coverage_pen
-```
-
-UNOBSERVED candidates are not penalized (verified by regression test).
-
-**V2 / V2.5 probabilistic factors:**
+**Key probabilistic factors:**
 
 ```
 p_targ = P(β_tumor < 0.30)   via method-of-moments Beta(α, β) fit,
-                              fall back to piecewise-linear CDF when
-                              σ² ≥ μ(1−μ). Incomplete beta via Lentz's
-                              continued fraction, pure stdlib.
 p_prot = P(β_normal ≥ 0.50)  via same CDF dispatch.     [V2 only]
 p_diff = 1 − Φ((δ − (μ_n − μ_t)) / σ_Δ)
          where σ_Δ = √(max(σ_t, 0.05)² + max(σ_n, 0.05)²)
@@ -1795,7 +1185,10 @@ p_trust = EvidenceClass.base × min(1, min(n_t, n_n) / 30)
          (EvidenceClass.base ∈ {0.95, 0.75, 0.45, 0.15, 0.0}).
 ```
 
-Composites by mode:
+V1 uses a deterministic sequence × selectivity × confidence score minus
+heterogeneity and low-coverage penalties; it is continuous-valued and
+therefore has `tie_band = 1` in every benchmark here. Probabilistic
+composites by mode:
 
 ```
 tumor_only                           : p_targ × p_trust
@@ -1806,15 +1199,8 @@ tumor_plus_gap_sigmoid               : p_targ × p_gap_sigmoid × p_trust
     (= V2.5-sigmoid; recommended probabilistic discovery axis, §5.2.2)
 ```
 
-Validator enforces that the stored `p_therapeutic_selectivity`
-matches the product implied by the declared `mode` to within
-`math.isclose(rel_tol=1e-9, abs_tol=1e-12)`; a second validator
-enforces that the per-mode audit fields are populated iff the
-declared `mode` names them (`p_differential_protection` +
-`differential_delta` iff `tumor_plus_differential_protection`;
-`p_gap_sigmoid` + `sigma_fixed` + `differential_delta` iff
-`tumor_plus_gap_sigmoid`; none of the four iff `tumor_only` or
-`tumor_plus_normal_protection`).
+Validators enforce mode-specific audit fields and exact composite
+consistency for the emitted `p_therapeutic_selectivity` scalar.
 
 **Benchmark ranking contract.** Let the scored set be N records, each
 with a score `s_i` and a ground-truth label `y_i ∈ {0, 1}` (1 for
@@ -1848,25 +1234,16 @@ Then:
     P@K_max      := (committed_pos + min(band_pos, k_band))          / K
 ```
 
-`P@K_min` is the smallest possible value of P@K achievable by any
-tie-break policy that respects the primary score ordering; it is
-reached by pushing as many tied-band positives as possible outside
-the top-K (limited by `drop_slots` available). `P@K_max` is the
-symmetric upper bound: pull as many tied-band positives as possible
-into top-K (limited by `k_band` available). By construction:
+`P@K_min` pushes as many tied-band positives as possible outside top-K;
+`P@K_max` pulls as many as possible inside top-K. By construction:
 
 ```
     P@K_min ≤ P@K_observed ≤ P@K_max
 ```
 
-and the interval collapses to `{P@K_observed}` exactly when
-`tie_band_size_at_k = 1`.
-
-The `R@K_min / R@K_max` counterparts replace the denominator with
-`n_positives`. `AUC` is the Mann-Whitney U / (n_pos · n_neg) with
-ties contributing 0.5 (standard tie-handling); it does not need an
-interval form because under the cid-ascending tie-break it is
-already invariant within tied score regions.
+and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
+`n_positives` as the denominator. AUC is Mann-Whitney U /
+(`n_pos · n_neg`) with ties contributing 0.5.
 
 ---
 
@@ -1881,44 +1258,11 @@ already invariant within tied score regions.
 
 ## Reproducing the cross-cohort matrix
 
-```bash
-# Given a clone of the repo:
-uv venv && source .venv/bin/activate
-uv pip install -e ".[dev]"
-pytest                       # 245 tests, ~1 s
-
-# Rebuild the catalog on chr5/6/10 (~2 min):
-thermocas build-catalog \
-    --reference data/raw/hg19/hg19_chr5_6_10.fa \
-    --pam-model config/pam_model.yaml \
-    --probe-annotation data/raw/probes_hg19.tsv \
-    --probe-window-bp 500 \
-    --output data/derived/catalog_hg19_chr5_6_10.jsonl
-
-# Score + benchmark one cohort (~90 s per mode on a modern laptop):
-thermocas score-cohort \
-    --catalog data/derived/catalog_hg19_chr5_6_10.jsonl \
-    --cohort data/derived/gse322563_differential.yaml \
-    --pam-model config/pam_model.yaml \
-    --backend summary \
-    --probe-annotation data/derived/gse322563_cohort/probes.tsv \
-    --tumor-summary  data/derived/gse322563_cohort/tumor_summary.tsv \
-    --normal-summary data/derived/gse322563_cohort/normal_summary.tsv \
-    --probabilistic \
-    --output data/derived/scored_gse322563_differential.jsonl
-
-thermocas benchmark \
-    --scored data/derived/scored_gse322563_differential.jsonl \
-    --positives data/derived/positives_roth_validated.txt \
-    --cohort-name GSE322563-validated-differential \
-    --score-field p_therapeutic_selectivity \
-    --top-k 100 --no-enforce-holdout \
-    --output bench.jsonl
-```
-
-`data/derived/scored_*.jsonl` files are not redistributed because
-they are 3.4 GB each and fully reproducible from the per-probe
-summary TSVs using the commands above.
+The exact build, score, benchmark, and aggregation commands are kept in
+the scripts referenced throughout §4–§5 and in the committed provenance
+files under `data/derived/*PROVENANCE*`. Large scored JSONLs are
+gitignored but reproducible from the public GEO inputs, frozen catalogs,
+cohort YAMLs, and scripts in this tag.
 
 ---
 
