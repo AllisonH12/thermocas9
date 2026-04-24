@@ -279,7 +279,8 @@ the full 3-cohort × 3-label-set × 3-mode matrix.
 ### V2 scoring modes (`probabilistic_mode`)
 
 The cohort YAML's `probabilistic_mode` controls which factors enter the
-probabilistic composite `p_therapeutic_selectivity`:
+probability-scale selectivity score (stored on every `ProbabilisticScore`
+record as the `p_therapeutic_selectivity` field):
 
 | mode | composite | suitable for |
 |---|---|---|
@@ -425,9 +426,9 @@ breast-expressed genes are already unmethylated. For that evaluation target,
 V2's `P(protected_normal)` systematically zeroes out on biologically-correct
 positives and the multiplicative composition underperforms the simpler
 `β_normal − β_tumor` baseline — on a Phase 4 TCGA-BRCA run against 1687
-gene-targeted positives, V1 `final_score` hit AUC 0.656 while V2
-`p_therapeutic_selectivity` hit 0.553 (worse than the naive differential at
-0.629).
+gene-targeted positives, V1 `final_score` hit AUC 0.656 while the V2
+probability-scale selectivity score hit 0.553 (worse than the naive
+differential at 0.629).
 
 **Practical guidance (current — supersedes the legacy V2 table that
 appeared here while the cell-line benchmark was still pending):**
