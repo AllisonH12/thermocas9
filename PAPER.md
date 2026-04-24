@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-w` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-x` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -336,6 +336,22 @@ top-20 is a 20-record window inside a 190- to 421-record tied band,
 not a stable rank ordering. Per-positive ranks (§5.1) and AUC
 (§5.1, §5.3) are the stable claims at low `n`.
 
+**Quartile convention on n=2 records.** Per-side β quartiles are
+computed with Python's `statistics.quantiles(..., method="inclusive")`
+(R-7 quantile definition) and hard-clamped to the observed sample
+range at every probe, so q25 / q75 / mean are always within
+[min(β_samples), max(β_samples)]. On n = 2 samples per side this is
+deterministic (IQR = 0.5 × |β_max − β_min|) but weak as a
+population-dispersion estimate: the "IQR" it produces is a function
+of two observations, not a quantile of an underlying distribution.
+Because the `σ_floor = 0.05` kicks in whenever IQR/1.349 < 0.05
+(i.e. whenever the two observations differ by less than ~0.135),
+σ_floor dominates σ_Δ on most n = 2 records — which is the
+mechanistic origin of the low-`n` tied band described above.
+This is the single place where behavior on n = 2/2 cohorts is
+genuinely different from behavior at n ≳ 30, and the §5.3.1
+σ_floor sweep is the direct diagnostic for it.
+
 ---
 
 ## 4 · Benchmark methodology
@@ -568,12 +584,19 @@ the primary cohort. The uncertainty-aware Δβ_z baseline
 σ as V2.5's `p_diff` denominator; reproducible via
 `uv run scripts/delta_beta_z_baseline.py`) lifts to AUC 0.940 —
 slightly *below* raw Δβ-only because the σ-based denominator
-penalizes positives with wide IQRs. V2.5 adds +0.05 over
-Δβ-only and +0.05 over Δβ_z on the primary endpoint. The
-`p_targ` (tumor-side unmethylation) and `p_trust` (evidence /
-sample saturation) factors of V2.5 are therefore pulling real
-weight on top of the per-side dispersion signal — V2.5 is not
-just a re-skinned Δβ_z.
+penalizes positives with wide IQRs. V2.5 adds **+0.016** over
+Δβ-only and **+0.050** over Δβ_z on the primary endpoint; on
+GSE77348 the corresponding margins are +0.010 and +0.026. These
+are small but consistent across the matched cell-line cohorts and
+label granularities tested (§5.2). The `p_targ` (tumor-side
+unmethylation) and `p_trust` (evidence / sample saturation) factors
+of V2.5 are therefore pulling real weight on top of the per-side
+dispersion signal — V2.5 is not just a re-skinned Δβ_z — but the
+honest framing is that the shipped baselines (especially raw
+Δβ-only) already do most of the rank-lift work on matched
+cell-line cohorts; V2.5's additional contribution is the
+tie-band-honest top-K reporting (§4.5) and the probability-scale
+composition with future factors, not the AUC point alone.
 
 On the independent primary endpoint (GSE322563 validated), V2.5 is
 the highest-AUC axis — +0.17 over V1 and +0.06 over the deprecated
@@ -678,20 +701,52 @@ because positive scores are held fixed and the negative pool is
 pool is essentially a population, not a sample, so the bootstrap
 spread is mechanical rather than inferentially meaningful.
 
+#### 5.1.3 Paired per-positive rank lift: V2.5 vs Δβ-only
+
+The §5.1.2 permutation null tests each axis separately against
+uniformly-random 3-record positive triples. That answers whether
+each axis separates *these three* positives from the rest of the
+candidate set, but does not directly compare V2.5 against Δβ-only
+*on the same positives and same negative universe*. The direct
+paired comparison (reproducible via
+`uv run scripts/paired_rank_lift_v25_vs_dbeta.py`):
+
+| cohort | *ESR1* Δβ-only rank / V2.5 rank | *EGFLAM* Δβ / V2.5 | *GATA3* Δβ / V2.5 | positives where V2.5 &gt; Δβ-only |
+|---|---:|---:|---:|:---:|
+| GSE322563 HM450      | 4,742 / 2,575   | 67,620 / 64,433   | 159,932 / 24,083  | **3 / 3** |
+| GSE322563 native v2  | 9,085 / 5,746   | 185,641 / 158,502 | 422,569 / 50,096  | **3 / 3** |
+| GSE77348             | 8,733 / 3,965   | 178,663 / 124,925 | 61,254 / 28,325   | **3 / 3** |
+
+On every matched cell-line cohort, V2.5 ranks **all three**
+validated positives higher than Δβ-only does. The aggregate rank
+lift (sum over the three positives of `r_Δβ − r_V2.5`) is
++141,203 (HM450), +402,951 (native EPIC v2), and +91,435
+(GSE77348) — V2.5 moves each positive multiple thousand
+positions up the ranking on average.
+
+**Statistical caveat.** A paired sign-flip permutation null (2³ =
+8 equiprobable sign patterns, each flipping independently which
+axis is "assigned" to which per-positive rank) floors the
+one-sided *p*-value at **0.125** when all three signs agree — which
+they do on every cohort here. With `n_pos = 3` this is the best
+resolution the paired test can achieve. Read it as a *descriptive*
+3-for-3 agreement with the direction of the V2.5 AUC improvement,
+not as an inferential significance result.
+
 ### 5.2 Sensitivity analyses: label granularity and P@K intervals
 
 **Label granularity (AUC).** Stability of the primary-endpoint
 ordering under weaker label definitions (narrow ±50 bp, wide
 ±500 bp):
 
-| cohort | label set | n_pos | n_neg | V1 | tumor_only | V2.5 |
-|---|---|---:|---:|---:|---:|---:|
-| GSE322563 | validated | 3 | 2,979,994 | 0.821 | 0.928 | **0.990** |
-| GSE322563 | narrow | 28 | 2,979,969 | 0.884 | 0.886 | **0.942** |
-| GSE322563 | wide | 142 | 2,979,855 | 0.768 | 0.871 | **0.910** |
-| GSE77348 | validated | 3 | 2,979,994 | 0.968 | 0.912 | **0.982** |
-| GSE77348 | narrow | 28 | 2,979,969 | 0.969 | 0.911 | **0.983** |
-| GSE77348 | wide | 142 | 2,979,855 | 0.931 | 0.887 | **0.949** |
+| cohort | label set | n_pos | n_neg | Δβ-only | V1 | tumor_only | V2.5 | V2.5 − Δβ-only |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| GSE322563 | validated | 3 | 2,979,994 | 0.974 | 0.821 | 0.928 | **0.990** | +0.016 |
+| GSE322563 | narrow | 28 | 2,979,969 | 0.912 | 0.884 | 0.886 | **0.942** | +0.030 |
+| GSE322563 | wide | 142 | 2,979,855 | 0.844 | 0.768 | 0.871 | **0.910** | +0.066 |
+| GSE77348 | validated | 3 | 2,979,994 | 0.972 | 0.968 | 0.912 | **0.982** | +0.010 |
+| GSE77348 | narrow | 28 | 2,979,969 | 0.964 | 0.969 | 0.911 | **0.983** | +0.019 |
+| GSE77348 | wide | 142 | 2,979,855 | 0.910 | 0.931 | 0.887 | **0.949** | +0.039 |
 
 V2.5 remains the highest-AUC axis on both cohorts at every label
 granularity. No retuning of `δ` between rows.
@@ -752,16 +807,20 @@ GSE69914 (n = 305 / 50 primary breast vs. healthy donor tissue)
 tests whether the low-`n` tied-band behavior predicted in §3.5
 dissolves at `n ≫ 30`:
 
-| label set | n_pos | n_neg | V1 | tumor_only | V2.5 | V2.5 tie_band@100 |
-|---|---:|---:|---:|---:|---:|---:|
-| validated | 3 | 2,979,994 | 0.660 | **0.803** | 0.773 | **2** |
-| narrow | 28 | 2,979,969 | 0.539 | **0.843** | 0.711 | 2 |
-| wide | 142 | 2,979,855 | 0.435 | **0.874** | 0.726 | 2 |
+| label set | n_pos | n_neg | Δβ-only | Δβ_z | V1 | tumor_only | V2.5 | V2.5 tie_band@100 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| validated | 3 | 2,979,994 | 0.591 | 0.504 | 0.660 | **0.803** | 0.773 | **2** |
+| narrow | 28 | 2,979,969 | 0.477 | — | 0.539 | **0.843** | 0.711 | 2 |
+| wide | 142 | 2,979,855 | 0.435 | — | 0.435 | **0.874** | 0.726 | 2 |
 
-(Δβ_z on tissue at validated labels: AUC 0.504, near-random — far
-below all other axes. The uncertainty-aware Δβ baseline collapses on
-tissue biology where per-side IQRs are wide and the validated
-positives' β gaps are small.)
+On tissue, both Δβ-based baselines collapse to near-random or below
+(Δβ-only 0.435–0.591; Δβ_z 0.504 at validated). V1 tracks Δβ-only
+closely (0.435–0.660). V2.5's tissue story is therefore a recovery
+*over both Δβ baselines* (+0.18 over Δβ-only at validated, +0.27
+over Δβ_z), not a modest margin as on cell lines. `tumor_only` has
+a higher raw AUC (0.803–0.874) but its K=100 tied band makes its
+top-K unusable; V2.5 is the highest usable probabilistic discovery
+axis on tissue (see §6.1).
 
 Two findings:
 
@@ -1288,7 +1347,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-w`** for this document. 236 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-x`** for this document. 236 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
