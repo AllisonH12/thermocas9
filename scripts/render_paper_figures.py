@@ -108,13 +108,101 @@ def _auc_from_bench(path: Path) -> float:
 
 
 def fig2_auc_bars() -> None:
+    """Final-method Figure 2: V2.5-sigmoid vs V2.5-diff vs limma-style on
+    AUC and `tie_band@100` across the four primary cohorts at WG denominator.
+
+    Numbers are sourced from the committed cross-cohort WG panel
+    (`examples/genome_wide_panel.tsv` for V2.5-diff and V2.5-sigmoid;
+    `examples/limma_cross_cohort_panel.md` for the limma-style row).
+    The historical 4-axis × 3-tier sensitivity figure is moved to
+    `fig2_supp_historical_sensitivity` for the supplement.
+    """
+    # Cohort short labels — used both as panel x-ticks and as the
+    # supplementary historical figure's labels (so they stay parallel).
+    cohorts = [
+        "GSE322563\nHM450",
+        "GSE322563\nnative v2",
+        "GSE77348",
+        "GSE69914\n(tissue)",
+    ]
+    # WG, validated labels (n_pos = 3): committed at memo-2026-04-22-as
+    # in examples/genome_wide_panel.tsv (V2.5-diff = `shipped_v25` /
+    # V2.5-sigmoid = `gap_sigmoid_0.0707`) and
+    # examples/limma_cross_cohort_panel.md (limma-style row).
+    auc_v25_diff    = [0.989, 0.998, 0.982, 0.778]
+    auc_v25_sigmoid = [0.988, 0.998, 0.981, 0.862]
+    auc_limma       = [0.959, 0.991, 0.962, 0.573]
+    tie_v25_diff    = [1127, 421, 1493, 1]
+    tie_v25_sigmoid = [1, 1, 1, 6]
+    tie_limma       = [91, 39, 115, 57]
+
+    series = [
+        ("V2.5-diff (shipped)",    auc_v25_diff,    tie_v25_diff,    "#1a73e8"),  # blue
+        ("V2.5-sigmoid (recommended)", auc_v25_sigmoid, tie_v25_sigmoid, "#0f9d58"),  # green
+        ("limma-style moderated-t", auc_limma, tie_limma, "#9aa0a6"),  # gray
+    ]
+
+    fig, (axL, axR) = plt.subplots(1, 2, figsize=(15.0, 5.6))
+
+    width = 0.27
+    x = list(range(len(cohorts)))
+
+    # Left panel: WG validated AUC.
+    for i, (label, auc, _, color) in enumerate(series):
+        offsets = [xi + (i - 1) * width for xi in x]
+        axL.bar(offsets, auc, width=width, color=color, label=label,
+                edgecolor="#202124", linewidth=0.4)
+        for off, y in zip(offsets, auc):
+            axL.text(off, y + 0.012, f"{y:.3f}", ha="center", fontsize=7.2)
+    axL.axhline(0.5, color="#dadce0", linestyle="--", linewidth=1)
+    axL.set_xticks(x)
+    axL.set_xticklabels(cohorts, fontsize=8.5)
+    axL.set_ylabel("Validated-label AUC (n_pos = 3)")
+    axL.set_ylim(0, 1.06)
+    axL.set_title("(a) WG validated AUC — V2.5-sigmoid recovers tissue,\n"
+                  "matches V2.5-diff on cell lines",
+                  fontsize=10)
+    axL.legend(loc="lower left", fontsize=8, frameon=False, ncol=1)
+    axL.spines["top"].set_visible(False)
+    axL.spines["right"].set_visible(False)
+
+    # Right panel: WG tie_band@100 (log scale; 1 → "1" tick).
+    for i, (label, _, tie, color) in enumerate(series):
+        offsets = [xi + (i - 1) * width for xi in x]
+        axR.bar(offsets, tie, width=width, color=color, label=label,
+                edgecolor="#202124", linewidth=0.4)
+        for off, y in zip(offsets, tie):
+            axR.text(off, y * 1.18, f"{y:,}" if y >= 10 else str(y),
+                     ha="center", fontsize=7.2)
+    axR.set_yscale("log")
+    axR.set_xticks(x)
+    axR.set_xticklabels(cohorts, fontsize=8.5)
+    axR.set_ylabel("WG tie_band@100 (log scale)")
+    axR.set_ylim(0.7, 5000)
+    axR.set_yticks([1, 10, 100, 1000])
+    axR.set_yticklabels(["1", "10", "100", "1,000"])
+    axR.set_title("(b) WG top-K usability — V2.5-sigmoid eliminates\n"
+                  "V2.5-diff's low-`n` tied bands (1 vs 421–1,493)",
+                  fontsize=10)
+    axR.spines["top"].set_visible(False)
+    axR.spines["right"].set_visible(False)
+
+    plt.tight_layout()
+    fig.savefig(OUT / "fig2_auc_bars.png", dpi=200, bbox_inches="tight")
+    fig.savefig(OUT / "fig2_auc_bars.svg",       bbox_inches="tight")
+    plt.close(fig)
+
+
+def fig2_supp_historical_sensitivity() -> None:
+    """Supplementary historical Figure S2: the previous 4-axis × 3-tier
+    sensitivity figure, moved here so the main Figure 2 can be the
+    V2.5-sigmoid-centered final-method summary.
+
+    Δβ-only / V1 / V2 tumor_only / V2.5-diff across 4 cohorts × 3 label
+    granularities. AUC values are read from the committed
+    `bench_*_*.jsonl` artifacts under `examples/<cohort>_roth_labels/`.
+    """
     bench = REPO / "examples"
-    # Multi-line short labels — keeps panel (a) x-ticks from colliding at
-    # 4-cohort group width.
-    # Two-line cohort labels. GSE322563 gets a platform disambiguator
-    # (HM450 vs native EPIC v2) because it's the only cohort with two
-    # paths; GSE77348 and GSE69914 are HM450-only so the platform suffix
-    # would be redundant.
     cohorts = [
         ("GSE322563 HM450\n(Roth, n=2/2)",              "gse322563_roth_labels"),
         ("GSE322563 native\n(EPIC v2, n=2/2)",          "gse322563_native_roth_labels"),
@@ -123,12 +211,11 @@ def fig2_auc_bars() -> None:
     ]
     label_sets = ["validated", "narrow", "wide"]
     axes_modes = [
-        ("Δβ-only",             "naive",        "#34a853"),  # green
-        ("V1 final_score",      "V1",           "#5f6368"),  # gray
-        ("V2 tumor_only",       "tumor_only",   "#fbbc04"),  # yellow
-        ("V2.5 differential",   "differential", "#1a73e8"),  # blue
+        ("Δβ-only",             "naive",        "#34a853"),
+        ("V1 final_score",      "V1",           "#5f6368"),
+        ("V2 tumor_only",       "tumor_only",   "#fbbc04"),
+        ("V2.5-diff",           "differential", "#1a73e8"),
     ]
-
     auc = {}
     for cohort_label, dirname in cohorts:
         for ls in label_sets:
@@ -136,13 +223,9 @@ def fig2_auc_bars() -> None:
                 p = bench / dirname / f"bench_{ls}_{mode_tag}.jsonl"
                 auc[(cohort_label, ls, axis_label)] = _auc_from_bench(p)
 
-    # Two-panel layout: left = primary endpoint (validated only),
-    # right = sensitivity. Widened for 4 cohorts × 4 axes.
     fig, (axL, axR) = plt.subplots(
         1, 2, figsize=(16.0, 5.5), gridspec_kw={"width_ratios": [1, 2.4]}
     )
-
-    # Left panel: validated AUC, 4 cohorts × 4 axes (16 bars in 4 groups of 4)
     width = 0.20
     x = list(range(len(cohorts)))
     for i, (axis_label, _, color) in enumerate(axes_modes):
@@ -157,15 +240,13 @@ def fig2_auc_bars() -> None:
     axL.set_xticklabels([c[0] for c in cohorts], fontsize=8.0)
     axL.set_ylabel("AUC")
     axL.set_ylim(0, 1.05)
-    axL.set_title("(a) Validated label set (n_pos=3)\n"
-                  "AUC at Roth Fig. 5d target probes",
+    axL.set_title("(a) Historical: validated label set, 4-axis comparison\n"
+                  "(superseded as primary Figure 2; see fig2_auc_bars.png)",
                   fontsize=10)
     axL.legend(loc="lower left", fontsize=8, frameon=False, ncol=2)
     axL.spines["top"].set_visible(False)
     axL.spines["right"].set_visible(False)
 
-    # Right panel: sensitivity over label granularity
-    # 4 cohorts × 3 label_sets × 4 axes = 48 bars in 12 groups of 4.
     groups = [(c[0], ls) for c in cohorts for ls in label_sets]
     x2 = list(range(len(groups)))
     for i, (axis_label, _, color) in enumerate(axes_modes):
@@ -174,31 +255,22 @@ def fig2_auc_bars() -> None:
         axR.bar(offsets, ys, width=width, color=color,
                 edgecolor="#202124", linewidth=0.4)
     axR.axhline(0.5, color="#dadce0", linestyle="--", linewidth=1)
-    # Label each bar group with "<cohort-short> <tier>". The first line of
-    # the cohort label already encodes the GSE code plus any platform
-    # disambiguator ("GSE322563 HM450" / "GSE322563 native" / "GSE77348" /
-    # "GSE69914"), so we just take it as-is.
     def _short(cohort_label: str) -> str:
         return cohort_label.split(chr(10))[0]
-
     axR.set_xticks(x2)
     axR.set_xticklabels(
         [f"{_short(c)}\n{ls}" for (c, ls) in groups],
         fontsize=6.5, rotation=30, ha="right",
     )
     axR.set_ylim(0, 1.05)
-    axR.set_title("(b) Sensitivity: AUC across label granularities\n"
-                  "(narrow ±50 bp, wide ±500 bp) × 4 score axes",
+    axR.set_title("(b) Historical: AUC across label granularities × 4 axes",
                   fontsize=10)
     axR.spines["top"].set_visible(False)
     axR.spines["right"].set_visible(False)
 
-    # No in-figure suptitle — the markdown caption below the figure in
-    # MANUSCRIPT.md / PAPER.md carries the "Figure 2." header. An in-figure
-    # title duplicated the "Figure 2" label when rendered in the PDF.
     plt.tight_layout()
-    fig.savefig(OUT / "fig2_auc_bars.png", dpi=200, bbox_inches="tight")
-    fig.savefig(OUT / "fig2_auc_bars.svg",       bbox_inches="tight")
+    fig.savefig(OUT / "fig2_supp_historical_sensitivity.png", dpi=200, bbox_inches="tight")
+    fig.savefig(OUT / "fig2_supp_historical_sensitivity.svg",       bbox_inches="tight")
     plt.close(fig)
 
 
@@ -335,8 +407,10 @@ def fig3_topgene_heatmap() -> None:
 def main() -> int:
     print("rendering Fig 1 (mode schematic)...")
     fig1_mode_schematic()
-    print("rendering Fig 2 (AUC bars)...")
+    print("rendering Fig 2 (V2.5-sigmoid summary)...")
     fig2_auc_bars()
+    print("rendering Fig 2 supp (historical 4-axis sensitivity)...")
+    fig2_supp_historical_sensitivity()
     print("rendering Fig 3 (top-20 heatmap)...")
     fig3_topgene_heatmap()
     print(f"→ {OUT}/")
