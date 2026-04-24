@@ -1,0 +1,41 @@
+cohort	scope	evidence_class	count	pct
+GSE322563 HM450	full_chr5_6_10	exact	32550	1.0923
+GSE322563 HM450	full_chr5_6_10	proximal_close	341438	11.4577
+GSE322563 HM450	full_chr5_6_10	proximal	227335	7.6287
+GSE322563 HM450	full_chr5_6_10	regional	1675916	56.2388
+GSE322563 HM450	full_chr5_6_10	unobserved	702758	23.5825
+GSE322563 native v2	full_chr5_6_10	exact	57494	1.1006
+GSE322563 native v2	full_chr5_6_10	proximal_close	592637	11.3443
+GSE322563 native v2	full_chr5_6_10	proximal	418424	8.0095
+GSE322563 native v2	full_chr5_6_10	regional	3848669	73.6717
+GSE322563 native v2	full_chr5_6_10	unobserved	306858	5.8739
+GSE77348	full_chr5_6_10	exact	41341	1.3873
+GSE77348	full_chr5_6_10	proximal_close	441309	14.8090
+GSE77348	full_chr5_6_10	proximal	297543	9.9847
+GSE77348	full_chr5_6_10	regional	2199804	73.8190
+GSE77348	full_chr5_6_10	unobserved	0	0.0000
+GSE69914 (tissue)	full_chr5_6_10	exact	41341	1.3873
+GSE69914 (tissue)	full_chr5_6_10	proximal_close	441309	14.8090
+GSE69914 (tissue)	full_chr5_6_10	proximal	297543	9.9847
+GSE69914 (tissue)	full_chr5_6_10	regional	2199804	73.8190
+GSE69914 (tissue)	full_chr5_6_10	unobserved	0	0.0000
+GSE322563 HM450	top_100	exact	100	100.0000
+GSE322563 HM450	top_100	proximal_close	0	0.0000
+GSE322563 HM450	top_100	proximal	0	0.0000
+GSE322563 HM450	top_100	regional	0	0.0000
+GSE322563 HM450	top_100	unobserved	0	0.0000
+GSE322563 native v2	top_100	exact	100	100.0000
+GSE322563 native v2	top_100	proximal_close	0	0.0000
+GSE322563 native v2	top_100	proximal	0	0.0000
+GSE322563 native v2	top_100	regional	0	0.0000
+GSE322563 native v2	top_100	unobserved	0	0.0000
+GSE77348	top_100	exact	100	100.0000
+GSE77348	top_100	proximal_close	0	0.0000
+GSE77348	top_100	proximal	0	0.0000
+GSE77348	top_100	regional	0	0.0000
+GSE77348	top_100	unobserved	0	0.0000
+GSE69914 (tissue)	top_100	exact	33	33.0000
+GSE69914 (tissue)	top_100	proximal_close	67	67.0000
+GSE69914 (tissue)	top_100	proximal	0	0.0000
+GSE69914 (tissue)	top_100	regional	0	0.0000
+GSE69914 (tissue)	top_100	unobserved	0	0.0000
