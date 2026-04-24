@@ -606,3 +606,29 @@ def test_differential_score_rejects_gap_sigmoid_field():
             p_gap_sigmoid=0.7,  # not allowed in differential mode
             p_therapeutic_selectivity=0.8 * 0.9 * 0.5,
         )
+
+
+def test_p_gap_sigmoid_rejects_zero_sigma():
+    """sigma_fixed = 0 would divide by zero — public function must reject it."""
+    from thermocas.probabilistic import p_gap_sigmoid
+    obs = _selective_obs()
+    with pytest.raises(ValueError, match="sigma_fixed must be strictly positive"):
+        p_gap_sigmoid(obs, delta=0.2, sigma_fixed=0.0)
+    with pytest.raises(ValueError, match="sigma_fixed must be strictly positive"):
+        p_gap_sigmoid(obs, delta=0.2, sigma_fixed=-0.1)
+
+
+def test_cohort_config_rejects_zero_sigma_fixed():
+    """CohortConfig.sigma_fixed has gt=0.0 — sigma_fixed: 0 in YAML must error."""
+    from pydantic import ValidationError
+    from thermocas.models import CohortConfig
+
+    base = dict(
+        name="x", tumor_dataset="t", normal_dataset="n", platform="HM450",
+        min_samples_tumor=2, min_samples_normal=2,
+        probabilistic_mode="tumor_plus_gap_sigmoid",
+    )
+    with pytest.raises(ValidationError):
+        CohortConfig(**base, sigma_fixed=0.0)
+    cfg = CohortConfig(**base, sigma_fixed=0.05)
+    assert cfg.sigma_fixed == 0.05

@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ag` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ah` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -81,9 +81,11 @@ V1 remains the stable-release default (backward compatibility +
 discovery axis is **`gap_sigmoid`**
 (`probabilistic_mode: tumor_plus_gap_sigmoid`, with
 `p_gap_sigmoid = sigmoid((β_n − β_t − δ) / σ_fixed)`,
-σ_fixed ≈ √2 × σ_floor ≈ 0.0707 by default, δ = 0.2 for matched
-cell-line and δ = 0.1 for tissue) across every non-boundary
-cohort shape tested. Shipped V2.5
+σ_fixed ≈ √2 × σ_floor ≈ 0.0707 and δ = 0.2 by default — same δ as
+shipped V2.5; the §5.3.2 δ = 0.1 tissue-AUC peak is a `p_diff`
+property and does not transfer to `gap_sigmoid` cleanly per the
+δ × σ_fixed rerun in §5.2.2) across every non-boundary cohort shape
+tested. Shipped V2.5
 (`tumor_plus_differential_protection`) is retained as a selectable
 mode for AUC parity on cell-line cohorts, but is **no longer
 recommended over `gap_sigmoid` on any tested regime**. The §5.2.2
@@ -1070,13 +1072,36 @@ committed panel is at `examples/genome_wide_panel.md`.
    (§5.1.1, now in `examples/genome_wide_panel.md` for WG) are
    the stable claims.
 
-**Reading the two tables together.** `gap_sigmoid` is **uniformly
-equal-or-better to shipped V2.5 across every cohort shape we have
-tested at WG scale**: AUC within 0.002 on matched cell-line,
-AUC +0.05 to +0.08 on tissue, `tie_band@100 = 1` on cell-line
-(vs up to 1,500 for V2.5), `tie_band@100 ≤ 6` on tissue
-(vs 1 for V2.5). **No cohort × dimension cell prefers shipped
-V2.5 over `gap_sigmoid`.**
+**Does `gap_sigmoid` on tissue need δ = 0.1 (per §5.3.2's `p_diff`
+finding) or δ = 0.2 (the shipped default)?** §5.3.2 showed `p_diff`
+on tissue prefers δ = 0.1 over δ = 0.2 by +0.05 AUC. We re-ran the
+WG tissue gating at δ = 0.1 to check whether that property transfers
+to `gap_sigmoid`. Result (`examples/gse69914_wg_gating_delta_0_1.md`):
+
+| σ_fixed | gap_sigmoid AUC, δ = 0.2 | gap_sigmoid AUC, δ = 0.1 | Δ (δ=0.1 − δ=0.2) |
+|---|---:|---:|---:|
+| 0.05    | 0.861 | 0.865 | +0.004 |
+| 0.0707  | 0.862 | 0.831 | **−0.031** |
+| 0.10    | 0.825 | 0.821 | −0.004 |
+
+The `p_diff` δ = 0.1 advantage does *not* transfer cleanly to
+`gap_sigmoid`: only the narrowest tested bandwidth (σ_fixed = 0.05)
+marginally improves at δ = 0.1, while the bandwidth-robust default
+σ_fixed ≈ 0.0707 actually *drops* by 0.031 AUC under δ = 0.1.
+δ = 0.2 is therefore retained as the shipped default for both
+modes (V2.5 and gap_sigmoid). The §5.3.2 δ = 0.1 tissue finding
+remains valid as a property of `p_diff`'s per-site σ_Δ behavior on
+tissue, but is not a generic tissue-mode default.
+
+**Reading the cross-cohort tables together.** `gap_sigmoid` is
+**uniformly equal-or-better to shipped V2.5 across every cohort
+shape we have tested at WG scale**: AUC within 0.002 on matched
+cell-line, AUC +0.05 to +0.08 on tissue (at δ = 0.2 — the table
+above shows this is robust to δ ∈ {0.1, 0.2} at σ_fixed = 0.05 and
+to bandwidth choice at δ = 0.2), `tie_band@100 = 1` on cell-line
+(vs up to 1,500 for V2.5), `tie_band@100 ≤ 6` on tissue (vs 1 for
+V2.5). **No cohort × dimension cell prefers shipped V2.5 over
+`gap_sigmoid`.**
 
 This is the "V2.5's genome-wide low-n tied bands explode" branch
 of the reviewer's decision tree. The paper's recommendation
@@ -1089,12 +1114,15 @@ of the reviewer's decision tree. The paper's recommendation
   tested regime.
 - Both ship as selectable `probabilistic_mode` enum values
   (`tumor_plus_differential_protection` for V2.5,
-  `tumor_plus_gap_sigmoid` for gap_sigmoid) in the next release.
-  The gap_sigmoid mode is implemented in `thermocas.probabilistic`
-  as `p_gap_sigmoid(obs, delta, sigma_fixed)`, with the matching
+  `tumor_plus_gap_sigmoid` for gap_sigmoid) in this tag. The
+  gap_sigmoid mode is implemented in `thermocas.probabilistic` as
+  `p_gap_sigmoid(obs, delta, sigma_fixed)`, with the matching
   `CohortConfig` field `sigma_fixed` (default √2 × σ_floor ≈
-  0.0707) and full pydantic-validator enforcement of the
-  mode-specific audit fields.
+  0.0707; required strictly positive) and full pydantic-validator
+  enforcement of the mode-specific audit fields. End-to-end tests
+  in `tests/test_probabilistic.py` cover the new mode dispatch,
+  composite formula, iff field semantics, and the σ_fixed = 0
+  guard.
 
 ### 5.3 Tissue-cohort behavior — GSE69914 (high-`n`, tissue biology)
 
@@ -1391,8 +1419,10 @@ Five use profiles, in order from most-recommended to unsupported:
 
 **1. Recommended probabilistic ranking axis — `gap_sigmoid`.**
 `p_therapeutic_selectivity = p_targ × sigmoid((β_n − β_t − δ) / σ_fixed) × p_trust`
-with σ_fixed ≈ √2 × σ_floor ≈ 0.0707 (δ = 0.2 for matched
-cell-line, δ = 0.1 for tissue). Ships in this tag as
+with σ_fixed ≈ √2 × σ_floor ≈ 0.0707 and δ = 0.2 (the shipped
+default; δ = 0.1 is competitive only at σ_fixed = 0.05 on tissue
+and is not the cross-cohort default — see §5.2.2 δ × σ_fixed
+table). Ships in this tag as
 `probabilistic_mode: tumor_plus_gap_sigmoid`, with `sigma_fixed`
 exposed as a new cohort-YAML field (default inherited from the
 package constant). Uniformly equal-or-better to shipped V2.5
@@ -1548,34 +1578,18 @@ In priority order, not committed to any timeline:
    probe density, and (b) a whole-genome candidate catalog, on at
    least one cohort per regime. Goal: quantify how AUC and tied-band
    sizes move with the denominator (§6.2 limitation 3).
-3. **Regime-specific presets.** §5.3.1 (σ_floor) and §5.3.2 (δ) both
-   show that tissue and matched cell-line cohorts prefer different
-   defaults. Concrete shape of what to ship:
-
-   - `regime: matched_cell_line` → gap factor = `p_diff`,
-     σ_floor = 0.05, δ = 0.2 (current shipped defaults; indistinguishable
-     from the sigmoid family on cell lines per §5.2.1).
-   - `regime: primary_tissue` → gap factor = `gap_sigmoid`
-     (`sigmoid((Δβ − δ) / σ_fixed)`), σ_fixed ∈ {0.05, 0.0707}
-     (bandwidth-robust per the §5.2.1 sweep — any value in that
-     range beats shipped V2.5 on GSE69914 by +0.08 to +0.09 AUC),
-     δ = 0.1 (per §5.3.2), requires n ≳ 30 per side to have
-     desaturated `p_trust`. Alternatives to test before shipping:
-     the top ties at K = 100 on the sigmoid family across
-     GSE69914 label tiers (the §5.2.1 sweep only reports
-     validated-tier AUC).
-   - `regime: boundary` (explicit out-of-distribution acknowledgment;
-     all axes warn, do not run benchmark-rank-based claims).
-
-   Implementation path: add a `regime` field to the cohort YAML
-   loader and a `gap_factor ∈ {p_diff, gap_sigmoid, ...}` enum to
-   `ProbabilisticMode`; the regime field chooses a preset that
-   overrides the scalars and the gap factor unless the user sets
-   them directly. Default remains `matched_cell_line` for backward
-   compatibility. Tests: one round-trip test per preset against a
-   fixture BenchmarkResult + a parity test verifying that
-   `matched_cell_line` with gap_factor = `p_diff` bit-matches the
-   current shipped scorer.
+3. **Regime presets shipped on top of the gap_sigmoid mode.** The
+   gap_sigmoid mode itself ships in this tag
+   (`probabilistic_mode: tumor_plus_gap_sigmoid`, `sigma_fixed`
+   field on `CohortConfig`). What remains is a one-shot `regime`
+   selector that picks (gap factor, σ_fixed, δ) defaults
+   per cohort regime — `matched_cell_line` →
+   (`tumor_plus_differential_protection`, σ_floor = 0.05,
+   δ = 0.2); `primary_tissue` →
+   (`tumor_plus_gap_sigmoid`, σ_fixed ≈ 0.0707, δ = 0.2 by default
+   per §5.2.2 panel; users can move δ down to 0.1 if §5.2.2's
+   tissue-WG δ = 0.1 follow-up confirms the additional gain);
+   `boundary` → emit warnings, no rank claims.
 4. **`p_diff` re-derivation under SE-on-mean variance** (§3.3) as a
    second probabilistic axis, so users can choose between the
    biological-overlap and the cohort-power interpretations.
@@ -1708,7 +1722,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ag`** for this document. 243 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ah`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
@@ -1721,7 +1735,7 @@ already invariant within tied score regions.
 # Given a clone of the repo:
 uv venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
-pytest                       # 243 tests, ~1 s
+pytest                       # 245 tests, ~1 s
 
 # Rebuild the catalog on chr5/6/10 (~2 min):
 thermocas build-catalog \

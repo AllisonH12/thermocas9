@@ -476,10 +476,12 @@ class ProbabilisticScore(BaseModel):
         ),
     )
     sigma_fixed: float | None = Field(
-        default=None, ge=0.0,
+        default=None, gt=0.0,
         description=(
             "The σ_fixed bandwidth used to compute p_gap_sigmoid. Populated only "
-            "when mode is `tumor_plus_gap_sigmoid`; None otherwise."
+            "when mode is `tumor_plus_gap_sigmoid`; None otherwise. Strictly "
+            "positive (σ_fixed = 0 would be a hard step and divides by zero "
+            "in the sigmoid)."
         ),
     )
 
@@ -810,4 +812,7 @@ class CohortConfig(BaseModel):
     # `tumor_plus_gap_sigmoid` fixed-bandwidth σ. Default None means: use the
     # package default (√2 × σ_floor ≈ 0.0707, §5.2.1 bandwidth-robust range).
     # Only consulted when probabilistic_mode = "tumor_plus_gap_sigmoid".
-    sigma_fixed: float | None = Field(default=None, ge=0.0)
+    # Strictly positive: σ_fixed = 0 would produce a hard step (and divide by
+    # zero in p_gap_sigmoid); use a very small positive value (e.g. 1e-6) for
+    # an effectively-hard threshold.
+    sigma_fixed: float | None = Field(default=None, gt=0.0)

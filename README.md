@@ -86,7 +86,7 @@ thermocas-framework/
 | **Out-of-distribution boundary case**                             | **documented** — GSE68379 cross-series with external normals; PAPER.md §5.4 |
 | **Sensitivity sweeps** (σ_floor ∈ {0.02, 0.05, 0.10, 0.15}; δ ∈ {0.1, 0.2, 0.3, 0.4, 0.5}) | **complete** — PAPER.md §5.3.1 / §5.3.2 |
 | **Descriptive AUC uncertainty** (permutation null + negative bootstrap) | **complete** — PAPER.md §5.1.2 |
-| End-to-end tests + real-data pipeline                             | **243 tests** (in-process + CLI + mocked GDC + Beta math + live GDC smoke) |
+| End-to-end tests + real-data pipeline                             | **245 tests** (in-process + CLI + mocked GDC + Beta math + live GDC smoke) |
 
 ## Quickstart
 
@@ -243,11 +243,12 @@ Fig. 5d validated target coordinates (`EGFLAM T11`, `ESR1 T17`,
 `GATA3 T18`), lifted hg38 → hg19 and cross-checked against our per-probe
 β values:
 
-| cohort type | example | recommended axis (shipped modes) | why |
+| cohort type | example | recommended axis | why |
 |---|---|---|---|
-| **matched cell-line / paper-comparable** | GSE322563 (Roth actual), GSE77348 (δ-tuning dev cohort) | **V2.5 `tumor_plus_differential_protection`** | Highest-AUC shipped discovery axis at every label granularity (validated / narrow / wide). +0.01 to +0.08 over Δβ-only; +0.01 to +0.17 over V1 on the Roth-validated label set. |
-| **primary tumor tissue** | GSE69914 (n=305 / 50) | **V2.5 `tumor_plus_differential_protection`** *(see tissue caveat below)* | Highest-AUC discovery axis on tissue *among the shipped benchmark modes*: +0.113 validated, +0.172 narrow, +0.291 wide over V1. V2's `tumor_only` has higher raw AUC (0.803–0.874) but `tie_band = 6,540` at K=100 excludes it from discovery use. V1 collapses on wide (AUC 0.435 — at chance). V2.5 tie-band = 2 at K=100; top-K is effectively deterministic. **Caveat:** PAPER.md §5.2.1 factor ablation shows a fixed-bandwidth sigmoid replacement of `p_diff` *beats* shipped V2.5 on tissue by +0.09 AUC (0.864 vs 0.773) — so V2.5 is the best *shipped* tissue axis, not the best tested probabilistic formulation for tissue. Regime-specific reformulation is a committed follow-up. |
-| **any cohort, top-K stability priority / backward compat** | — | V1 `final_score` | V1's continuous-valued deterministic score has `tie_band = 1` at every K regardless of cohort shape. This is the stable-release default (tag `v0.4.0`) for backward compatibility; not the AUC leader anywhere. |
+| **All non-boundary cohort shapes** (matched cell-line at n = 2/2 to 3/3 *and* primary tissue at n ≳ 30/side) | GSE322563, GSE77348, GSE69914 | **`tumor_plus_gap_sigmoid`** (`p_targ × sigmoid((β_n − β_t − δ) / σ_fixed) × p_trust`, default `sigma_fixed ≈ 0.0707`, `differential_delta = 0.2`) | Uniformly equal-or-better than shipped V2.5 across every tested non-boundary cohort × dimension at WG scale (PAPER.md §5.2.2). AUC within 0.002 of V2.5 on all three matched cell-line cohorts; AUC +0.05 to +0.08 on tissue; **`tie_band@100 = 1` on every matched cell-line WG cohort** vs V2.5's 421–1,493 on the same WG catalogs (top-K usability matters as the denominator scales). |
+| **Audit / parity vs prior runs** | any | `tumor_plus_differential_protection` (shipped V2.5) | Retained as a selectable mode for backward compatibility and AUC parity on cell-line cohorts. AUC-equal to gap_sigmoid on cell lines, but top-K becomes unusable at WG scale on n = 2/2 or 3/3 cohorts. Not recommended for new discovery runs. |
+| **Out-of-distribution / cross-series cohorts** | GSE68379 (Sanger MCF-7 vs external normals) | unsupported | PAPER.md §5.4: AUC inverts on every axis under cross-series label transport. Do not pool. |
+| **Top-K stability priority / backward compat** | — | V1 `final_score` | V1's continuous-valued deterministic score has `tie_band = 1` at every K regardless of cohort shape. This is the stable-release default (tag `v0.4.0`) for backward compatibility; not the AUC leader anywhere. |
 
 ```bash
 # cell-line / paper-comparable cohort:

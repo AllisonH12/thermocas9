@@ -177,6 +177,11 @@ def p_gap_sigmoid(
     one-sided data.
     """
 
+    if sigma_fixed <= 0.0:
+        raise ValueError(
+            f"p_gap_sigmoid: sigma_fixed must be strictly positive, got {sigma_fixed!r}. "
+            "Use a small positive value (e.g. 1e-6) for an effectively-hard threshold."
+        )
     mu_t = obs.beta_tumor_mean
     mu_n = obs.beta_normal_mean
     if mu_t is None or mu_n is None:
