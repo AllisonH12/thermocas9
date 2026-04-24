@@ -318,7 +318,7 @@ Two bodies of prior art are adjacent but non-overlapping. Generic CRISPR guide-s
 
 ## 7 Conclusion
 
-`thermocas` offers a *compositional probabilistic scoring skeleton* (`p_targ × (gap factor) × p_trust`) paired with a *tie-band-aware benchmarking contract* for methylome-guided ThermoCas9 target discovery. The compositional skeleton is the durable contribution: it decouples three independently-replaceable questions ("is the tumor side targetable?", "is the tumor-vs-normal gap large enough?", "is the observation trustworthy?"), and the §5.2.1 ablation + §5.2.2 cross-cohort whole-genome panel exercise that decomposition by swapping the gap factor between V2.5's `p_diff` and a simpler fixed-bandwidth `gap_sigmoid`. The current shipped recommendation that emerges from those experiments is `gap_sigmoid` (`probabilistic_mode: tumor_plus_gap_sigmoid`, ships in this tag) — uniformly equal-or-better than the earlier `tumor_plus_differential_protection` (V2.5) across every tested non-boundary cohort × dimension at WG scale. Shipped V2.5 is retained as a selectable mode for backward compatibility and AUC parity on cell-line cohorts but is no longer the recommended discovery axis. V1 remains the stable-release default for its deterministic `tie_band = 1` top-K guarantee. Δβ-only is a strong matched-cell-line baseline that any methylome-guided Cas9 scorer should report alongside its own scoring axis, and we report it on every cohort × tier in §5.2. The combination is offered as an open research framework; groups extending Roth et al. to other cell-type pairs are the immediate target audience.
+`thermocas` offers a *compositional probability-scale scoring skeleton* (`p_targ × (gap factor) × p_trust`) paired with a *tie-band-aware benchmarking contract* for methylome-guided ThermoCas9 target discovery. The compositional skeleton is the durable contribution: it decouples three independently-replaceable questions ("is the tumor side targetable?", "is the tumor-vs-normal gap large enough?", "is the observation trustworthy?"), and the §5.2.1 ablation + §5.2.2 cross-cohort whole-genome panel exercise that decomposition by swapping the gap factor between V2.5's `p_diff` and a simpler fixed-bandwidth `gap_sigmoid`. The current shipped recommendation that emerges from those experiments is `gap_sigmoid` (`probabilistic_mode: tumor_plus_gap_sigmoid`, ships in this tag) — uniformly equal-or-better than the earlier `tumor_plus_differential_protection` (V2.5) across every tested non-boundary cohort × dimension at WG scale. Shipped V2.5 is retained as a selectable mode for backward compatibility and AUC parity on cell-line cohorts but is no longer the recommended discovery axis. V1 remains the stable-release default for its deterministic `tie_band = 1` top-K guarantee. Δβ-only is a strong matched-cell-line baseline that any methylome-guided Cas9 scorer should report alongside its own scoring axis, and we report it on every cohort × tier in §5.2. The combination is offered as an open research framework; groups extending Roth et al. to other cell-type pairs are the immediate target audience.
 
 ---
 
@@ -349,7 +349,7 @@ From a fresh clone of the repository at `memo-2026-04-22-ao`:
 ```bash
 # One-time env setup
 uv sync
-uv run pytest -q           # 236 passing
+uv run pytest -q           # 245 passing
 
 # Rebuild the EPIC v2 probe annotation on chr5/6/10 (~2 min, needs pyliftover)
 uv run python scripts/build_epic_v2_probes.py \
