@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-aj` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ak` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -795,10 +795,11 @@ positive — they are not very informative or stable as inferential
 statistics. We therefore report two descriptive distributions
 instead (reproducible via `uv run scripts/auc_uncertainty.py`):
 
-- **Permutation null** — 10,000 draws of three random candidates
+- **Permutation null** — 1,000,000 draws of three random candidates
   uniformly without replacement from the full candidate set; AUC
   computed under benchmark mid-rank tie handling. The empirical
-  *p*-value is `Pr(AUC_random_triple ≥ AUC_observed)`.
+  *p*-value is `Pr(AUC_random_triple ≥ AUC_observed)`; the
+  resolution floor is 1/(10⁶+1) ≈ 1 × 10⁻⁶.
 - **Negative bootstrap** — 1,000 resamples of the negative set with
   replacement (the three positive scores held fixed). The bootstrap
   spread is small by construction here because we hold the
@@ -806,31 +807,36 @@ instead (reproducible via `uv run scripts/auc_uncertainty.py`):
 
 | cohort | axis | observed AUC | random-triple null 2.5–97.5% | one-sided *p* (Pr ≥ obs) |
 |---|---|---:|---|---:|
-| GSE322563 HM450      | V1 final_score | 0.821 | [0.166, 0.815] | 0.021 |
-| GSE322563 HM450      | Δβ-only        | 0.974 | [0.179, 0.821] | 2 × 10⁻⁴ |
-| **GSE322563 HM450**  | **V2.5 diff**  | **0.990** | [0.338, 0.798] | **≤ 1 × 10⁻⁴** |
-| GSE322563 native v2  | V1 final_score | 0.933 | [0.206, 0.819] | 2 × 10⁻³ |
-| GSE322563 native v2  | Δβ-only        | 0.961 | [0.173, 0.819] | 6 × 10⁻⁴ |
-| **GSE322563 native v2** | **V2.5 diff** | **0.986** | [0.313, 0.811] | **≤ 1 × 10⁻⁴** |
-| GSE77348             | V1 final_score | 0.968 | [0.261, 0.821] | 3 × 10⁻⁴ |
-| GSE77348             | Δβ-only        | 0.972 | [0.175, 0.821] | 3 × 10⁻⁴ |
-| **GSE77348**         | **V2.5 diff**  | **0.982** | [0.176, 0.821] | **≤ 1 × 10⁻⁴** |
+| GSE322563 HM450      | V1 final_score | 0.821 | [0.166, 0.817] | 2.2 × 10⁻² |
+| GSE322563 HM450      | Δβ-only        | 0.974 | [0.181, 0.823] | 8.6 × 10⁻⁵ |
+| **GSE322563 HM450**  | **V2.5 diff**  | **0.990** | [0.338, 0.802] | **4 × 10⁻⁶** |
+| GSE322563 native v2  | V1 final_score | 0.933 | [0.206, 0.823] | 1.3 × 10⁻³ |
+| GSE322563 native v2  | Δβ-only        | 0.961 | [0.177, 0.823] | 3.1 × 10⁻⁴ |
+| **GSE322563 native v2** | **V2.5 diff** | **0.986** | [0.313, 0.817] | **1.5 × 10⁻⁵** |
+| GSE77348             | V1 final_score | 0.968 | [0.261, 0.823] | 1.6 × 10⁻⁴ |
+| GSE77348             | Δβ-only        | 0.972 | [0.177, 0.823] | 1.1 × 10⁻⁴ |
+| **GSE77348**         | **V2.5 diff**  | **0.982** | [0.176, 0.823] | **2.8 × 10⁻⁵** |
+
+Values generated via
+`uv run scripts/auc_uncertainty.py --n-perm 1000000 --output-prefix examples/auc_uncertainty_1e6`;
+committed artifact at `examples/auc_uncertainty_1e6.md`. The earlier
+10⁴-draw run is preserved at `examples/auc_uncertainty.md` for
+historical comparison.
 
 What this table does and does not say:
 
 - **It shows that none of the listed axes reach their observed AUC
-  by chance.** The one-sided *p* is ≤ 0.021 on every cohort × axis
+  by chance.** The one-sided *p* is ≤ 0.022 on every cohort × axis
   cell in the table. The rank-lift signal at `n_pos = 3` is real
   for every listed axis, not just for V2.5.
-- **V2.5 is the only axis at the resolution floor on all three
-  cohorts.** V2.5 has `p ≤ 1 × 10⁻⁴` on every cohort (the
-  resolution floor of 10,000 draws). On GSE322563 HM450 this is at
-  least two orders of magnitude stricter than V1 (`p = 0.021`); on
-  native EPIC v2 and GSE77348 the other listed axes sit above the
-  10⁴-draw floor (V1 `p = 0.002` and `3 × 10⁻⁴` respectively), so
-  the HM450 gap against V1 is cleaner than the native or GSE77348
-  gap. A finer-grained null (e.g. 10⁶ draws) would be needed to
-  measure V2.5's distance from the resolution floor directly.
+- **V2.5 is resolved below the 10⁴-draw floor and is the strictest
+  axis on every cohort.** V2.5-diff sits at `p = 4 × 10⁻⁶` /
+  `1.5 × 10⁻⁵` / `2.8 × 10⁻⁵` on the three primary cohorts. The
+  gap against Δβ-only is now fully resolved: V2.5-diff is ~20×
+  stricter on GSE322563 HM450 (4e-6 vs 8.6e-5), ~20× on native
+  EPIC v2 (1.5e-5 vs 3.1e-4), and ~4× on GSE77348 (2.8e-5 vs
+  1.1e-4). V1 is the weakest axis on every cohort (2.2e-2 on
+  HM450, 1.3e-3 on native, 1.6e-4 on GSE77348).
 - **This is an against-random check, not a superiority test between
   axes.** The null asks "does this axis separate these three
   positives from random triples?" Direct pairwise comparison
@@ -1813,7 +1819,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-aj`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ak`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
