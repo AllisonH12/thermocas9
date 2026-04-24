@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-x` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-y` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -346,11 +346,27 @@ population-dispersion estimate: the "IQR" it produces is a function
 of two observations, not a quantile of an underlying distribution.
 Because the `σ_floor = 0.05` kicks in whenever IQR/1.349 < 0.05
 (i.e. whenever the two observations differ by less than ~0.135),
-σ_floor dominates σ_Δ on most n = 2 records — which is the
-mechanistic origin of the low-`n` tied band described above.
-This is the single place where behavior on n = 2/2 cohorts is
-genuinely different from behavior at n ≳ 30, and the §5.3.1
-σ_floor sweep is the direct diagnostic for it.
+σ_floor dominates σ_Δ on most n = 2 records.
+
+**Quantified σ_floor binding rate per cohort** (reproducible via
+`uv run scripts/sigma_floor_binding_rate.py`; denominator is
+records with both β means present):
+
+| cohort | σ_floor binds on either side | σ_floor binds on both sides |
+|---|---:|---:|
+| GSE322563 HM450 (n = 2/2)   | **100.0%** | **99.9%** |
+| GSE322563 native (n = 2/2)  | **100.0%** | **99.9%** |
+| GSE77348 (n = 3/3)          | **100.0%** | **99.5%** |
+| GSE69914 (n = 305/50 tissue) | 65.1%     | 43.2% |
+
+On matched cell-line cohorts the σ_floor is the binding constraint
+on essentially every observed record (both sides). On tissue the
+true IQRs are wide enough that the σ_floor binds on roughly two
+thirds of records either-side, and on both sides for only ~43%.
+This is the mechanistic origin of both the low-`n` tied band
+(§5.3.1) and the §5.3.2 finding that tissue AUC prefers a larger
+σ_floor: on cell-line cohorts, σ_floor is determining σ_Δ almost
+everywhere, so changing its value re-shapes the whole composite.
 
 ---
 
@@ -547,9 +563,13 @@ supporting evidence; GSE69914 is the tissue-behavior check for the
 matched cell-line cohorts; on tissue `tumor_only` takes a small AUC
 lead but at a tied band of 6,540 (§5.3 + Fig. 3). V1 falls below
 random on the tissue wide-label set in (b). **(b)** Sensitivity over
-label granularity (validated → narrow ±50 bp → wide ±500 bp). The
-cohort-type × axis ordering is stable across granularities; only the
-magnitude varies. Dashed line at AUC = 0.5 (random). The out-of-
+label granularity (validated → narrow ±50 bp → wide ±500 bp).
+**V2.5 remains the highest-AUC axis at every (matched cell-line
+cohort × granularity) cell**; the ordering among the lower axes
+(V1, `tumor_only`, Δβ-only) reshuffles between tiers — e.g.
+`tumor_only` overtakes Δβ-only at GSE322563 wide, and V1 overtakes
+Δβ-only at GSE77348 narrow / wide. The only stable ordering claim is
+V2.5 on top. Dashed line at AUC = 0.5 (random). The out-of-
 distribution GSE68379 cohort is not included here — it is plotted
 separately (§5.4).
 
@@ -680,19 +700,29 @@ instead (reproducible via `uv run scripts/auc_uncertainty.py`):
 | GSE77348             | Δβ-only        | 0.972 | [0.175, 0.821] | 3 × 10⁻⁴ |
 | **GSE77348**         | **V2.5 diff**  | **0.982** | [0.176, 0.821] | **≤ 1 × 10⁻⁴** |
 
-Two reads:
+What this table does and does not say:
 
-1. **None of the four axes reach the observed AUC by chance.** The
-   one-sided permutation *p* is ≤ 0.021 on every cohort × axis cell
-   (V2.5 is the only axis with `p ≤ 1 × 10⁻⁴` on every cohort —
-   the resolution floor of 10,000 draws). The rank-lift signal is
-   real, even at `n_pos = 3`.
-2. **V2.5's *p* is at the resolution floor on all three cohorts.**
-   The reported 0.990 / 0.986 / 0.982 AUC is harder to reach by
-   chance than V1's 0.821 on the same cohort by at least two orders
-   of magnitude. A finer-grained null (e.g. 10⁶ draws) would
-   distinguish V2.5 from Δβ-only on the matched cell-line cohorts;
-   here both sit at the resolution floor.
+- **It shows that none of the four axes reach their observed AUC by
+  chance.** The one-sided *p* is ≤ 0.021 on every cohort × axis
+  cell. The rank-lift signal at `n_pos = 3` is real for every axis
+  tested, not just for V2.5.
+- **V2.5's *p* is at the resolution floor on all three cohorts.**
+  V2.5 is `p ≤ 1 × 10⁻⁴` on every cohort (the resolution floor of
+  10,000 draws). On GSE322563 HM450 this is at least two orders of
+  magnitude stricter than V1 (`p = 0.021`); on native EPIC v2 and
+  GSE77348 the gap is smaller (V1 `p = 0.002` and `3 × 10⁻⁴`
+  respectively), so the matched cell-line result is cleaner on the
+  HM450 path than on the other two. A finer-grained null (e.g. 10⁶
+  draws) would be needed to distinguish V2.5 from the other strong
+  axes here; with a 10⁴-draw null several axes sit at the
+  resolution floor.
+- **This is an against-random check, not a superiority test between
+  axes.** The null asks "does this axis separate these three
+  positives from random triples?" Direct pairwise comparison
+  between V2.5 and Δβ-only on the same positives is reported
+  separately in §5.1.3 and is correctly framed there as
+  descriptive, not inferential (sign-flip `p_one_sided = 0.125` at
+  `n_pos = 3`).
 
 We do **not** report the negative-bootstrap spread in the body —
 because positive scores are held fixed and the negative pool is
@@ -723,6 +753,19 @@ lift (sum over the three positives of `r_Δβ − r_V2.5`) is
 +141,203 (HM450), +402,951 (native EPIC v2), and +91,435
 (GSE77348) — V2.5 moves each positive multiple thousand
 positions up the ranking on average.
+
+**Where V2.5's paired advantage concentrates.** The per-positive
+table makes a secondary observation visible: *GATA3* — the
+validated positive with the smallest raw β gap (Δβ ≈ 0.28 on
+GSE322563 HM450, vs ≈ 0.48 for EGFLAM and ≈ 0.87 for ESR1;
+§5.1.1) — is where V2.5's advantage over Δβ-only is largest on
+every cohort (+135,849 positions on HM450, +372,473 on native,
++32,929 on GSE77348; cf. +2k–+27k for the other two positives).
+This is consistent with the intended role of `p_targ × p_trust`:
+they help most where the naive gap signal is weakest, not where
+it is already large. One positive is not a strong basis for a
+general claim, but the direction is the one the composite was
+designed to produce.
 
 **Statistical caveat.** A paired sign-flip permutation null (2³ =
 8 equiprobable sign patterns, each flipping independently which
@@ -862,9 +905,15 @@ implementation constant in the V2.5 composite (§3.1). A sweep over
    On all three matched cell-line cohorts (GSE322563 HM450,
    GSE322563 native EPIC v2, GSE77348), AUC moves by ≤0.02 across
    the entire 7.5×-range σ_floor sweep, and V2.5 remains the
-   highest-AUC axis at every σ_floor (compare with V1 = 0.821 on
-   GSE322563 HM450, V1 = 0.968 on GSE77348). The matched-cell-line
-   ranking conclusion is not a σ_floor artifact.
+   highest-AUC axis at σ_floor ≤ 0.10 on all three cohorts. At the
+   far end of the sweep (σ_floor = 0.15) V2.5 on GSE77348 drops to
+   0.967, narrowly behind V1 at 0.968 and raw Δβ-only at 0.972
+   (§5.1); the matched-cell-line ranking conclusion is therefore
+   robust at the shipped default and across the tissue-suggested
+   σ_floor = 0.10, but is not "highest-AUC at every σ_floor"
+   unconditionally. The reviewer-salient conclusion is that small
+   σ_floor perturbations around the shipped default do not flip the
+   ranking.
 
 2. **σ_floor is a tied-band lever, not an AUC lever.** On the
    low-`n` cell-line cohorts the K=100 tied band shrinks
@@ -923,15 +972,16 @@ not selected against them.)
    cell-line ranking conclusion is δ-stable.
 
 2. **δ = 0.2 is borderline-conservative on cell lines.** δ = 0.3
-   slightly outperforms 0.2 on both GSE322563 paths and on the
-   GSE77348 development cohort, while collapsing the K=100 tied
-   band from hundreds → single-digit. We do not retune because (a)
-   the lift is within the noise floor on n = 2/2, (b) the larger
-   tied band at δ = 0.2 is a more conservative top-K (more
-   candidates flagged for secondary triage), and (c) the
-   development-cohort discipline (§4.0) requires that re-tuning δ
-   against the primary endpoint would invalidate the
-   pre-evaluation separation.
+   slightly outperforms 0.2 on both GSE322563 paths and on GSE77348
+   while collapsing the K=100 tied band from hundreds → single-digit.
+   The substantive reason to stay at δ = 0.2 is that the larger
+   tied band functions as conservative triage: it flags more
+   candidates for secondary review (annotation, guide quality, etc.)
+   rather than committing the ranking to a narrow top-K at n = 2/2.
+   (We also cannot re-tune against the primary endpoint without
+   violating the development-cohort discipline of §4.0, but that is
+   a methodological constraint, not an argument for 0.2 over 0.3 on
+   its substantive merits.)
 
 3. **Tissue prefers smaller δ.** GSE69914 AUC drops monotonically
    with δ (0.827 → 0.643), the inverse of the cell-line story. δ =
@@ -1347,7 +1397,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-x`** for this document. 236 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-y`** for this document. 236 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
