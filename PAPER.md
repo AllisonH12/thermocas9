@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ar` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-as` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -21,11 +21,14 @@ Mann-Whitney AUC). Two gap factors ship in this tag: V2.5-diff
 
 The primary endpoint is GSE322563 validated-label AUC at the three Roth
 Fig. 5d target probes, evaluated under both HM450-intersect and native
-EPIC v2 ingest paths. V2.5 axes place all three positives in the top
-percentile; a 10⁶-draw random-triple null resolves the rank lift beyond
-the earlier 10⁴ floor, while the paired V2.5-vs-Δβ comparison remains
-descriptive at `n_pos = 3`. The strongest empirical result is on
-GSE69914 tissue: a probe-level limma-eBayes DMR baseline is competitive
+EPIC v2 ingest paths. **Because the validated set contains only three
+Roth Fig. 5d targets, AUC is interpreted as a rank-lift summary rather
+than an inferential discovery-performance estimate.** V2.5 axes place
+all three positives in the top percentile; a 10⁶-draw random-triple
+null resolves the rank lift beyond the earlier 10⁴ floor, while the
+paired V2.5-vs-Δβ comparison remains descriptive at `n_pos = 3`. The
+strongest empirical result is on
+GSE69914 tissue: a probe-level limma-style moderated-t DMR baseline is competitive
 on matched cell lines but falls to AUC 0.573 on tissue, while
 V2.5-sigmoid reaches AUC 0.862 on the same candidate mapping. A frozen
 whole-genome panel shows V2.5-sigmoid matches V2.5-diff's cell-line AUC
@@ -33,13 +36,18 @@ within 0.002, avoids V2.5-diff's whole-genome low-`n` top-K tied bands
 (`tie_band@100 = 1` vs 421–1,493), and improves tissue AUC by +0.05 to
 +0.08.
 
-The recommended probabilistic discovery axis is V2.5-sigmoid; V2.5-diff
-is retained for backward-compatible AUC parity, V1 remains the package
-default for deterministic top-K behavior, and `tumor_only` remains the
-default `probabilistic_mode` enum value for compatibility. This is a
-scoring-method and benchmarking contribution on public methylation data,
-not prospective editing validation. Whole-genome catalogs are SHA256-
-frozen and all benchmark artifacts are committed under `examples/`.
+The recommended probabilistic prioritization axis (hypothesis
+generation; not a discovery claim absent prospective wet-lab
+validation) is V2.5-sigmoid; V2.5-diff is retained for
+backward-compatible AUC parity, V1 remains the package default for
+deterministic top-K behavior, and `tumor_only` remains the default
+`probabilistic_mode` enum value for compatibility. **V2.5-sigmoid is
+selected by post-repair sensitivity and whole-genome stress testing;
+its prospective ranking utility remains to be validated on newly
+generated labels or wet-lab follow-up.** This is a scoring-method and
+benchmarking contribution on public methylation data, not prospective
+editing validation. Whole-genome catalogs are SHA256-frozen and all
+benchmark artifacts are committed under `examples/`.
 
 ---
 
@@ -158,7 +166,7 @@ values in this tag:
   section defines it.
 - **V2.5-sigmoid** = `tumor_plus_gap_sigmoid`, a fixed-bandwidth
   sigmoid replacement of `p_diff`. Introduced and benchmarked in
-  §5.2.1 + §5.2.2; the recommended probabilistic discovery axis
+  §5.2.1 + §5.2.2; the recommended probabilistic prioritization axis
   per the §5.2.2 whole-genome panel.
 
 Where the prose says "shipped V2.5" without qualifier it
@@ -212,6 +220,18 @@ per-side empirical distributions would exceed δ, under independent
 normal approximations to those per-side distributions. (This is a
 *population-overlap* statistic, not a confidence interval on a
 cohort-level mean contrast — see §3.3.)
+
+**Calibration scope.** `p_therapeutic_selectivity` is a *bounded
+probability-scale ranking score in [0, 1]*, not a calibrated probability
+of editing success at the candidate site. The composite is not validated
+against any prospective editing readout (no expected calibration error
+is reported, no reliability diagram is fit, no Platt/isotonic
+post-calibration is applied). What the bounded scale buys is
+multiplicative composability with downstream probabilistic inputs
+(target-mutation models, gRNA off-target probabilities, delivery-
+efficiency priors) — not a frequentist guarantee that "0.9" means "90%
+of 0.9-scored sites edit successfully." Read the score as a
+probability-scale ranking axis throughout.
 
 ### 3.2 Choice of δ
 
@@ -449,10 +469,10 @@ Seven axes are benchmarked. For naming conventions see §7 Methods
 - **V1** — `final_score = sequence × selectivity × confidence − heterogeneity_penalty − low_coverage_penalty`. Deterministic, continuous-valued, tie band always 1.
 - **V2** (`tumor_only`) — `p_targ × p_trust`. Retained for audit; default in v0.4.0.
 - **V2.5-diff** (`tumor_plus_differential_protection`) — `p_targ × p_diff × p_trust` with δ = 0.2 and σ_floor = 0.05. The original V2.5 composite; retained in this tag for backward compatibility and AUC parity on cell-line cohorts.
-- **V2.5-sigmoid** (`tumor_plus_gap_sigmoid`) — `p_targ × sigmoid((β_n − β_t − δ) / σ_fixed) × p_trust` with δ = 0.2 and σ_fixed ≈ 0.0707. The **recommended probabilistic discovery axis** on every non-boundary cohort shape tested (§5.2.2 whole-genome panel); ships as a first-class `probabilistic_mode` enum value in this tag.
-- **limma-eBayes** (moderated-t) — sample-level probe-level empirical-Bayes moderated t-statistic (Smyth 2004), then candidate-mapped via the nearest probe assigned in `observation.probe_id`. Included as the methods-journal-standard DMR baseline; §5.1 + §5.2.2 report AUC + tie-band alongside the other axes.
+- **V2.5-sigmoid** (`tumor_plus_gap_sigmoid`) — `p_targ × sigmoid((β_n − β_t − δ) / σ_fixed) × p_trust` with δ = 0.2 and σ_fixed ≈ 0.0707. The **recommended probabilistic prioritization axis** on every non-boundary cohort shape tested (§5.2.2 whole-genome panel); ships as a first-class `probabilistic_mode` enum value in this tag.
+- **limma-style moderated-t** — sample-level probe-level Smyth (2004) empirical-Bayes moderated `t`-statistic, candidate-mapped via the nearest probe assigned in `observation.probe_id`. Pure-Python reimplementation of the variance-prior math (not a byte-identical R `minfi` + `limma` Bioconductor workflow); a canonical R parity check is on the §6.3 follow-up list. Included as the methods-journal-standard DMR comparator; §5.1 + §5.2.2 report AUC + tie-band alongside the other axes.
 
-**limma-eBayes baseline.** Standard DMR tools rank CpG probes or
+**limma-style moderated-t baseline.** Standard DMR tools rank CpG probes or
 regions, not per-PAM candidates, so we compute a probe-level Smyth
 (2004) empirical-Bayes moderated `t` statistic from sample-level β
 matrices and map each candidate to its nearest probe via the same
@@ -533,7 +553,7 @@ These three fields are on every emitted `BenchmarkResult` JSONL row.
 validated labels by cohort in (a), and validated / narrow / wide label
 tiers in (b). The current recommended probabilistic axis is
 V2.5-sigmoid; §5.2.2 reports the whole-genome V2.5-sigmoid panel and
-the limma-eBayes baseline. This figure is retained to show that
+the limma-style moderated-t baseline. This figure is retained to show that
 V2.5-diff's matched-cell-line rank lift is stable across label
 granularities, while lower-axis ordering reshuffles and tissue
 `tumor_only` wins raw AUC with unusable tied bands.
@@ -558,7 +578,7 @@ independent.
 |---|---:|---:|
 | Δβ-only (`β_n − β_t`) | 0.974 | 0.972 |
 | Δβ_z (uncertainty-aware Δβ) | 0.940 | 0.956 |
-| limma-eBayes moderated-`t` (probe-level → candidate-mapped) | 0.959 | 0.962 |
+| limma-style moderated-`t` (probe-level → candidate-mapped) | 0.959 | 0.962 |
 | V1 `final_score` | 0.821 | 0.968 |
 | V2 `tumor_only` | 0.928 | 0.912 |
 | V2.5-diff (`tumor_plus_differential_protection`) | 0.990 | 0.982 |
@@ -890,18 +910,18 @@ tested non-boundary cohort × denominator combination, with AUC parity
 on matched cell lines, higher AUC on tissue, and far smaller WG top-K
 tied bands.
 
-**Cross-cohort comparison against the limma-eBayes DMR baseline**
+**Cross-cohort comparison against the limma-style moderated-t DMR baseline**
 (§4.3 exclusion-rationale paragraph; cross-cohort panel at
 `examples/limma_cross_cohort_panel.md`):
 
-| cohort | limma-eBayes AUC | V2.5-diff AUC | V2.5-sigmoid AUC | limma tie@100 | V2.5-sigmoid tie@100 |
+| cohort | limma-style moderated-t AUC | V2.5-diff AUC | V2.5-sigmoid AUC | limma tie@100 | V2.5-sigmoid tie@100 |
 |---|---:|---:|---:|---:|---:|
 | GSE322563 HM450      | 0.959 | 0.989 | 0.988 | 91 | 1 |
 | GSE322563 native v2  | 0.991 | 0.998 | 0.998 | 39 | 1 |
 | GSE77348             | 0.962 | 0.982 | 0.981 | 115 | 1 |
 | **GSE69914 (tissue)**    | **0.573** | 0.778 | **0.862** | 57 | 6 |
 
-limma-eBayes is a credible matched-cell-line DMR baseline but collapses
+limma-style moderated-t is a credible matched-cell-line DMR baseline but collapses
 to near-random on tissue, where V2.5-sigmoid reaches 0.862. That contrast
 is the clearest evidence that the compositional wrapper (`p_targ ×
 p_trust`) is doing work a pure probe-level differential statistic cannot.
@@ -958,7 +978,7 @@ Two findings:
    V2.5-sigmoid `tie_band@100 ≤ 6` across the tested bandwidth
    family), and V2.5-sigmoid additionally wins on tissue AUC by
    +0.05 to +0.08 (§5.2.1 / §5.2.2) — so V2.5-sigmoid is the
-   recommended tissue discovery axis, with V2.5-diff retained for
+   recommended tissue prioritization axis, with V2.5-diff retained for
    AUC-parity use. V1 collapses on tissue (AUC 0.44 on wide,
    below random).
 
@@ -1156,10 +1176,10 @@ use:
 | **V1** | `final_score` | stable-release default; `tie_band = 1` by construction | backward compatibility + deterministic top-K |
 | V2 | `probabilistic_mode: tumor_only` | first-pass composite; `p_prot` anti-predictive on tissue | diagnostic / audit only |
 | **V2.5-diff** | `probabilistic_mode: tumor_plus_differential_protection` | original V2.5; `p_targ × p_diff × p_trust` | retained for backward compat + AUC parity on cell-line cohorts |
-| **V2.5-sigmoid** | `probabilistic_mode: tumor_plus_gap_sigmoid` | recommended V2.5 variant; `p_targ × p_gap_sigmoid × p_trust` | **recommended probabilistic discovery axis** (all tested non-boundary regimes) |
+| **V2.5-sigmoid** | `probabilistic_mode: tumor_plus_gap_sigmoid` | recommended V2.5 variant; `p_targ × p_gap_sigmoid × p_trust` | **recommended probabilistic prioritization axis** (all tested non-boundary regimes) |
 | Δβ-only | `naive_selectivity` (score-field) | raw methylation gap | honest baseline |
 | Δβ_z | computed post-hoc from scored JSONL | σ-normalized raw gap | uncertainty-aware ablation baseline |
-| limma-eBayes | probe-level Smyth 2004 eBayes | DMR comparator | methods-journal-standard baseline |
+| limma-style moderated-t | probe-level Smyth 2004 eBayes | DMR comparator | methods-journal-standard baseline |
 
 The terms "probability-scale selectivity score" (paper-level) and
 the field `p_therapeutic_selectivity` (code-level) refer to the
@@ -1196,7 +1216,7 @@ tumor_plus_normal_protection         : p_targ × p_prot × p_trust
 tumor_plus_differential_protection   : p_targ × p_diff × p_trust
     (= V2.5-diff)
 tumor_plus_gap_sigmoid               : p_targ × p_gap_sigmoid × p_trust
-    (= V2.5-sigmoid; recommended probabilistic discovery axis, §5.2.2)
+    (= V2.5-sigmoid; recommended probabilistic prioritization axis, §5.2.2)
 ```
 
 Validators enforce mode-specific audit fields and exact composite
@@ -1249,7 +1269,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ar`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-as`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
