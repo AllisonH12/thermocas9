@@ -7,7 +7,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased] — submission-freeze post-`memo-2026-04-22`
 
 > Submission-freeze cycle for the bioRxiv / *Bioinformatics* preprint.
-> Stable release is still `v0.4.0`; cite `memo-2026-04-22-ab` for the
+> Stable release is still `v0.4.0`; cite `memo-2026-04-22-ac` for the
 > current submission-freeze state. See `git log memo-2026-04-22..main`
 > for the full per-commit history.
 
@@ -49,11 +49,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **V1 as the stable-release default** (backward compatibility +
   `tie_band = 1` by construction regardless of cohort shape) and
-  **V2.5 as the recommended research mode on all non-boundary
-  cohort shapes tested** (matched cell-line and tissue), with
-  Δβ-only retained as a published baseline. V2.5 beats V1 on
-  tissue at every label granularity (+0.113 / +0.172 / +0.291
-  validated / narrow / wide).
+  **V2.5 as the recommended research mode among the shipped modes
+  on all non-boundary cohort shapes tested** (matched cell-line and
+  tissue), with Δβ-only retained as a published baseline. V2.5
+  beats V1 on tissue at every label granularity (+0.113 / +0.172 /
+  +0.291 validated / narrow / wide). Tissue caveat: PAPER.md §5.2.1
+  factor ablation shows a fixed-bandwidth sigmoid replacement of
+  `p_diff` outperforms shipped V2.5 on tissue by +0.09 AUC (0.864
+  vs 0.773); regime-specific reformulation is on the PAPER.md §6.3
+  follow-up list. So V2.5 is the best *shipped* tissue axis, not
+  the best tested probabilistic formulation for tissue.
 
 ---
 

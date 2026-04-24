@@ -243,10 +243,10 @@ Fig. 5d validated target coordinates (`EGFLAM T11`, `ESR1 T17`,
 `GATA3 T18`), lifted hg38 → hg19 and cross-checked against our per-probe
 β values:
 
-| cohort type | example | recommended axis | why |
+| cohort type | example | recommended axis (shipped modes) | why |
 |---|---|---|---|
-| **matched cell-line / paper-comparable** | GSE322563 (Roth actual), GSE77348 (δ-tuning dev cohort) | **V2.5 `tumor_plus_differential_protection`** | Highest-AUC discovery axis at every label granularity (validated / narrow / wide). +0.01 to +0.08 over Δβ-only; +0.01 to +0.17 over V1 on the Roth-validated label set. |
-| **primary tumor tissue** | GSE69914 (n=305 / 50) | **V2.5 `tumor_plus_differential_protection`** | Highest-AUC discovery axis on tissue too: +0.113 validated, +0.172 narrow, +0.291 wide over V1. V2's `tumor_only` has the highest raw AUC (0.803–0.874) but `tie_band = 6,540` at K=100 excludes it from discovery use (retained as a diagnostic). V1 collapses on wide (AUC 0.435 — at chance). V2.5's tie-band is 2 at K=100; top-K is effectively deterministic. |
+| **matched cell-line / paper-comparable** | GSE322563 (Roth actual), GSE77348 (δ-tuning dev cohort) | **V2.5 `tumor_plus_differential_protection`** | Highest-AUC shipped discovery axis at every label granularity (validated / narrow / wide). +0.01 to +0.08 over Δβ-only; +0.01 to +0.17 over V1 on the Roth-validated label set. |
+| **primary tumor tissue** | GSE69914 (n=305 / 50) | **V2.5 `tumor_plus_differential_protection`** *(see tissue caveat below)* | Highest-AUC discovery axis on tissue *among the shipped benchmark modes*: +0.113 validated, +0.172 narrow, +0.291 wide over V1. V2's `tumor_only` has higher raw AUC (0.803–0.874) but `tie_band = 6,540` at K=100 excludes it from discovery use. V1 collapses on wide (AUC 0.435 — at chance). V2.5 tie-band = 2 at K=100; top-K is effectively deterministic. **Caveat:** PAPER.md §5.2.1 factor ablation shows a fixed-bandwidth sigmoid replacement of `p_diff` *beats* shipped V2.5 on tissue by +0.09 AUC (0.864 vs 0.773) — so V2.5 is the best *shipped* tissue axis, not the best tested probabilistic formulation for tissue. Regime-specific reformulation is a committed follow-up. |
 | **any cohort, top-K stability priority / backward compat** | — | V1 `final_score` | V1's continuous-valued deterministic score has `tie_band = 1` at every K regardless of cohort shape. This is the stable-release default (tag `v0.4.0`) for backward compatibility; not the AUC leader anywhere. |
 
 ```bash
@@ -260,11 +260,18 @@ thermocas benchmark ... --score-field final_score ...
 
 V2.5 is **not** the unconditional stable-release default — V1 `final_score`
 is, for backward compatibility and its deterministic `tie_band = 1` top-K
-guarantee. V2.5 is the recommended *research* mode across every cohort
-shape we tested (matched cell-line *and* tissue), subject to low-`n`
-tie-band caveats documented in the next section. `tumor_only` stays
-framed as analysis-only. See `V2_5_REVIEW.md` §8 for the full 3-cohort
-× 3-label-set × 3-mode matrix.
+guarantee. V2.5 is the recommended *research* mode **among the shipped
+modes** across every cohort shape we tested (matched cell-line *and*
+tissue), subject to (a) low-`n` tie-band caveats documented in the next
+section, and (b) the PAPER.md §5.2.1 tissue-specific ablation result: a
+fixed-bandwidth sigmoid replacement of `p_diff` outperforms the shipped
+V2.5 composite on GSE69914 tissue by +0.09 AUC (0.864 vs 0.773), while
+matching V2.5 within ≤0.001 AUC on every matched cell-line cohort. The
+tissue headline is therefore that V2.5 is the best *shipped* probabilistic
+tissue axis, not the best tested probabilistic formulation for tissue;
+regime-specific reformulation is a committed follow-up in PAPER.md §6.3.
+`tumor_only` stays framed as analysis-only. See `V2_5_REVIEW.md` §8 for
+the full 3-cohort × 3-label-set × 3-mode matrix.
 
 ## Limitations and caveats
 
@@ -277,7 +284,7 @@ probabilistic composite `p_therapeutic_selectivity`:
 |---|---|---|
 | `tumor_only` (default) | `p_targ × p_trust` | **analysis-only** — competitive AUC on tissue, but tie_band at K=100 ranges **5,271–14,914 across the five cohort paths tested** (GSE68379 5,271; GSE69914 6,540; GSE322563 HM450 10,005; GSE77348 11,848; GSE322563 native 14,914). Do NOT use for target-list generation. |
 | `tumor_plus_normal_protection` | `p_targ × p_prot × p_trust` | opt-in; known anti-predictive on TCGA-BRCA bulk and inverted on the MCF-7/MCF-10A surrogate. Retained for audit. |
-| `tumor_plus_differential_protection` (V2.5) | `p_targ × p_diff × p_trust` where `p_diff = P(β_n − β_t > δ)` | **experimental**; requires `differential_delta` (default 0.2). Highest-AUC discovery axis at every non-boundary cohort × tier combination tested (12/12 rows across **GSE322563 HM450, GSE322563 native EPIC v2, GSE77348, GSE69914**); tie_band scales correctly with `n` (190 at n=2 → 2 at n=305/50). Not the raw-AUC leader on tissue (tumor_only is), but the only probabilistic axis whose top-K is usable there. |
+| `tumor_plus_differential_protection` (V2.5) | `p_targ × p_diff × p_trust` where `p_diff = P(β_n − β_t > δ)` | **experimental**; requires `differential_delta` (default 0.2). Highest-AUC discovery axis *among the shipped modes* at every non-boundary cohort × tier combination tested (12/12 rows across **GSE322563 HM450, GSE322563 native EPIC v2, GSE77348, GSE69914**); tie_band scales correctly with `n` (190 at n=2 → 2 at n=305/50). Not the raw-AUC leader on tissue (tumor_only is), but the only probabilistic axis *among the shipped modes* whose top-K is usable there. PAPER.md §5.2.1 further shows a fixed-bandwidth sigmoid replacement of `p_diff` outperforms shipped V2.5 on tissue by +0.09 AUC — regime-specific reformulation is on the follow-up list. |
 
 Both modes emit `p_targetable_tumor`, `p_protected_normal`, and
 `p_observation_trustworthy` for auditability — the `mode` field on
