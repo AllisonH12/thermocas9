@@ -1,8 +1,8 @@
-# Compositional probabilistic scoring and tie-band-aware benchmarking for methylome-guided ThermoCas9 target-site ranking
+# Compositional probability-scale scoring and tie-band-aware benchmarking for methylome-guided ThermoCas9 target-site ranking
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-an` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ao` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -43,17 +43,21 @@ same cohorts** (against-random check, not a formal pairwise
 superiority test; the paired V2.5-vs-Δβ comparison is reported
 separately in §5.1.3 and floors at sign-flip *p* = 0.125 with
 `n_pos = 3`).
-(2) A frozen whole-genome panel (§5.2.2) shows V2.5-sigmoid
+(2) **The headline tissue result.** A probe-level limma-eBayes DMR
+baseline (Smyth 2004 empirical-Bayes moderated-t on sample-level
+β matrices, probe-level first then candidate-mapped) is
+competitive on matched cell lines (AUC 0.959–0.991) but
+**collapses to near-random on bulk tissue (GSE69914, AUC 0.573)**,
+while **V2.5-sigmoid recovers the same tissue cohort to AUC 0.862**
+— a +0.29 swing on the same probe-level statistical inputs. This
+is the strongest evidence that the compositional skeleton's
+`p_targ × p_trust` wrapping is the durable methodological
+contribution and the gap-factor shape is interchangeable.
+(3) A frozen whole-genome panel (§5.2.2) shows V2.5-sigmoid
 matches V2.5-diff's AUC on matched cell-line cohorts within 0.002
 but strictly beats V2.5-diff's top-K usability — `tie_band@100 =
-1` vs 421–1,493 at WG scale — and improves tissue AUC by +0.05
-to +0.08 across a bandwidth-robust sweep. (3) A probe-level
-limma-eBayes DMR baseline (Smyth 2004 empirical-Bayes moderated-t
-on sample-level β matrices, probe-level first then
-candidate-mapped) is competitive on cell lines (0.959–0.991) but
-collapses to near-random on bulk tissue (0.573), confirming that
-the compositional skeleton's `p_targ × p_trust` wrapping — not
-the gap factor's specific shape — is the durable contribution.
+1` vs 421–1,493 at WG scale — and improves tissue AUC over
+V2.5-diff by +0.05 to +0.08 across a bandwidth-robust sweep.
 
 **Shipping recommendation** (three distinct senses):
 
@@ -563,7 +567,7 @@ that every downstream step matches a canonical `minfi` + `limma`
 run byte-for-byte. The result is reported alongside the
 other baselines in §5.1 and §5.2.2; limma-eBayes AUC is 0.959
 (GSE322563 HM450) / 0.991 (native EPIC v2) / 0.962 (GSE77348) /
-**0.573 on GSE69914 tissue** — respectable on cell lines but
+0.573 on GSE69914 tissue — respectable on cell lines but
 near-random on tissue, where the `p_targ` (tumor-side
 unmethylation) gate of V2.5 is what drives the tissue recovery
 from 0.57 to 0.86 that a pure probe-level moderated-t statistic
@@ -1868,7 +1872,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-an`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ao`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).

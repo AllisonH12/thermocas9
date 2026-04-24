@@ -251,28 +251,34 @@ Fig. 5d validated target coordinates (`EGFLAM T11`, `ESR1 T17`,
 | **Top-K stability priority / backward compat** | — | V1 `final_score` | V1's continuous-valued deterministic score has `tie_band = 1` at every K regardless of cohort shape. This is the stable-release default (tag `v0.4.0`) for backward compatibility; not the AUC leader anywhere. |
 
 ```bash
-# cell-line / paper-comparable cohort:
+# recommended probabilistic discovery axis (every non-boundary cohort shape):
+thermocas benchmark ... --score-field p_therapeutic_selectivity ...
+#                         (with probabilistic_mode: tumor_plus_gap_sigmoid)
+
+# audit / AUC-parity vs pre-`memo-2026-04-22-ao` scored JSONLs (cell-line only):
 thermocas benchmark ... --score-field p_therapeutic_selectivity ...
 #                         (with probabilistic_mode: tumor_plus_differential_protection)
 
-# when you specifically need a clean top-K on any cohort:
+# when you specifically need a clean top-K on any cohort (deterministic stable-release default):
 thermocas benchmark ... --score-field final_score ...
 ```
 
-V2.5 is **not** the unconditional stable-release default — V1 `final_score`
-is, for backward compatibility and its deterministic `tie_band = 1` top-K
-guarantee. V2.5 is the recommended *research* mode **among the shipped
-modes** across every cohort shape we tested (matched cell-line *and*
-tissue), subject to (a) low-`n` tie-band caveats documented in the next
-section, and (b) the PAPER.md §5.2.1 tissue-specific ablation result: a
-fixed-bandwidth sigmoid replacement of `p_diff` outperforms the shipped
-V2.5 composite on GSE69914 tissue by +0.09 AUC (0.864 vs 0.773), while
-matching V2.5 within ≤0.001 AUC on every matched cell-line cohort. The
-tissue headline is therefore that V2.5 is the best *shipped* probabilistic
-tissue axis, not the best tested probabilistic formulation for tissue;
-regime-specific reformulation is a committed follow-up in PAPER.md §6.3.
-`tumor_only` stays framed as analysis-only. See `V2_5_REVIEW.md` §8 for
-the full 3-cohort × 3-label-set × 3-mode matrix.
+V2.5-sigmoid is **not** the unconditional stable-release default — V1
+`final_score` is, for backward compatibility and its deterministic
+`tie_band = 1` top-K guarantee. V2.5-sigmoid (`tumor_plus_gap_sigmoid`)
+is the **recommended probabilistic discovery axis** across every
+non-boundary cohort shape we tested (matched cell-line *and* tissue),
+chosen on the basis of the PAPER.md §5.2.2 frozen whole-genome panel:
+AUC within 0.002 of V2.5-diff (`tumor_plus_differential_protection`)
+on every matched cell-line cohort but `tie_band@100 = 1` at WG scale
+on every matched cell-line WG catalog (vs V2.5-diff's 421 / 1,127 /
+1,493 on the same WG catalogs), and AUC +0.05 to +0.08 over V2.5-diff
+on GSE69914 tissue across a bandwidth-robust sweep. V2.5-diff is
+retained as a selectable mode for backward compatibility and AUC
+parity with pre-`memo-2026-04-22-ao` scored JSONLs, but is no longer
+the recommended discovery axis on any tested regime. `tumor_only`
+stays framed as analysis-only. See `V2_5_REVIEW.md` §8 for the full
+3-cohort × 3-label-set × 3-mode matrix.
 
 ## Limitations and caveats
 
@@ -362,38 +368,56 @@ benchmark.
 
 #### Cross-cohort matrix under repaired labels
 
-AUC (`tumor_only` → `differential` → `V1`) across all three cohorts:
+> **Historical V2.5-diff matrix** (pre-`memo-2026-04-22-ao`). Retained
+> here for AUC parity against scored JSONLs predating the V2.5-sigmoid
+> ship; the current recommended discovery axis is V2.5-sigmoid
+> (`tumor_plus_gap_sigmoid`, see the recommendation table above and
+> the mode table in *V2 scoring modes*). For the V2.5-sigmoid +
+> limma-eBayes whole-genome panel, see PAPER.md §5.2.2.
 
-| cohort | regime | `n` | validated AUC | narrow AUC | wide AUC | V2.5 tie_band |
+AUC (`tumor_only` → `differential` (V2.5-diff) → `V1`) across all three cohorts:
+
+| cohort | regime | `n` | validated AUC | narrow AUC | wide AUC | V2.5-diff tie_band |
 |---|---|:---:|---|---|---|---:|
 | **GSE322563** | Roth cell lines | 2/2 | 0.928 / **0.990** / 0.821 | 0.886 / **0.942** / 0.884 | 0.871 / **0.910** / 0.768 | 190 |
 | **GSE77348** | MCF-7/MCF-10A surrogate | 3/3 | 0.912 / **0.982** / 0.968 | 0.911 / **0.983** / 0.969 | 0.887 / **0.949** / 0.931 | 299 |
 | **GSE69914** | primary tissue | 305/50 | **0.803** / 0.773 / 0.660 | **0.843** / 0.711 / 0.539 | **0.874** / 0.726 / 0.435 | **2** |
 
-Bold = best AUC in that row. `tumor_only` tie_band is 6,540–11,848 across
-all three cohorts — its top-K is never usable. `V1` tie_band is 1 on
-every cohort.
+Bold = best AUC in that row among the three columns shown. `tumor_only`
+tie_band is 6,540–11,848 across all three cohorts — its top-K is never
+usable. `V1` tie_band is 1 on every cohort.
 
-Three findings:
+Three findings (V2.5-diff era):
 
-1. **V2.5 wins AUC on cell-line cohorts by clear margins.** The label
-   repair lifted V2.5 on GSE322563 from 0.694 → 0.990 (validated) and on
-   GSE77348 from 0.721 → 0.982. V1 improved similarly (0.541 → 0.821 on
-   GSE322563) — so both were being penalized by noise in the old
-   supervision target, but V2.5 penalized more.
+1. **V2.5-diff wins AUC on cell-line cohorts by clear margins.** The
+   label repair lifted V2.5-diff on GSE322563 from 0.694 → 0.990
+   (validated) and on GSE77348 from 0.721 → 0.982. V1 improved
+   similarly (0.541 → 0.821 on GSE322563) — so both were being
+   penalized by noise in the old supervision target, but V2.5-diff
+   penalized more.
 2. **On primary tissue, `tumor_only` has higher AUC but unusable top-K.**
-   V2.5 is the second-best AUC axis there and the only probabilistic
-   axis whose top-K is interpretable.
-3. **V2.5's tie_band behaves correctly with `n`.** 190 at n=2 → 299 at
-   n=3 → 2 at n=305/50. The `n`-saturation prediction from V2_5_REVIEW §3
-   holds exactly.
+   V2.5-diff is the second-best AUC axis there *among the three columns
+   shown*; V2.5-sigmoid (added in `memo-2026-04-22-ao`) reaches AUC 0.862
+   on the same cohort and is the recommended tissue axis (PAPER.md
+   §5.2.2). V2.5-diff is the only probabilistic axis in this table whose
+   top-K is interpretable on tissue (`tie_band = 2`).
+3. **V2.5-diff's tie_band behaves correctly with `n` on the chr5/6/10
+   denominator.** 190 at n=2 → 299 at n=3 → 2 at n=305/50. The
+   `n`-saturation prediction from V2_5_REVIEW §3 holds exactly. (The
+   WG-denominator picture is different and motivates V2.5-sigmoid: see
+   PAPER.md §5.2.2 for `tie_band@100 = 421–1,493` for V2.5-diff vs `1`
+   for V2.5-sigmoid on the same WG catalogs.)
 
-**Bottom line.** V2.5 fixes the biological mis-specification of
-`p_protected_normal` (threshold → margin) and is the strongest
-probabilistic axis on matched cell-line cohorts, but it is not an
-unconditional default. V1 stays available as a continuous-score fallback
-with guaranteed top-K stability. `tumor_only` stays analysis-only. V2.5
-remains **experimental-on-main**.
+**Bottom line (current — supersedes the V2.5-diff-era summary that
+appeared here).** V2.5-sigmoid (`tumor_plus_gap_sigmoid`) is the
+**recommended probabilistic discovery axis** across every non-boundary
+cohort shape tested (matched cell-line at n = 2/2 to 3/3 *and* primary
+tissue at n = 305/50), for the reasons summarized in the recommendation
+table above. V2.5-diff is retained as a selectable mode for backward
+compatibility and AUC parity with pre-`memo-2026-04-22-ao` scored
+JSONLs. V1 `final_score` stays the deterministic stable-release default
+for backward compatibility and `tie_band = 1` top-K. `tumor_only` stays
+analysis-only.
 
 A separate GSE68379 run (Sanger GDSC breast panel × external normal)
 produced inverted AUC at the Roth-validated positives because Sanger's
