@@ -434,11 +434,12 @@ appeared here while the cell-line benchmark was still pending):**
 
 | Cohort regime | Recommended score axis |
 |---|---|
-| Matched cell-line, n = 2/2 to 3/3 (MCF-7/MCF-10A and similar) | **V2.5 `tumor_plus_differential_protection`** as the probabilistic ranking axis (read top-K as a *top tied candidate class*, not a ranked shortlist; see PAPER.md §6.1). V1 `final_score` retained as the deterministic stable-release default. |
-| Primary tissue, n ≳ 30 per side | **V2.5 `tumor_plus_differential_protection`** as the highest *usable* probabilistic discovery axis. Note: PAPER.md §5.3.1 / §5.3.2 show the shipped defaults σ_floor = 0.05 and δ = 0.2 are not tissue-optimal — tissue AUC peaks at σ_floor ≈ 0.10 and prefers smaller δ. Run the per-cohort sweep before relying on the defaults. |
+| Matched cell-line, n = 2/2 to 3/3 (MCF-7/MCF-10A and similar) | **V2.5-sigmoid** (`tumor_plus_gap_sigmoid`) as the probabilistic ranking axis — AUC-equivalent to V2.5-diff on these cohorts within 0.002 but with strictly smaller tied bands at K = 100 on WG catalogs (PAPER.md §5.2.2). V1 `final_score` retained as the deterministic stable-release default. |
+| Primary tissue, n ≳ 30 per side | **V2.5-sigmoid** (`tumor_plus_gap_sigmoid`) as the recommended probabilistic discovery axis — AUC +0.05 to +0.08 over V2.5-diff on GSE69914 at both chr5/6/10 and WG denominators (PAPER.md §5.2.2). |
 | Cross-series transported labels (e.g. Sanger MCF-7 vs Roth MCF-7) | **Unsupported** — PAPER.md §5.4 documents the GSE68379 boundary case; AUC inverts. Do not pool cross-series cohorts into the primary endpoint without a label-transport check. |
 | Diagnostic / AUC sanity check only | `tumor_only` — competitive AUC on tissue but `tie_band_size_at_k` at K=100 is in the thousands; not a discovery axis. |
-| Adjacent-normal bulk (expressed genes) | V1 `final_score` or raw Δβ-only — both are documented baselines (PAPER.md §5.1); V2.5 is also defensible here but has not been benchmarked in this regime. |
+| Audit / AUC parity vs pre-ag scored JSONLs | **V2.5-diff** (`tumor_plus_differential_protection`) — retained as a selectable mode; AUC-equivalent to V2.5-sigmoid on cell-line cohorts but top-K becomes unusable at WG scale on n = 2/2 or 3/3 cohorts. Opt-in for audit-parity use cases only. |
+| Adjacent-normal bulk (expressed genes) | V1 `final_score` or raw Δβ-only — both are documented baselines (PAPER.md §5.1); V2.5-sigmoid is also defensible here but has not been benchmarked in this regime. |
 
 The legacy V2 `tumor_plus_normal_protection` mode is retained in the
 mode enum for audit and reproducibility but is **not recommended for
