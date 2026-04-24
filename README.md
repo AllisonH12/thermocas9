@@ -314,12 +314,17 @@ table above and PAPER.md §6.1):
 - `V1 final_score` is the **stable-release default** — deterministic,
   `tie_band = 1` on every cohort tested, kept for backward
   compatibility and top-K determinism.
-- `V2.5 tumor_plus_differential_protection` is the **recommended
+- `tumor_plus_gap_sigmoid` (**V2.5-sigmoid**) is the **recommended
   probabilistic ranking axis** on every non-boundary cohort shape
   tested (matched cell-line at n = 2/2 and 3/3 and primary tissue at
-  n = 305/50). On n = 2/2 cell-line cohorts the visible top-K
-  should be read as a top tied candidate class rather than a ranked
-  shortlist (see §6.1).
+  n = 305/50). AUC-equivalent to `tumor_plus_differential_protection`
+  (V2.5-diff) on cell-line cohorts but with strictly smaller tied
+  bands at K = 100 under whole-genome scoring; AUC +0.05 to +0.08
+  over V2.5-diff on tissue. See PAPER.md §5.2.2 for the WG panel
+  behind the recommendation.
+- `tumor_plus_differential_protection` (**V2.5-diff**) is retained
+  as a selectable mode for backward compatibility and AUC parity on
+  cell-line cohorts. No longer the recommended discovery axis.
 - `V2 tumor_only` is **analysis-only** — competitive AUC on tissue
   but `tie_band@K=100` is in the thousands; not a discovery axis.
 
