@@ -27,3 +27,30 @@ data/derived/catalog_*.jsonl
 
 # Transient build logs from cohort builders.
 data/derived/*_build.log
+
+# whole-genome catalog — 5.9GB, reproducible from build command in PROVENANCE
+data/derived/catalog_hg19_wg.jsonl
+data/derived/scored_*_wg_*.jsonl
+data/raw/hg19/hg19_wg.fa
+data/raw/hg19/chr1.fa
+data/raw/hg19/chr2.fa
+data/raw/hg19/chr3.fa
+data/raw/hg19/chr4.fa
+data/raw/hg19/chr7.fa
+data/raw/hg19/chr8.fa
+data/raw/hg19/chr9.fa
+data/raw/hg19/chr1[1-9].fa
+data/raw/hg19/chr2[0-2].fa
+data/raw/hg19/chrX.fa
+data/raw/hg19/chrY.fa
+data/raw/hg19/chr1.fa.gz
+data/raw/hg19/chr2.fa.gz
+data/raw/hg19/chr3.fa.gz
+data/raw/hg19/chr4.fa.gz
+data/raw/hg19/chr7.fa.gz
+data/raw/hg19/chr8.fa.gz
+data/raw/hg19/chr9.fa.gz
+data/raw/hg19/chr1[1-9].fa.gz
+data/raw/hg19/chr2[0-2].fa.gz
+data/raw/hg19/chrX.fa.gz
+data/raw/hg19/chrY.fa.gz

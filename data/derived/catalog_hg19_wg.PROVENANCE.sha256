@@ -1,0 +1,4 @@
+d20661c5d5fc0c42491d9a94ef9485f69dbf071ea9a69f43a887d6f82b1357dc  data/derived/catalog_hg19_wg.jsonl
+ecfa54a494fd070d7675db07ba15bdbdde4145045c2982b958d3e3553bd5bb55  data/raw/hg19/hg19_wg.fa
+9c08a1f9cf49515f68e333507037fbdfffd0edb12dfae2bd772dba23b83e5635  data/raw/probes_hg19.tsv
+ff987b34114590423af4ea59bf249a631a4b0b4784a108a80574f50e9baacbc8  config/pam_model.yaml
