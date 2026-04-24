@@ -38,7 +38,7 @@ from pathlib import Path
 
 from pyliftover import LiftOver  # type: ignore
 
-CHROMS = {"chr5", "chr6", "chr10"}
+_DEFAULT_CHROMS = "chr5,chr6,chr10"
 
 
 def main() -> int:
@@ -49,7 +49,18 @@ def main() -> int:
                    help="Output TSV (probe_id, chrom, pos) in hg19")
     p.add_argument("--chain", default="hg38",
                    help="Source build name for pyliftover (hg38 → hg19)")
+    p.add_argument(
+        "--chroms", default=_DEFAULT_CHROMS,
+        help=("Comma-separated chromosome filter (e.g. 'chr5,chr6,chr10') "
+              "or 'all' for whole-genome (chr1..chr22, chrX, chrY). "
+              f"Default: {_DEFAULT_CHROMS}"),
+    )
     args = p.parse_args()
+    if args.chroms.lower() == "all":
+        CHROMS = {f"chr{i}" for i in range(1, 23)} | {"chrX", "chrY"}
+    else:
+        CHROMS = {c.strip() for c in args.chroms.split(",") if c.strip()}
+    print(f"chromosome filter: {sorted(CHROMS)}", flush=True)
 
     print(f"loading {args.chain} → hg19 liftover chain...", flush=True)
     lo = LiftOver(args.chain, "hg19")  # downloads chain on first use
@@ -120,7 +131,7 @@ def main() -> int:
                 print(f"  read {n_read:,} probes...", flush=True)
 
     print(f"total probes in SOFT table:     {n_read:,}", flush=True)
-    print(f"in scope (chr5/6/10):           {n_scoped:,}", flush=True)
+    print(f"in scope ({sorted(CHROMS)}):    {n_scoped:,}", flush=True)
     print(f"lifted hg38 → hg19 successfully: {n_mapped:,}", flush=True)
     print(f"liftover failures / skipped:     {n_failed:,}", flush=True)
     print(f"→ {args.output}", flush=True)

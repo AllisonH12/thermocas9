@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-af` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ag` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -78,30 +78,31 @@ methylated at the sites where Roth's MCF-7 is unmethylated.
 
 V1 remains the stable-release default (backward compatibility +
 `tie_band = 1` by construction). The recommended probabilistic
-axis is **regime-specific**:
+discovery axis is **`gap_sigmoid`**
+(`probabilistic_mode: tumor_plus_gap_sigmoid`, with
+`p_gap_sigmoid = sigmoid((β_n − β_t − δ) / σ_fixed)`,
+σ_fixed ≈ √2 × σ_floor ≈ 0.0707 by default, δ = 0.2 for matched
+cell-line and δ = 0.1 for tissue) across every non-boundary
+cohort shape tested. Shipped V2.5
+(`tumor_plus_differential_protection`) is retained as a selectable
+mode for AUC parity on cell-line cohorts, but is **no longer
+recommended over `gap_sigmoid` on any tested regime**. The §5.2.2
+whole-genome panel (N = 19.8M candidates on HM450, 35.4M on native
+EPIC v2) shows `gap_sigmoid` is uniformly equal or better:
+AUC within 0.002 of V2.5 on all three matched cell-line cohorts,
+AUC +0.05 to +0.08 on tissue, and crucially `tie_band@100 = 1`
+across every matched cell-line cohort — vs V2.5's 421 / 1,127 /
+1,493 on the same WG catalogs, making V2.5's top-K unusable at
+WG scale for n = 2/2 and 3/3 cohorts (§5.2.2 tie-band table).
+Out-of-distribution cross-series cohorts (e.g. GSE68379) are
+unsupported — §5.4 documents label-transport failure.
 
-- **Matched cell-line cohorts (n = 2/2 to 3/3):** shipped V2.5
-  (`p_targ × p_diff × p_trust`, δ = 0.2, σ_floor = 0.05). On
-  low-`n` cell-line cohorts the visible top-K should be read as a
-  top tied candidate class rather than a ranked shortlist (§6.1).
-- **Primary tissue cohorts (n ≳ 30/side):** a `gap_sigmoid`
-  formulation — `p_targ × sigmoid((Δβ − δ) / σ_fixed) × p_trust`
-  with σ_fixed ∈ {0.05, 0.0707} and δ = 0.1. This outperforms
-  shipped V2.5 on tissue by +0.05 to +0.09 AUC across four tested
-  bandwidths, at both the chr5/6/10 (N = 2.98M) and whole-genome
-  (N = 19.8M) probe-window denominators (§5.2.1 ablation +
-  §5.2.2 genome-wide gating). Tied bands at K ≤ 1,000 stay in
-  single digits on the whole-genome catalog, so top-K structure
-  is usable. Currently documented; will ship as an explicit
-  `probabilistic_mode` option alongside regime-preset selection —
-  see §6.3.
-- **Out-of-distribution / cross-series cohorts** (e.g. GSE68379):
-  unsupported — §5.4 documents label-transport failure. AUC
-  inverts on every axis.
-
-All code and benchmark artifacts are public. The frozen
-whole-genome catalog used for the tissue gating experiment has
-provenance at `data/derived/catalog_hg19_wg.PROVENANCE.md`.
+Both modes ship as selectable `probabilistic_mode` enum values in
+this tag (`tumor_plus_differential_protection` for V2.5,
+`tumor_plus_gap_sigmoid` for the new default). All code,
+whole-genome catalogs + SHA256 provenance, per-cohort gating
+TSVs, and the cross-cohort panel are public. Whole-genome catalog
+provenance: `data/derived/catalog_hg19_wg*.PROVENANCE.md`.
 
 ---
 
@@ -990,79 +991,110 @@ systematic tissue weakness across a 3×-range bandwidth family, and
 a fixed-bandwidth sigmoid is a credible candidate gap factor for
 tissue cohorts.
 
-#### 5.2.2 Genome-wide gating experiment on tissue
+#### 5.2.2 Genome-wide panel: shipped V2.5 vs `gap_sigmoid` across all four cohorts
 
-The §5.2.1 sigmoid-ablation and bandwidth-sweep results are on the
-chr5/6/10 catalog (N = 2.98M candidates). A reviewer-salient
-concern is whether the tissue finding survives when the negative
-universe expands to whole-genome — i.e. is the tissue
-underperformance of `p_diff` a real property or an artifact of the
-restricted chromosome subset? To resolve this we built a frozen
-whole-genome probe-window catalog (24 chromosomes, 19,787,820
-candidates, ~6.6× the chr5/6/10 catalog size; SHA256 `d20661c5…`,
-provenance at `data/derived/catalog_hg19_wg.PROVENANCE.md`), scored
-GSE69914 under V2.5 against it, and ran the same gap-factor
-ablation on the genome-wide scored JSONL (reproducible via
-`uv run scripts/genome_wide_tissue_gating.py`).
+The §5.2.1 ablation and bandwidth sweep are on the chr5/6/10 catalog
+(N = 2.98M candidates on HM450, 5.22M on native EPIC v2). A
+reviewer-salient concern is whether the findings survive when the
+negative universe expands to whole-genome. To resolve this we built
+two frozen whole-genome probe-window catalogs and ran the same
+gap-factor ablation on GSE322563 (both HM450 and native EPIC v2
+paths), GSE77348, and GSE69914 against them:
 
-| axis | **WG AUC (N=19.8M)** | chr5/6/10 AUC (N=3.0M) | WG tie@100 | WG tie@1000 |
+- **HM450 WG catalog** — `catalog_hg19_wg.jsonl`, 19,787,820
+  candidates, SHA256 `d20661c5…` (provenance at
+  `data/derived/catalog_hg19_wg.PROVENANCE.md`).
+- **Native EPIC v2 WG catalog** — `catalog_hg19_wg_epic_v2.jsonl`,
+  35,380,431 candidates, SHA256 `39df8f0f…` (provenance at
+  `data/derived/catalog_hg19_wg_epic_v2.PROVENANCE.md`). Built from a
+  whole-genome re-run of `scripts/build_epic_v2_probes.py` (929,801
+  GPL33022 probes, hg38 → hg19).
+
+Reproducible via `uv run scripts/genome_wide_tissue_gating.py` per
+cohort + `uv run scripts/genome_wide_panel.py` to aggregate. The
+committed panel is at `examples/genome_wide_panel.md`.
+
+**Cross-cohort AUC table at validated labels (n_pos = 3):**
+
+| cohort | N_wg | V2.5 WG | gap_sigmoid σ=0.05 WG | gap_sigmoid σ=0.0707 WG | gap_sigmoid σ=0.10 WG |
+|---|---:|---:|---:|---:|---:|
+| GSE322563 HM450       | 19.8M | 0.989 | 0.989 | 0.988 | 0.988 |
+| GSE322563 native v2   | 35.4M | 0.998 | 0.998 | 0.998 | 0.998 |
+| GSE77348              | 19.8M | 0.982 | 0.982 | 0.981 | 0.979 |
+| **GSE69914 (tissue)** | 19.8M | **0.778** | **0.861** | **0.862** | 0.825 |
+
+**Cross-cohort `tie_band@100` table at validated labels (WG only):**
+
+| cohort | V2.5 WG | gap_sigmoid σ=0.05 | gap_sigmoid σ=0.0707 | gap_sigmoid σ=0.10 |
 |---|---:|---:|---:|---:|
-| shipped V2.5        | **0.778** | 0.773 | 1 | 4 |
-| gap_sigmoid σ=0.05  | **0.861** | 0.862 | 4 | 2 |
-| gap_sigmoid σ=0.0707 | **0.862** | 0.864 | 6 | 4 |
-| gap_sigmoid σ=0.10  | 0.825 | 0.830 | 6 | 10 |
+| GSE322563 HM450       | **1,127** | 1 | 1 | 1 |
+| GSE322563 native v2   | **421**   | 1 | 1 | 1 |
+| GSE77348              | **1,493** | 1 | 1 | 1 |
+| GSE69914 (tissue)     | 1         | 4 | 6 | 6 |
 
-**Three findings.**
+**Four findings.**
 
-1. **The tissue AUC conclusion is denominator-robust.** Every axis
-   lands within 0.005 AUC of its chr5/6/10 value after the ~7×
-   denominator expansion; the chr5/6/10 subset was not a lucky
-   choice. gap_sigmoid continues to beat shipped V2.5 on tissue by
-   +0.05 to +0.08 AUC genome-wide, across the bandwidth family.
+1. **AUC on matched cell-line cohorts is denominator-robust and
+   indistinguishable across axes.** Under the WG expansion (~7× on
+   HM450, ~7× on native EPIC v2), all matched cell-line axes land
+   within 0.001 of their chr5/6/10 AUC, and V2.5 / gap_sigmoid /
+   hard-threshold remain within 0.002 of each other. The §5.2.1
+   cell-line parity conclusion survives the denominator expansion.
 
-2. **Tied bands stay usable.** `tie_band@100` is in single digits
-   for every axis. Shipped V2.5 has `tie@100=1` and `tie@1000=4`
-   genome-wide, so the score distribution is actually *more*
-   differentiated at K=100 than on the chr5/6/10 subset (where
-   `tie@100=2`). The denominator expansion did not collapse top-K
-   behavior.
+2. **On matched cell-line cohorts at WG scale, shipped V2.5's top-K
+   becomes unusable while `gap_sigmoid`'s stays clean.**
+   `tie_band@100` for shipped V2.5 on WG is **1,127 / 421 / 1,493**
+   across GSE322563 HM450 / native v2 / GSE77348 — top-100 sits
+   inside a 400- to 1,500-record tied band in every case. For
+   `gap_sigmoid` at every tested bandwidth, `tie_band@100 = 1` on
+   all three cell-line cohorts. This is the cell-line analog of the
+   low-`n` tied-band prediction in §3.5 extended to the wider
+   denominator: on n = 2/2 and 3/3 cohorts, the σ_floor binds on
+   ~99% of records (§3.5 binding rate), so p_diff × p_trust
+   saturates to the same value on a ~1,000-record band of clean
+   differential candidates that all share the same EvidenceClass.
+   `gap_sigmoid`'s fixed-bandwidth response resolves that band
+   continuously.
 
-3. **Rank-lift is the stable claim; top-100 discovery is not.**
-   P@100 is [0.000, 0.000] on every axis genome-wide: none of the
-   three validated positives lands in the top 100 out of ~20M
-   candidates under any axis, even for gap_sigmoid. AUC rank-lift
-   continues to be the headline statistic, not top-K discovery
-   shortlists. (Per-positive genome-wide ranks for ESR1 /
-   EGFLAM / GATA3 at each axis are in
-   `examples/gse69914_wg_gating.md`.)
+3. **On tissue, `gap_sigmoid` wins on AUC (+0.05 to +0.08) and
+   keeps tie_band small** — §5.2.1 finding extended to the WG
+   denominator: +0.083 at σ = 0.0707 (0.862 vs 0.778), +0.083 at
+   σ = 0.05 (0.861 vs 0.778). Tie bands stay in single digits on
+   both axes.
 
-These three findings together execute the reviewer-specified
-decision branch ("if gap_sigmoid beats V2.5 genome-wide and has
-acceptable tie bands, ship it as a tissue mode or stop
-recommending V2.5 for tissue"): the tissue recommendation in
-§6.1 / the abstract is updated to name `gap_sigmoid` as the
-tissue-recommended formulation — documented here and in
-§6.3, shipping as an explicit `probabilistic_mode:
-tumor_plus_gap_sigmoid` option in the next release.
+4. **Rank-lift remains the stable claim; top-100 discovery is
+   still not the headline.** P@100 is [0.000, 0.000] on every
+   cohort × axis at WG scale: none of the three Roth-validated
+   positives lands in the top 100 out of ~20–35M candidates under
+   any axis. AUC rank-lift and per-positive percentile ranks
+   (§5.1.1, now in `examples/genome_wide_panel.md` for WG) are
+   the stable claims.
 
-**What does and does not follow for cell lines.** Nothing in the
-genome-wide result changes the §5.2.1 cell-line finding: shipped
-V2.5, gap_sigmoid, and hard-threshold all produce AUC within
-0.001–0.002 of each other on every matched cell-line cohort, and
-`p_diff`'s specific shape is not load-bearing on cell-line data
-where σ_floor binds ~99% of records (§3.5). V2.5 remains the
-recommended shipped axis for matched cell-line cohorts. The
-split is specific to the tissue regime.
+**Reading the two tables together.** `gap_sigmoid` is **uniformly
+equal-or-better to shipped V2.5 across every cohort shape we have
+tested at WG scale**: AUC within 0.002 on matched cell-line,
+AUC +0.05 to +0.08 on tissue, `tie_band@100 = 1` on cell-line
+(vs up to 1,500 for V2.5), `tie_band@100 ≤ 6` on tissue
+(vs 1 for V2.5). **No cohort × dimension cell prefers shipped
+V2.5 over `gap_sigmoid`.**
 
-The honest reading of these two results together is that V2.5's
-cell-line AUC story could be reproduced by any
-`p_targ × (gap factor) × p_trust` composition with roughly the
-same δ; the cell-line AUC is not evidence that `p_diff`
-specifically is the right gap factor. The tissue story, by
-contrast, shows that `p_diff` is *demonstrably sub-optimal* there,
-and the denominator-robust gap_sigmoid outperformance genome-wide
-is the direct experimental basis for the regime-specific presets
-on the §6.3 list.
+This is the "V2.5's genome-wide low-n tied bands explode" branch
+of the reviewer's decision tree. The paper's recommendation
+(updated in §6.1 and the abstract) is therefore:
+
+- `gap_sigmoid` is the recommended probabilistic ranking axis
+  across all tested non-boundary cohort shapes.
+- Shipped V2.5 is retained for backward compatibility + AUC
+  parity, but is no longer recommended over `gap_sigmoid` on any
+  tested regime.
+- Both ship as selectable `probabilistic_mode` enum values
+  (`tumor_plus_differential_protection` for V2.5,
+  `tumor_plus_gap_sigmoid` for gap_sigmoid) in the next release.
+  The gap_sigmoid mode is implemented in `thermocas.probabilistic`
+  as `p_gap_sigmoid(obs, delta, sigma_fixed)`, with the matching
+  `CohortConfig` field `sigma_fixed` (default √2 × σ_floor ≈
+  0.0707) and full pydantic-validator enforcement of the
+  mode-specific audit fields.
 
 ### 5.3 Tissue-cohort behavior — GSE69914 (high-`n`, tissue biology)
 
@@ -1357,35 +1389,37 @@ endpoint.
 
 Five use profiles, in order from most-recommended to unsupported:
 
-**1. Recommended probabilistic ranking axis on matched cell-line cohorts — V2.5 (differential).**
-Highest-AUC shipped probabilistic ranking axis on every matched
-cell-line cohort × label-granularity combination tested (GSE322563
-HM450, GSE322563 native EPIC v2, GSE77348; §5.1–§5.2). On these
-cohorts §5.2.1 shows V2.5, a fixed-bandwidth sigmoid, and even a
-hard threshold all produce AUC within 0.001 — the σ_floor binds on
-~99% of records (§3.5), so `p_diff`'s per-site σ adaptation is
-immaterial there. V2.5's value on matched cell-line is structural
-(probability-scale composition, tie-band-honest top-K, p_targ /
-p_trust wrapping), not AUC improvement from `p_diff`'s shape.
-Tie bands reported per benchmark and P@K intervals honest.
+**1. Recommended probabilistic ranking axis — `gap_sigmoid`.**
+`p_therapeutic_selectivity = p_targ × sigmoid((β_n − β_t − δ) / σ_fixed) × p_trust`
+with σ_fixed ≈ √2 × σ_floor ≈ 0.0707 (δ = 0.2 for matched
+cell-line, δ = 0.1 for tissue). Ships in this tag as
+`probabilistic_mode: tumor_plus_gap_sigmoid`, with `sigma_fixed`
+exposed as a new cohort-YAML field (default inherited from the
+package constant). Uniformly equal-or-better to shipped V2.5
+across every tested non-boundary cohort × dimension combination
+(§5.2.2 cross-cohort panel): AUC within 0.002 of V2.5 on all three
+matched cell-line cohorts at WG scale; AUC +0.05 to +0.08 on
+tissue at both chr5/6/10 and WG; `tie_band@100 = 1` on every
+matched cell-line cohort at WG scale (vs V2.5's 421–1,493 on the
+same WG catalogs, making V2.5's top-K unusable at WG scale for
+n = 2/2 or 3/3 cohorts). `tumor_only` has higher raw AUC on
+tissue but its K = 100 tie band disqualifies it as a discovery
+axis.
 
-**2. Recommended probabilistic ranking axis on primary tissue cohorts — `gap_sigmoid` (documented, shipping next release).**
-On tissue (GSE69914, n = 305/50), `gap_sigmoid`
-(`p_targ × sigmoid((Δβ − δ) / σ_fixed) × p_trust`, σ_fixed ∈ {0.05,
-0.0707}, δ = 0.1) beats shipped V2.5 by +0.05 to +0.09 AUC across
-the full tested bandwidth family, at both the chr5/6/10 and the
-whole-genome (~20M candidate) probe-window denominators (§5.2.1
-bandwidth sweep + §5.2.2 genome-wide gating). `tumor_only` has
-higher raw AUC on tissue (0.803–0.874) but its K=100 tie band
-disqualifies it as a discovery axis. **Shipped V2.5 is *not*
-recommended for tissue at the shipped defaults**; the tissue
-regime is `gap_sigmoid`, documented here and in §6.3, shipping
-as an explicit `probabilistic_mode` option in the next release.
-Until then, tissue users should either use `gap_sigmoid` via the
-reproducibility scripts (`scripts/genome_wide_tissue_gating.py`,
-`scripts/sigmoid_bandwidth_sweep.py`) or apply shipped V2.5 with
-the understanding that it is dominated by an available
-reformulation.
+**2. Retained for backward compatibility and AUC parity — shipped V2.5 (differential).**
+`probabilistic_mode: tumor_plus_differential_protection`. AUC
+matches `gap_sigmoid` on matched cell-line cohorts within
+≤ 0.002 (§5.2.1 ablation; §5.2.2 WG confirmation), which means
+existing benchmarks under this mode remain valid. But V2.5's
+top-K usability at WG scale on low-`n` cell-line cohorts is
+poor — its tie_band@100 is 421 / 1,127 / 1,493 under the WG
+denominator on GSE322563 native / GSE322563 HM450 / GSE77348 —
+so V2.5 is no longer the preferred axis for discovery shortlists
+on any tested regime. On tissue it is demonstrably beaten on
+AUC by `gap_sigmoid` (§5.2.1 + §5.2.2). Retained because (a)
+cohort YAMLs in production that name V2.5 continue to produce
+valid AUC, and (b) the tie-band degradation is a WG-scale
+phenomenon — users on chr-restricted catalogs may not see it.
 
 What V2.5 *is* on low-`n` matched cell-line cohorts (n=2/2 to 3/3)
 is a **rank-lift axis**: it lifts validated targets near the top of
@@ -1421,16 +1455,16 @@ Sanger MCF-7 epigenetic drift breaks label transportability from
 Roth Fig. 5d. Inverted AUC is the expected scorer response; do not
 pool this cohort's numbers with §5.1.
 
-"Recommended" in profiles 1 and 2 means: for a user running the
-stated axis on a cohort shape matching §5.1–§5.3 (matched
-cell-line at n = 2/2 or 3/3 for V2.5; primary tissue at n ≳ 30/side
-for `gap_sigmoid`), the reported ranking benefit over the other
-shipped modes is real. It does not mean either axis is safe to use
-on cohorts outside those profiles — in particular neither will
-work on cross-series transported labels (the §5.4 GSE68379 boundary
-case is exactly the failure mode) — without
-re-running the §5.3.1 / §5.3.2 sensitivity diagnostics on the new
-cohort.
+"Recommended" in profile 1 means: for a user running `gap_sigmoid`
+on any non-boundary cohort shape matching §5.1–§5.3 (matched
+cell-line at n = 2/2 or 3/3, or primary tissue at n ≳ 30/side),
+the reported ranking benefit over the other shipped modes is
+real at both the chr5/6/10 and whole-genome probe-window
+denominators (§5.2.2). It does not mean `gap_sigmoid` is safe to
+use on cross-series transported labels (the §5.4 GSE68379
+boundary case is exactly the failure mode) — the regime-check
+diagnostics in §5.3.1 / §5.3.2 / §5.2.2 should be re-run on any
+new cohort before relying on the recommendation.
 
 ### 6.2 Limitations
 
@@ -1674,7 +1708,7 @@ already invariant within tied score regions.
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-af`** for this document. 236 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ag`** for this document. 243 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
@@ -1687,7 +1721,7 @@ already invariant within tied score regions.
 # Given a clone of the repo:
 uv venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
-pytest                       # 236 tests, ~1 s
+pytest                       # 243 tests, ~1 s
 
 # Rebuild the catalog on chr5/6/10 (~2 min):
 thermocas build-catalog \

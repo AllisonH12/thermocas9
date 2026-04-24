@@ -86,7 +86,7 @@ thermocas-framework/
 | **Out-of-distribution boundary case**                             | **documented** — GSE68379 cross-series with external normals; PAPER.md §5.4 |
 | **Sensitivity sweeps** (σ_floor ∈ {0.02, 0.05, 0.10, 0.15}; δ ∈ {0.1, 0.2, 0.3, 0.4, 0.5}) | **complete** — PAPER.md §5.3.1 / §5.3.2 |
 | **Descriptive AUC uncertainty** (permutation null + negative bootstrap) | **complete** — PAPER.md §5.1.2 |
-| End-to-end tests + real-data pipeline                             | **236 tests** (in-process + CLI + mocked GDC + Beta math + live GDC smoke) |
+| End-to-end tests + real-data pipeline                             | **243 tests** (in-process + CLI + mocked GDC + Beta math + live GDC smoke) |
 
 ## Quickstart
 

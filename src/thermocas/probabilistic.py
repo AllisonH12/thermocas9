@@ -60,6 +60,14 @@ DEFAULT_DIFFERENTIAL_DELTA = 0.2
 #: the normal-approximation well-defined for every observation.
 DEFAULT_DIFFERENTIAL_SIGMA_FLOOR = 0.05
 
+#: `tumor_plus_gap_sigmoid` default bandwidth. Chosen as √2 × σ_floor = 0.0707,
+#: matching the σ_Δ V2.5 sees when its σ_floor binds on both sides — the modal
+#: case on low-`n` matched cell-line cohorts per PAPER.md §3.5 binding-rate
+#: diagnostic. Bandwidth-robust on tissue across {0.05, 0.0707, 0.10}
+#: (PAPER.md §5.2.1 sweep).
+import math as _math
+DEFAULT_GAP_SIGMOID_SIGMA_FIXED = _math.sqrt(2) * DEFAULT_DIFFERENTIAL_SIGMA_FLOOR
+
 #: Default per-EvidenceClass trust ceiling. With enough samples,
 #: P(trustworthy) saturates at this value.
 _TRUST_BASE: dict[EvidenceClass, float] = {
@@ -151,6 +159,37 @@ def p_differential_protection(
     return 0.5 * (1.0 - math.erf(z / math.sqrt(2.0)))
 
 
+def p_gap_sigmoid(
+    obs: MethylationObservation,
+    delta: float = DEFAULT_DIFFERENTIAL_DELTA,
+    sigma_fixed: float = DEFAULT_GAP_SIGMOID_SIGMA_FIXED,
+) -> float:
+    """Fixed-bandwidth sigmoid gap factor: `sigmoid((Δβ − δ) / σ_fixed)`.
+
+    Alternative to `p_differential_protection` whose per-site σ_Δ collapses
+    to σ_floor on essentially every record in low-`n` matched cell-line
+    cohorts (§3.5 binding-rate diagnostic). On tissue cohorts, where
+    per-site σ_Δ actually varies, `p_diff`'s per-site σ adaptation
+    underperforms a fixed-bandwidth response (PAPER.md §5.2.1 ablation +
+    §5.2.2 genome-wide gating).
+
+    Returns 0 when either side lacks a β mean — no fabrication from
+    one-sided data.
+    """
+
+    mu_t = obs.beta_tumor_mean
+    mu_n = obs.beta_normal_mean
+    if mu_t is None or mu_n is None:
+        return 0.0
+    x = ((mu_n - mu_t) - delta) / sigma_fixed
+    # Numerically-stable logistic.
+    if x >= 0:
+        e = math.exp(-x)
+        return 1.0 / (1.0 + e)
+    e = math.exp(x)
+    return e / (1.0 + e)
+
+
 def p_observation_trustworthy(
     obs: MethylationObservation,
     ramp_n: int = DEFAULT_TRUST_RAMP_N,
@@ -178,6 +217,7 @@ def probabilistic_score(
     methylated_threshold: float = DEFAULT_METHYLATED_THRESHOLD,
     trust_ramp_n: int = DEFAULT_TRUST_RAMP_N,
     differential_delta: float = DEFAULT_DIFFERENTIAL_DELTA,
+    sigma_fixed: float = DEFAULT_GAP_SIGMOID_SIGMA_FIXED,
 ) -> ProbabilisticScore:
     """Compose the three (or four) factors into a `ProbabilisticScore`.
 
@@ -190,7 +230,9 @@ def probabilistic_score(
             `tumor_only` — safer because p_protected_normal inverts on
             cohorts where the normal comparator doesn't methylate target
             promoters.
-        differential_delta: margin for `tumor_plus_differential_protection`.
+        differential_delta: margin for `tumor_plus_differential_protection`
+            and `tumor_plus_gap_sigmoid`. Ignored by the other modes.
+        sigma_fixed: fixed-bandwidth σ for `tumor_plus_gap_sigmoid`.
             Ignored by the other modes.
     """
 
@@ -198,7 +240,9 @@ def probabilistic_score(
     p_p = p_protected_normal(obs, methylated_threshold)
     p_r = p_observation_trustworthy(obs, trust_ramp_n)
     p_diff: float | None = None
+    p_gap: float | None = None
     delta_recorded: float | None = None
+    sigma_recorded: float | None = None
 
     if mode == "tumor_only":
         p_sel = p_t * p_r
@@ -208,6 +252,11 @@ def probabilistic_score(
         p_diff = p_differential_protection(obs, differential_delta)
         delta_recorded = differential_delta
         p_sel = p_t * p_diff * p_r
+    elif mode == "tumor_plus_gap_sigmoid":
+        p_gap = p_gap_sigmoid(obs, delta=differential_delta, sigma_fixed=sigma_fixed)
+        delta_recorded = differential_delta
+        sigma_recorded = sigma_fixed
+        p_sel = p_t * p_gap * p_r
     else:
         raise ValueError(f"unknown probabilistic_mode: {mode!r}")
 
@@ -220,6 +269,8 @@ def probabilistic_score(
         p_observation_trustworthy=p_r,
         p_differential_protection=p_diff,
         differential_delta=delta_recorded,
+        p_gap_sigmoid=p_gap,
+        sigma_fixed=sigma_recorded,
         p_therapeutic_selectivity=p_sel,
     )
 

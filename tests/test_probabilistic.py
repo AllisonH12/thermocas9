@@ -504,3 +504,105 @@ def test_probabilistic_score_rejects_inconsistent_diff_fields_at_validation():
             p_differential_protection=0.8,  # not allowed in tumor_only
             differential_delta=0.2,
         )
+
+
+# ---------- tumor_plus_gap_sigmoid (shipping next tissue mode) ----------
+
+
+def test_p_gap_sigmoid_monotone_in_gap():
+    """Larger (β_normal − β_tumor) at fixed δ, σ_fixed → larger p_gap_sigmoid."""
+    from thermocas.probabilistic import p_gap_sigmoid
+
+    def obs_with_gap(gap):
+        return _obs(bt_mean=0.1, bt_q25=0.08, bt_q75=0.12,
+                    bn_mean=0.1 + gap, bn_q25=0.1 + gap - 0.02, bn_q75=0.1 + gap + 0.02)
+
+    p_small = p_gap_sigmoid(obs_with_gap(0.1), delta=0.2, sigma_fixed=0.07)
+    p_at = p_gap_sigmoid(obs_with_gap(0.2), delta=0.2, sigma_fixed=0.07)
+    p_big = p_gap_sigmoid(obs_with_gap(0.5), delta=0.2, sigma_fixed=0.07)
+    assert p_small < p_at < p_big
+    # At gap == δ the sigmoid is at 0.5 exactly.
+    assert p_at == pytest.approx(0.5)
+
+
+def test_p_gap_sigmoid_missing_beta_returns_zero():
+    """One-sided β → 0.0, same as p_differential_protection. No fabrication."""
+    from thermocas.probabilistic import p_gap_sigmoid
+
+    obs_no_normal = _obs(bt_mean=0.1, bt_q25=0.08, bt_q75=0.12,
+                         bn_mean=None, bn_q25=None, bn_q75=None)
+    assert p_gap_sigmoid(obs_no_normal, delta=0.2, sigma_fixed=0.07) == 0.0
+
+
+def test_probabilistic_score_gap_sigmoid_mode_populates_fields():
+    """tumor_plus_gap_sigmoid must populate p_gap_sigmoid + sigma_fixed +
+    differential_delta; must NOT populate p_differential_protection."""
+    obs = _selective_obs()
+    r = probabilistic_score(obs, mode="tumor_plus_gap_sigmoid",
+                            differential_delta=0.1, sigma_fixed=0.07)
+    assert r.mode == "tumor_plus_gap_sigmoid"
+    assert r.p_gap_sigmoid is not None
+    assert 0.0 < r.p_gap_sigmoid <= 1.0
+    assert r.sigma_fixed == pytest.approx(0.07)
+    assert r.differential_delta == pytest.approx(0.1)
+    assert r.p_differential_protection is None
+
+
+def test_probabilistic_score_gap_sigmoid_composite_formula():
+    """p_therapeutic_selectivity must equal p_targ × p_gap_sigmoid × p_trust."""
+    obs = _selective_obs()
+    r = probabilistic_score(obs, mode="tumor_plus_gap_sigmoid",
+                            differential_delta=0.2, sigma_fixed=0.07)
+    expected = r.p_targetable_tumor * r.p_gap_sigmoid * r.p_observation_trustworthy
+    assert r.p_therapeutic_selectivity == pytest.approx(expected)
+
+
+def test_probabilistic_score_gap_sigmoid_differs_from_differential():
+    """gap_sigmoid with σ_fixed near σ_floor should produce a different
+    composite than V2.5 differential on records where per-site σ_Δ differs
+    from σ_fixed — confirms the new path is actually on the score, not a
+    silent alias."""
+    # Wide IQRs on both sides → V2.5 per-site σ_Δ ≈ 0.11 (well above σ_floor);
+    # gap_sigmoid at σ_fixed = 0.05 sees a tighter bandwidth.
+    obs = _obs(bt_mean=0.1, bt_q25=0.05, bt_q75=0.20,
+               bn_mean=0.35, bn_q25=0.30, bn_q75=0.45)
+    d = probabilistic_score(obs, mode="tumor_plus_differential_protection",
+                            differential_delta=0.2)
+    g = probabilistic_score(obs, mode="tumor_plus_gap_sigmoid",
+                            differential_delta=0.2, sigma_fixed=0.05)
+    assert d.p_therapeutic_selectivity != g.p_therapeutic_selectivity
+
+
+def test_gap_sigmoid_score_rejects_differential_field():
+    """A ProbabilisticScore record with mode=gap_sigmoid must not carry
+    p_differential_protection — iff validator on the model."""
+    from pydantic import ValidationError
+    from thermocas.models import ProbabilisticScore
+
+    with pytest.raises(ValidationError):
+        ProbabilisticScore(
+            candidate_id="x", cohort_name="c",
+            mode="tumor_plus_gap_sigmoid",
+            p_targetable_tumor=0.8, p_protected_normal=0.0,
+            p_observation_trustworthy=0.5,
+            p_gap_sigmoid=0.7, sigma_fixed=0.07, differential_delta=0.2,
+            p_differential_protection=0.6,  # not allowed in gap_sigmoid mode
+            p_therapeutic_selectivity=0.8 * 0.7 * 0.5,
+        )
+
+
+def test_differential_score_rejects_gap_sigmoid_field():
+    """And the reverse: a mode=differential record must not carry p_gap_sigmoid."""
+    from pydantic import ValidationError
+    from thermocas.models import ProbabilisticScore
+
+    with pytest.raises(ValidationError):
+        ProbabilisticScore(
+            candidate_id="x", cohort_name="c",
+            mode="tumor_plus_differential_protection",
+            p_targetable_tumor=0.8, p_protected_normal=0.0,
+            p_observation_trustworthy=0.5,
+            p_differential_protection=0.9, differential_delta=0.2,
+            p_gap_sigmoid=0.7,  # not allowed in differential mode
+            p_therapeutic_selectivity=0.8 * 0.9 * 0.5,
+        )

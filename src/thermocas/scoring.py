@@ -171,11 +171,16 @@ def score_candidate(
     probabilistic = None
     if compute_probabilistic:
         # local import to avoid a top-level circular dependency
-        from thermocas.probabilistic import probabilistic_score
+        from thermocas.probabilistic import (
+            DEFAULT_GAP_SIGMOID_SIGMA_FIXED,
+            probabilistic_score,
+        )
+        sigma_fixed = cohort.sigma_fixed if cohort.sigma_fixed is not None else DEFAULT_GAP_SIGMOID_SIGMA_FIXED
         probabilistic = probabilistic_score(
             observation,
             mode=cohort.probabilistic_mode,
             differential_delta=cohort.differential_delta,
+            sigma_fixed=sigma_fixed,
         )
 
     spacer = None

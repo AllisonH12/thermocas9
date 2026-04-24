@@ -404,6 +404,7 @@ ProbabilisticMode = Literal[
     "tumor_only",
     "tumor_plus_normal_protection",
     "tumor_plus_differential_protection",
+    "tumor_plus_gap_sigmoid",
 ]
 
 
@@ -418,6 +419,9 @@ class ProbabilisticScore(BaseModel):
       * `tumor_plus_normal_protection`        : p_sel = p_targ × p_prot × p_trust
       * `tumor_plus_differential_protection`  : p_sel = p_targ × p_diff × p_trust
         (experimental V2.5 — differential protection with a configurable margin)
+      * `tumor_plus_gap_sigmoid`              : p_sel = p_targ × p_gap_sigmoid × p_trust
+        where p_gap_sigmoid = sigmoid((Δβ − δ) / σ_fixed) with fixed-bandwidth
+        σ_fixed (tissue-recommended mode per PAPER.md §5.2.2 gating experiment)
 
     `tumor_only` is the framework default because `p_protected_normal` encodes
     `P(β_normal > 0.5)`, which is anti-predictive on cohorts where the normal
@@ -458,8 +462,24 @@ class ProbabilisticScore(BaseModel):
     differential_delta: float | None = Field(
         default=None, ge=0.0, le=1.0,
         description=(
-            "The δ used to compute p_differential_protection. Populated only "
-            "when mode is `tumor_plus_differential_protection`; None otherwise."
+            "The δ used to compute p_differential_protection (or p_gap_sigmoid). "
+            "Populated when mode is `tumor_plus_differential_protection` or "
+            "`tumor_plus_gap_sigmoid`; None otherwise."
+        ),
+    )
+    p_gap_sigmoid: float | None = Field(
+        default=None, ge=0.0, le=1.0,
+        description=(
+            "Fixed-bandwidth sigmoid gap factor: sigmoid((Δβ − δ) / σ_fixed). "
+            "Populated only when mode is `tumor_plus_gap_sigmoid`; None otherwise. "
+            "Paired with `sigma_fixed` on the same record for auditability."
+        ),
+    )
+    sigma_fixed: float | None = Field(
+        default=None, ge=0.0,
+        description=(
+            "The σ_fixed bandwidth used to compute p_gap_sigmoid. Populated only "
+            "when mode is `tumor_plus_gap_sigmoid`; None otherwise."
         ),
     )
 
@@ -471,25 +491,52 @@ class ProbabilisticScore(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _differential_fields_match_mode(self) -> ProbabilisticScore:
-        """`p_differential_protection` and `differential_delta` must be populated
-        iff mode is `tumor_plus_differential_protection`. This keeps records
-        self-describing — a reviewer can tell by reading one row whether V2.5
-        math was in effect."""
+    def _mode_specific_fields_match_mode(self) -> ProbabilisticScore:
+        """Per-mode populated fields, iff semantics:
 
-        differential_mode = self.mode == "tumor_plus_differential_protection"
+          * `tumor_plus_differential_protection` → requires `p_differential_protection`
+            and `differential_delta`. Forbids `p_gap_sigmoid` / `sigma_fixed`.
+          * `tumor_plus_gap_sigmoid` → requires `p_gap_sigmoid`, `sigma_fixed`,
+            and `differential_delta` (the δ threshold reused from V2.5). Forbids
+            `p_differential_protection`.
+          * Other modes → forbid all four mode-specific fields.
+
+        This keeps records self-describing: a reviewer can tell from one row
+        which mode's math was in effect without loading the cohort YAML."""
+
         has_p_diff = self.p_differential_protection is not None
         has_delta = self.differential_delta is not None
-        if differential_mode and not (has_p_diff and has_delta):
-            raise ValueError(
-                "mode=tumor_plus_differential_protection requires both "
-                "p_differential_protection and differential_delta to be set"
-            )
-        if not differential_mode and (has_p_diff or has_delta):
-            raise ValueError(
-                "p_differential_protection/differential_delta may only be set "
-                "when mode=tumor_plus_differential_protection"
-            )
+        has_p_gap = self.p_gap_sigmoid is not None
+        has_sigma = self.sigma_fixed is not None
+
+        if self.mode == "tumor_plus_differential_protection":
+            if not (has_p_diff and has_delta):
+                raise ValueError(
+                    "mode=tumor_plus_differential_protection requires both "
+                    "p_differential_protection and differential_delta to be set"
+                )
+            if has_p_gap or has_sigma:
+                raise ValueError(
+                    "p_gap_sigmoid/sigma_fixed may not be set when "
+                    "mode=tumor_plus_differential_protection"
+                )
+        elif self.mode == "tumor_plus_gap_sigmoid":
+            if not (has_p_gap and has_sigma and has_delta):
+                raise ValueError(
+                    "mode=tumor_plus_gap_sigmoid requires p_gap_sigmoid, "
+                    "sigma_fixed, and differential_delta to all be set"
+                )
+            if has_p_diff:
+                raise ValueError(
+                    "p_differential_protection may not be set when "
+                    "mode=tumor_plus_gap_sigmoid"
+                )
+        else:
+            if has_p_diff or has_delta or has_p_gap or has_sigma:
+                raise ValueError(
+                    "p_differential_protection/differential_delta/p_gap_sigmoid/"
+                    f"sigma_fixed may not be set when mode={self.mode!r}"
+                )
         return self
 
     @model_validator(mode="after")
@@ -516,11 +563,19 @@ class ProbabilisticScore(BaseModel):
                 * self.p_observation_trustworthy
             )
         elif self.mode == "tumor_plus_differential_protection":
-            # `_differential_fields_match_mode` has already run; p_diff is not None.
+            # `_mode_specific_fields_match_mode` has already run; p_diff is not None.
             assert self.p_differential_protection is not None
             expected = (
                 self.p_targetable_tumor
                 * self.p_differential_protection
+                * self.p_observation_trustworthy
+            )
+        elif self.mode == "tumor_plus_gap_sigmoid":
+            # `_mode_specific_fields_match_mode` has already run; p_gap_sigmoid is not None.
+            assert self.p_gap_sigmoid is not None
+            expected = (
+                self.p_targetable_tumor
+                * self.p_gap_sigmoid
                 * self.p_observation_trustworthy
             )
         else:  # pragma: no cover — exhaustive over ProbabilisticMode
@@ -747,7 +802,12 @@ class CohortConfig(BaseModel):
     # (or the empirical benchmark) supports the assumption.
     probabilistic_mode: ProbabilisticMode = "tumor_only"
 
-    # V2.5 — δ margin for `tumor_plus_differential_protection`. Only consulted
-    # when probabilistic_mode = "tumor_plus_differential_protection"; ignored
-    # otherwise. Default 0.2 matches the offline experiment's sweet spot.
+    # V2.5 — δ margin for `tumor_plus_differential_protection` and
+    # `tumor_plus_gap_sigmoid`. Default 0.2 matches the offline experiment's
+    # sweet spot. Tissue-regime users may prefer δ = 0.1 (§5.3.2).
     differential_delta: float = Field(default=0.2, ge=0.0, le=1.0)
+
+    # `tumor_plus_gap_sigmoid` fixed-bandwidth σ. Default None means: use the
+    # package default (√2 × σ_floor ≈ 0.0707, §5.2.1 bandwidth-robust range).
+    # Only consulted when probabilistic_mode = "tumor_plus_gap_sigmoid".
+    sigma_fixed: float | None = Field(default=None, ge=0.0)
