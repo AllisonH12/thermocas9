@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-24.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10a` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10b` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -532,6 +532,14 @@ These three fields are on every emitted `BenchmarkResult` JSONL row.
 
 ## 5 · Results
 
+Results are organized by the analysis roles frozen in §4.0: §5.1 reports
+the independent GSE322563 primary endpoint; §5.2 reports sensitivity and
+whole-genome stress testing used to select V2.5-sigmoid; §5.3 reports
+high-`n` tissue behavior; §5.4 reports the cross-series boundary case;
+§5.7-§5.9 report EvidenceClass, limma parity, and feature-matched
+denominator controls; §5.10 reports the independent-biology System B
+transport-gated diagnostic.
+
 ![V2.5-sigmoid vs V2.5-diff vs limma-style on WG validated AUC and tie_band@100](docs/figures/fig2_auc_bars.png)
 
 **Figure 2 — Final-method summary.** Whole-genome validated-label
@@ -613,6 +621,14 @@ honest framing is that the shipped baselines (especially raw
 cell-line cohorts; the V2.5-generation contribution is the
 tie-band-honest top-K reporting (§4.5) and the probability-scale
 composition with future factors, not the AUC point alone.
+
+The V2.5-diff margin over Δβ-only is also not uniform across the three
+positives. The largest paired lift is at *GATA3*, the positive with the
+smallest raw methylation gap, where V2.5-diff moves the rank from
+159,932 to 24,083 on GSE322563 HM450 and from 61,254 to 28,325 on
+GSE77348. Thus the composite helps most in the case where raw Δβ is
+weakest; the matched-cell-line AUC gain remains descriptive at
+`n_pos = 3`.
 
 On the independent primary endpoint (GSE322563 validated), V2.5-diff is
 the highest-AUC axis — +0.17 over V1 and +0.06 over the deprecated
@@ -915,6 +931,25 @@ The `p_diff` δ = 0.1 tissue advantage does not transfer cleanly to
 V2.5-sigmoid; at the default σ_fixed ≈ 0.0707, δ = 0.1 drops by 0.031
 AUC. δ = 0.2 is therefore retained as the cross-mode default.
 
+As a journal-hardening robustness check, we also swept V2.5-sigmoid
+directly over δ ∈ {0.10, 0.15, 0.20, 0.25, 0.30} and σ_fixed ∈ {0.03,
+0.05, 0.0707, 0.10, 0.15, 0.20} on the frozen whole-genome denominators
+(`examples/sigmoid_delta_sigma_wg_sweep.{tsv,md}`; reproduce with
+`uv run python scripts/sigmoid_delta_sigma_wg_sweep.py`):
+
+| cohort | default AUC (tie@100) | best AUC in grid | full-grid AUC range | max tie@100 |
+|---|---:|---:|---:|---:|
+| GSE322563 HM450 | 0.988 (1) | 0.990 | 0.967-0.990 | 1 |
+| GSE322563 native v2 | 0.998 (1) | 0.998 | 0.995-0.998 | 1 |
+| GSE77348 | 0.981 (1) | 0.983 | 0.957-0.983 | 1 |
+| GSE69914 tissue | 0.862 (6) | 0.874 | 0.811-0.874 | 11 |
+
+The default is not claimed to be the global optimum. The robustness
+result is narrower and more useful: the default sits in a broad
+high-AUC region, the low-`n` whole-genome tied-band problem remains
+eliminated across the entire matched-cell-line grid, and every tested
+tissue grid cell remains above V2.5-diff's 0.778 WG AUC.
+
 Together, these validated-label AUC and tie-band tables support the
 current recommendation: V2.5-sigmoid is AUC-equivalent to V2.5-diff on
 matched cell lines, has higher transported-label AUC on the single
@@ -996,6 +1031,20 @@ Two findings:
    recommended tissue prioritization axis, with V2.5-diff retained for
    AUC-parity use. V1 collapses on tissue (AUC 0.44 on wide,
    below random).
+
+The per-positive WG ranks make the tissue heterogeneity explicit
+(`examples/tissue_per_positive_wg_ranks.{tsv,md}`):
+
+| positive | Δβ-only WG %ile | limma WG %ile | V2.5-diff WG %ile | V2.5-sigmoid WG %ile | feature-matched p |
+|---|---:|---:|---:|---:|---:|
+| *ESR1* | 94.33% | 89.82% | 97.40% | 88.88% | 0.4384 |
+| *EGFLAM* | 22.03% | 27.74% | 53.59% | 75.01% | 0.2588 |
+| *GATA3* | 64.78% | 54.32% | 82.36% | 94.81% | 0.0187 |
+
+Thus the tissue AUC gain is concentrated: V2.5-sigmoid strongly lifts
+*GATA3* and moderately lifts *EGFLAM*, while *ESR1* reverses relative to
+V2.5-diff and Δβ-only. The feature-matched audit in §5.9 confirms the
+same pattern against local matched denominators.
 
 ### 5.3.1 σ_floor sensitivity
 
@@ -1203,7 +1252,13 @@ all-positive WG result. The mechanism is the smooth-sigmoid response:
 within the high-confidence subset, V2.5-sigmoid's saturating gap
 factor compresses ESR1's tissue Δβ signal more than the discrete-step
 `p_diff` does, while the moderated-`t` and Δβ-only axes have no
-saturation at all. We report it for honesty and because the
+saturation at all. At the GSE69914 ESR1 record, both V2.5 axes share
+`p_targ = 0.0586` and `p_trust = 0.75`; V2.5-diff uses
+`p_diff = 0.3196`, whereas V2.5-sigmoid uses
+`p_gap_sigmoid = sigmoid((0.111 - 0.2) / 0.0707) = 0.2213`
+(scores 0.0140 vs 0.00973). The reversal is therefore driven by the
+gap term, not by EvidenceClass or tumor-side targetability. We report it
+for honesty and because the
 EvidenceClass-restricted universe is a real reviewer ask, not as a
 revision of the §6.1 recommendation.
 
@@ -1363,6 +1418,15 @@ native EPIC v2 probes near T9/T3 were hundreds of bases away with no
 matched HEK293T / HCT116 EPIC v2 pair. This is recorded in
 `prereg/2026-04-24-hek-hct-system-b-transport-addendum.md` and
 `data/derived/roth_hek_hct_secondary_backend_scan.tsv`.
+
+Under Roth's own BSS polarity values, the missing T9 control would have
+β_target ≈ β_comparator ≈ 0, so V2.5-sigmoid would assign
+`p_gap_sigmoid = sigmoid((0 - 0.2) / 0.0707) ≈ 0.0558`. A
+direction-specific EMX1/PRDX4 selective positive with β_target ≈ 0 and
+β_comparator ≈ 1 would have `p_gap_sigmoid ≈ 0.99999`. Thus, at
+matched `p_targ` and matched `p_trust`, the pre-registered T9 separation
+would be approximately 18-fold. We do **not** count this as validation,
+because T9 failed the pre-registered public-backend transport rule.
 
 The tag-C score run is therefore a **transport-confirmed subset
 diagnostic**, not the original T9-demotion benchmark. On the retained
@@ -1622,7 +1686,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10a`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10b`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
