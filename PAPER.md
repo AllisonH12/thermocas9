@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ax` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ay` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -10,9 +10,9 @@
 ## Abstract
 
 Methylation-sensitive Cas9 target selection is a ranking problem:
-candidates should be hypomethylated in disease cells, methylated in the
-matched normal comparator, and supported by trustworthy methylation
-evidence. We present a compositional probability-scale scoring skeleton,
+candidates should be hypomethylated in disease cells, relatively
+methylated or differentially protected in the matched normal
+comparator, and supported by trustworthy methylation evidence. We present a compositional probability-scale scoring skeleton,
 `p_targ × (gap factor) × p_trust`, paired with a tie-band-aware benchmark
 contract (`precision_at_k_{min,max}`, `tie_band_size_at_k`, mid-rank
 Mann-Whitney AUC). Two gap factors ship in this tag: V2.5-diff
@@ -31,10 +31,11 @@ EGFLAM up to ~4.6% on GSE77348 — see §5.1 / §5.2.2 per-positive
 ranks); a 10⁶-draw random-triple null resolves the rank lift beyond
 the earlier 10⁴ floor, while the paired V2.5-vs-Δβ comparison
 remains descriptive at `n_pos = 3`. The
-strongest empirical result is on
-GSE69914 tissue: a probe-level limma-style moderated-t DMR baseline is competitive
-on matched cell lines but falls to AUC 0.573 on tissue, while
-V2.5-sigmoid reaches AUC 0.862 on the same candidate mapping. A frozen
+strongest ranking stress-test result is on GSE69914 tissue under
+transported Roth labels: a probe-level limma-style moderated-t DMR
+baseline is competitive on matched cell lines but falls to AUC 0.573
+on tissue, while V2.5-sigmoid reaches AUC 0.862 on the same
+candidate mapping. A frozen
 whole-genome panel shows V2.5-sigmoid matches V2.5-diff's cell-line AUC
 within 0.002, avoids V2.5-diff's whole-genome low-`n` top-K tied bands
 (`tie_band@100 = 1` vs 421–1,493), and improves tissue AUC by +0.05 to
@@ -945,7 +946,7 @@ a recovery *over both Δβ baselines*: V2.5-diff reaches +0.18 over
 cell lines. `tumor_only` has a higher raw AUC (0.803–0.874) but its
 K = 100 tied band makes its top-K unusable. **V2.5-sigmoid** — which
 also ships in this tag as `tumor_plus_gap_sigmoid` and is the
-recommended probabilistic axis (§6.1) — **improves on V2.5-diff's
+recommended probabilistic prioritization axis (§6.1) — **improves on V2.5-diff's
 tissue AUC by a further +0.05 to +0.09 across the bandwidth family
 tested in §5.2.1 (0.821–0.864 vs V2.5-diff's 0.773)**, at both the
 chr5/6/10 and whole-genome probe-window denominators (§5.2.2). The
@@ -1152,6 +1153,14 @@ sigmoid promotes records with intermediate gaps that V2.5-diff's
 σ_floor-saturating `p_diff` rounds to 0/1; the EvidenceClass mix is
 not identical between the two axes).
 
+Because top-100 matched-cell-line windows are entirely EXACT records
+under both V2.5 axes, an **EXACT-only benchmark** is the next
+planned control for separating methylation ranking from
+evidence-proximity weighting (§6.3 follow-up): re-running the
+validated-label AUC restricted to the EXACT subset isolates the
+contribution of `p_targ × gap-factor` from the `p_trust`
+EvidenceClass scaling.
+
 ---
 
 ## 6 · Discussion
@@ -1160,10 +1169,10 @@ not identical between the two axes).
 
 | Use case | Recommended axis | Rationale |
 |---|---|---|
-| New probabilistic discovery runs on tested non-boundary regimes | **V2.5-sigmoid** (`tumor_plus_gap_sigmoid`) | AUC-equivalent to V2.5-diff on matched cell lines, higher AUC on tissue, and `tie_band@100 = 1` on every matched-cell-line WG cohort (§5.2.2). |
-| Backward-compatible probabilistic runs | V2.5-diff (`tumor_plus_differential_protection`) | Retained for AUC parity with earlier scored JSONLs; not preferred for new WG-scale discovery because low-`n` tied bands expand to 421–1,493 records. |
+| New probabilistic prioritization runs on tested non-boundary regimes | **V2.5-sigmoid** (`tumor_plus_gap_sigmoid`) | **Recommended probabilistic prioritization axis** (hypothesis generation; not a discovery claim absent prospective wet-lab validation). AUC-equivalent to V2.5-diff on matched cell lines, higher AUC on tissue, and `tie_band@100 = 1` on every matched-cell-line WG cohort (§5.2.2). |
+| Backward-compatible probabilistic runs | V2.5-diff (`tumor_plus_differential_protection`) | Retained for AUC parity with earlier scored JSONLs; not preferred for new WG-scale prioritization because low-`n` tied bands expand to 421–1,493 records. |
 | Stable package default / deterministic top-K | V1 `final_score` | Continuous score with `tie_band = 1`; retained for backward compatibility and deterministic lists, not AUC leadership. |
-| Diagnostic ablation | V2 `tumor_only` | Useful AUC sanity check; not a discovery axis because top-K collapses into thousands-record tied bands. |
+| Diagnostic ablation | V2 `tumor_only` | Useful AUC sanity check; not a prioritization axis because top-K collapses into thousands-record tied bands. |
 | Cross-series label transport (GSE68379-like) | Unsupported | Cell-line drift can invert label logic; do not pool with discovery-mode benchmarks. |
 
 On low-`n` matched cell-line cohorts, the V2.5 generation should be
@@ -1217,6 +1226,11 @@ context, guide quality, and off-target risk.
 6. A second independent-lab MCF-7 / MCF-10A EPIC cohort if one becomes
    public.
 7. Formal SCREEN cCRE integration and an R `limma` parity check.
+8. **EXACT-only and EvidenceClass-stratified benchmarks** to
+   separate the contribution of methylation-model ranking
+   (`p_targ × gap-factor`) from `p_trust`'s evidence-proximity
+   weighting (motivated by §5.7's finding that matched-cell-line
+   top-100 windows are 100/100 EXACT under both V2.5 axes).
 
 ---
 
@@ -1327,7 +1341,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ax`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ay`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
@@ -1348,7 +1362,7 @@ cohort YAMLs, and scripts in this tag.
 
 This appendix preserves the full audit trail for the threshold-based
 V2 composite and its V2.4 intermediate, moved out of the main body
-in `memo-2026-04-22-ax` so the main paper carries the final-method
+in `memo-2026-04-22-ay` so the main paper carries the final-method
 narrative (Δβ-only / V1 / V2.5-diff / V2.5-sigmoid / limma-style
 moderated-`t`). The V2 / V2.4 modes remain selectable via
 `probabilistic_mode` (`tumor_plus_normal_protection` and

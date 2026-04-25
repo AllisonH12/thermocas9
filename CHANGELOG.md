@@ -7,7 +7,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased] — submission-freeze post-`memo-2026-04-22`
 
 > Submission-freeze cycle for the bioRxiv / *Bioinformatics* preprint.
-> Stable release is still `v0.4.0`; cite `memo-2026-04-22-ax` for the
+> Stable release is still `v0.4.0`; cite `memo-2026-04-22-ay` for the
 > current submission-freeze state. See `git log memo-2026-04-22..main`
 > for the full per-commit history.
 
@@ -50,9 +50,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **V1 as the overall package default** (backward compatibility +
   `tie_band = 1` by construction regardless of cohort shape).
 - **V2.5-sigmoid (`tumor_plus_gap_sigmoid`) as the recommended
-  probabilistic discovery axis** across every tested non-boundary
-  cohort shape (matched cell-line at n = 2/2 to 3/3 and primary
-  tissue at n ≳ 30/side). Ships in this tag as a first-class
+  probabilistic prioritization axis** (hypothesis generation; not
+  a discovery claim absent prospective wet-lab validation) across
+  every tested non-boundary cohort shape (matched cell-line at
+  n = 2/2 to 3/3 and primary tissue at n ≳ 30/side). Ships in this tag as a first-class
   `probabilistic_mode` enum value with `sigma_fixed` cohort-YAML
   field + iff-semantics validators. PAPER.md §5.2.2 WG panel:
   matches V2.5-diff on matched cell-line AUC within 0.002 but
@@ -62,7 +63,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **V2.5-diff (`tumor_plus_differential_protection`) retained for
   backward compatibility and AUC parity** with pre-ag scored
   JSONLs. Still a selectable mode, but no longer the recommended
-  discovery axis on any tested regime.
+  prioritization axis on any tested regime.
 - **Δβ-only / Δβ_z / V1 / V2 `tumor_only` / limma-style moderated-t** retained
   as published baselines in §5.1 / §5.2.2.
 
