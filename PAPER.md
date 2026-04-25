@@ -453,16 +453,16 @@ Seven axes are benchmarked. For naming conventions see §7 Methods
 - **V2** (`tumor_only`) — `p_targ × p_trust`. Retained for audit; default in v0.4.0.
 - **V2.5-diff** (`tumor_plus_differential_protection`) — `p_targ × p_diff × p_trust` with δ = 0.2 and σ_floor = 0.05. The original V2.5 composite; retained in this tag for backward compatibility and AUC parity on cell-line cohorts.
 - **V2.5-sigmoid** (`tumor_plus_gap_sigmoid`) — `p_targ × sigmoid((β_n − β_t − δ) / σ_fixed) × p_trust` with δ = 0.2 and σ_fixed ≈ 0.0707. The **recommended probabilistic prioritization axis** on every non-boundary cohort shape tested (§5.2.2 whole-genome panel); ships as a first-class `probabilistic_mode` enum value in this tag.
-- **limma-style moderated-t** — sample-level probe-level Smyth (2004) empirical-Bayes moderated `t`-statistic, candidate-mapped via the nearest probe assigned in `observation.probe_id`. Pure-Python reimplementation of the variance-prior math (not a byte-identical R `minfi` + `limma` Bioconductor workflow); a canonical R parity check is on the §6.3 follow-up list. Included as the methods-journal-standard DMR comparator; §5.1 + §5.2.2 report AUC + tie-band alongside the other axes.
+- **limma-style moderated-t** — sample-level probe-level Smyth (2004) empirical-Bayes moderated `t`-statistic, candidate-mapped via the nearest probe assigned in `observation.probe_id`. Pure-Python reimplementation of the variance-prior math; canonical R `limma::lmFit + eBayes` parity is reported in §5.8. Included as the methods-journal-standard DMR comparator; §5.1 + §5.2.2 report AUC + tie-band alongside the other axes.
 
 **limma-style moderated-t baseline.** Standard DMR tools rank CpG probes or
 regions, not per-PAM candidates, so we compute a probe-level Smyth
 (2004) empirical-Bayes moderated `t` statistic from sample-level β
 matrices and map each candidate to its nearest probe via the same
 `EvidenceClass` assignment. This is a limma-style statistic implemented
-in pure Python, not a byte-identical `minfi` + `limma` Bioconductor
-workflow; an R parity check is future work. It is reported in §5.1 and
-§5.2.2 because it is the methods-reviewer baseline.
+in pure Python; §5.8 verifies functional parity against canonical R
+`limma::lmFit + eBayes` on the evaluated cohorts. It is reported in §5.1
+and §5.2.2 because it is the methods-reviewer baseline.
 
 ### 4.4 Platform harmonization and catalog scope
 
