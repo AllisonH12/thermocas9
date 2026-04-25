@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-24.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10a` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -1370,10 +1370,21 @@ directional pair, all axes rank the direction-specific selective target
 above the opposite-direction target (n_pos = 1, n_neg = 1 per
 direction; AUC = 1.0 by construction of the two retained controls):
 
-| direction | selective positive | β_target / β_comparator | V2.5-sigmoid score | opposite-direction control | β_target / β_comparator | V2.5-sigmoid score |
-|---|---|---:|---:|---|---:|---:|
-| HEK293T target / HCT116 protected | EMX1 T4 | 0.007 / 1.000 | 0.010000 | PRDX4 T5 | 0.751 / 0.061 | 0.000000 |
-| HCT116 target / HEK293T protected | PRDX4 T5 | 0.061 / 0.751 | 0.008128 | EMX1 T4 | 1.000 / 0.007 | 0.000000 |
+**HEK293T target / HCT116 protected**
+
+| Role | Target | β target / β comparator | V2.5-sigmoid score |
+|---|---|---:|---:|
+| Selective positive | EMX1 T4 | 0.007 / 1.000 | 0.010000 |
+| Opposite-direction control | PRDX4 T5 | 0.751 / 0.061 | 0.000000 |
+
+**HCT116 target / HEK293T protected**
+
+| Role | Target | β target / β comparator | V2.5-sigmoid score |
+|---|---|---:|---:|
+| Selective positive | PRDX4 T5 | 0.061 / 0.751 | 0.008128 |
+| Opposite-direction control | EMX1 T4 | 1.000 / 0.007 | 0.000000 |
+
+We therefore do not interpret this AUC as method validation.
 
 Endpoint 2, the HEK293T binary editability check, remains usable after
 transport filtering only as a target-side editability diagnostic. On
@@ -1388,12 +1399,14 @@ does **not** test V2.5's selectivity claim because the non-selective T9
 decoy is missing.
 
 The practical interpretation is conservative: System B improves the
-audit trail, not the headline claim. It shows that the pre-registered
-transport gate can reject a tempting benchmark when the public
-methylation backend does not support the decisive control. The scored
-subset is useful for debugging polarity and target-side editability, but
-the paper's recommendation remains grounded in the MCF-7 / MCF-10A
-cohorts, the tissue stress test, and the §5.9 matched-negative audit.
+audit trail and validates the transport-gating workflow, but it does not
+add an independent selectivity validation because the pre-registered T9
+discriminator is missing. It shows that the pre-registered transport
+gate can reject a tempting benchmark when the public methylation backend
+does not support the decisive control. The scored subset is useful for
+debugging polarity and target-side editability, but the paper's
+recommendation remains grounded in the MCF-7 / MCF-10A cohorts, the
+tissue stress test, and the §5.9 matched-negative audit.
 Reproduce with `uv run python scripts/score_roth_transport_subset.py`;
 outputs are `data/derived/roth_hek_hct_subset_scores.tsv` and
 `data/derived/roth_hek_hct_subset_benchmark.tsv`.
@@ -1445,12 +1458,11 @@ context, guide quality, and off-target risk.
 4. **Cell-line drift.** GSE68379 shows that same-named MCF-7 stocks can
    have opposite methylation at Roth targets. Cohort-specific
    methylation must be verified before editing follow-up.
-5. **System B transport failure.** The pre-registered HEK293T/HCT116
-   System B extension (§5.10) does not upgrade the headline selectivity
-   claim because VEGFA T9, the editable/non-selective discriminator, is
-   low-coverage in the public ENCODE RRBS backend and is not rescued by
-   the secondary WGBS / EPIC v2 scan. The retained T4/T5 subset is a
-   polarity diagnostic, not the planned T9-demotion test.
+5. **Independent-biology System B not evaluable.** The HEK293T/HCT116
+   System B extension was pre-registered, but the decisive VEGFA T9
+   non-selective discriminator failed public-backend transport because
+   of low coverage; the retained EMX1/PRDX4 subset is a polarity
+   diagnostic, not a V2.5 selectivity validation.
 6. **V2.5-diff σ_floor.** The 0.05 per-side σ floor is a V2.5-diff
    constant. It is robust on matched cell lines but tissue-sensitive
    (§5.3.1). The current recommendation is V2.5-sigmoid, whose
@@ -1610,7 +1622,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10a`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
