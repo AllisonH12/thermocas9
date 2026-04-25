@@ -1,0 +1,125 @@
+cohort	scope	universe	axis	n_total	n_pos	n_neg	auc	tie_band@100	P@100_obs	P@100_min	P@100_max	ESR1_rank	EGFLAM_rank	GATA3_rank	ESR1_percentile	EGFLAM_percentile	GATA3_percentile
+GSE322563 HM450	chr5_6_10	class_exact	delta_beta_only	32550	0	32550		1	0.0000	0.0000	0.0000						
+GSE322563 HM450	chr5_6_10	class_exact	limma_style	32550	0	32550		1	0.0000	0.0000	0.0000						
+GSE322563 HM450	chr5_6_10	class_exact	v25_diff	32550	0	32550		190	0.0000	0.0000	0.0000						
+GSE322563 HM450	chr5_6_10	class_exact	v25_sigmoid	32550	0	32550		1	0.0000	0.0000	0.0000						
+GSE322563 HM450	chr5_6_10	class_proximal	v25_sigmoid	227335	1	227334	0.965933	7	0.0000	0.0000	0.0000			7744			96.5940
+GSE322563 HM450	chr5_6_10	class_proximal_close	v25_sigmoid	341438	1	341437	0.997705	12	0.0000	0.0000	0.0000	785			99.7704		
+GSE322563 HM450	chr5_6_10	class_regional	v25_sigmoid	1675916	1	1675915	0.978823	60	0.0000	0.0000	0.0000		35486			97.8827	
+GSE322563 HM450	chr5_6_10	class_unobserved	v25_sigmoid	702758	0	702758		702758	0.0000	0.0000	0.0000						
+GSE322563 HM450	chr5_6_10	exact_only	delta_beta_only	32550	0	32550		1	0.0000	0.0000	0.0000						
+GSE322563 HM450	chr5_6_10	exact_only	limma_style	32550	0	32550		1	0.0000	0.0000	0.0000						
+GSE322563 HM450	chr5_6_10	exact_only	v25_diff	32550	0	32550		190	0.0000	0.0000	0.0000						
+GSE322563 HM450	chr5_6_10	exact_only	v25_sigmoid	32550	0	32550		1	0.0000	0.0000	0.0000						
+GSE322563 HM450	chr5_6_10	exact_plus_proximal_close	delta_beta_only	373988	1	373987	0.997698	6	0.0000	0.0000	0.0000	862			99.7698		
+GSE322563 HM450	chr5_6_10	exact_plus_proximal_close	limma_style	373988	1	373987	0.996759	6	0.0000	0.0000	0.0000	1213			99.6759		
+GSE322563 HM450	chr5_6_10	exact_plus_proximal_close	v25_diff	373988	1	373987	0.994200	190	0.0000	0.0000	0.0000	2575			99.3117		
+GSE322563 HM450	chr5_6_10	exact_plus_proximal_close	v25_sigmoid	373988	1	373987	0.994549	1	0.0000	0.0000	0.0000	2040			99.4548		
+GSE322563 HM450	wg	class_exact	delta_beta_only	187621	0	187621		1	0.0000	0.0000	0.0000						
+GSE322563 HM450	wg	class_exact	limma_style	187621	0	187621		1	0.0000	0.0000	0.0000						
+GSE322563 HM450	wg	class_exact	v25_diff	187621	0	187621		1127	0.0000	0.0000	0.0000						
+GSE322563 HM450	wg	class_exact	v25_sigmoid	187621	0	187621		1	0.0000	0.0000	0.0000						
+GSE322563 HM450	wg	class_proximal	v25_sigmoid	1522744	1	1522743	0.959779	3	0.0000	0.0000	0.0000			61246			95.9780
+GSE322563 HM450	wg	class_proximal_close	v25_sigmoid	2157776	1	2157775	0.997866	14	0.0000	0.0000	0.0000	4606			99.7866		
+GSE322563 HM450	wg	class_regional	v25_sigmoid	11417857	1	11417856	0.978168	17	0.0000	0.0000	0.0000		249268			97.8169	
+GSE322563 HM450	wg	class_unobserved	v25_sigmoid	4501822	0	4501822		4501822	0.0000	0.0000	0.0000						
+GSE322563 HM450	wg	exact_only	delta_beta_only	187621	0	187621		1	0.0000	0.0000	0.0000						
+GSE322563 HM450	wg	exact_only	limma_style	187621	0	187621		1	0.0000	0.0000	0.0000						
+GSE322563 HM450	wg	exact_only	v25_diff	187621	0	187621		1127	0.0000	0.0000	0.0000						
+GSE322563 HM450	wg	exact_only	v25_sigmoid	187621	0	187621		1	0.0000	0.0000	0.0000						
+GSE322563 HM450	wg	exact_plus_proximal_close	delta_beta_only	2345397	1	2345396	0.997876	14	0.0000	0.0000	0.0000	4982			99.7876		
+GSE322563 HM450	wg	exact_plus_proximal_close	limma_style	2345397	1	2345396	0.996583	10	0.0000	0.0000	0.0000	8016			99.6583		
+GSE322563 HM450	wg	exact_plus_proximal_close	v25_diff	2345397	1	2345396	0.993807	1127	0.0000	0.0000	0.0000	17661			99.2470		
+GSE322563 HM450	wg	exact_plus_proximal_close	v25_sigmoid	2345397	1	2345396	0.994524	1	0.0000	0.0000	0.0000	12845			99.4524		
+GSE322563 native v2	chr5_6_10	class_exact	delta_beta_only	57494	0	57494		1	0.0000	0.0000	0.0000						
+GSE322563 native v2	chr5_6_10	class_exact	limma_style	57494	0	57494		1	0.0000	0.0000	0.0000						
+GSE322563 native v2	chr5_6_10	class_exact	v25_diff	57494	0	57494		421	0.0000	0.0000	0.0000						
+GSE322563 native v2	chr5_6_10	class_exact	v25_sigmoid	57494	0	57494		1	0.0000	0.0000	0.0000						
+GSE322563 native v2	chr5_6_10	class_proximal	v25_sigmoid	418424	1	418423	0.959659	6	0.0000	0.0000	0.0000			16879			95.9663
+GSE322563 native v2	chr5_6_10	class_proximal_close	v25_sigmoid	592637	1	592636	0.997900	12	0.0000	0.0000	0.0000	1246			99.7899		
+GSE322563 native v2	chr5_6_10	class_regional	v25_sigmoid	3848669	1	3848668	0.973534	45	0.0000	0.0000	0.0000		101855			97.3535	
+GSE322563 native v2	chr5_6_10	class_unobserved	v25_sigmoid	306858	0	306858		306858	0.0000	0.0000	0.0000						
+GSE322563 native v2	chr5_6_10	exact_only	delta_beta_only	57494	0	57494		1	0.0000	0.0000	0.0000						
+GSE322563 native v2	chr5_6_10	exact_only	limma_style	57494	0	57494		1	0.0000	0.0000	0.0000						
+GSE322563 native v2	chr5_6_10	exact_only	v25_diff	57494	0	57494		421	0.0000	0.0000	0.0000						
+GSE322563 native v2	chr5_6_10	exact_only	v25_sigmoid	57494	0	57494		1	0.0000	0.0000	0.0000						
+GSE322563 native v2	chr5_6_10	exact_plus_proximal_close	delta_beta_only	650131	1	650130	0.997899	6	0.0000	0.0000	0.0000	1367			99.7899		
+GSE322563 native v2	chr5_6_10	exact_plus_proximal_close	limma_style	650131	1	650130	0.996015	6	0.0000	0.0000	0.0000	2592			99.6015		
+GSE322563 native v2	chr5_6_10	exact_plus_proximal_close	v25_diff	650131	1	650130	0.992715	421	0.0000	0.0000	0.0000	5746			99.1163		
+GSE322563 native v2	chr5_6_10	exact_plus_proximal_close	v25_sigmoid	650131	1	650130	0.993793	1	0.0000	0.0000	0.0000	4037			99.3792		
+GSE322563 native v2	wg	class_exact	delta_beta_only	57494	0	57494		1	0.0000	0.0000	0.0000						
+GSE322563 native v2	wg	class_exact	limma_style	57494	0	57494		1	0.0000	0.0000	0.0000						
+GSE322563 native v2	wg	class_exact	v25_diff	57494	0	57494		421	0.0000	0.0000	0.0000						
+GSE322563 native v2	wg	class_exact	v25_sigmoid	57494	0	57494		1	0.0000	0.0000	0.0000						
+GSE322563 native v2	wg	class_proximal	v25_sigmoid	418424	1	418423	0.959659	6	0.0000	0.0000	0.0000			16879			95.9663
+GSE322563 native v2	wg	class_proximal_close	v25_sigmoid	592637	1	592636	0.997900	12	0.0000	0.0000	0.0000	1246			99.7899		
+GSE322563 native v2	wg	class_regional	v25_sigmoid	3848669	1	3848668	0.973534	45	0.0000	0.0000	0.0000		101855			97.3535	
+GSE322563 native v2	wg	class_unobserved	v25_sigmoid	30463207	0	30463207		30463207	0.0000	0.0000	0.0000						
+GSE322563 native v2	wg	exact_only	delta_beta_only	57494	0	57494		1	0.0000	0.0000	0.0000						
+GSE322563 native v2	wg	exact_only	limma_style	57494	0	57494		1	0.0000	0.0000	0.0000						
+GSE322563 native v2	wg	exact_only	v25_diff	57494	0	57494		421	0.0000	0.0000	0.0000						
+GSE322563 native v2	wg	exact_only	v25_sigmoid	57494	0	57494		1	0.0000	0.0000	0.0000						
+GSE322563 native v2	wg	exact_plus_proximal_close	delta_beta_only	650131	1	650130	0.997899	6	0.0000	0.0000	0.0000	1367			99.7899		
+GSE322563 native v2	wg	exact_plus_proximal_close	limma_style	650131	1	650130	0.996015	6	0.0000	0.0000	0.0000	2592			99.6015		
+GSE322563 native v2	wg	exact_plus_proximal_close	v25_diff	650131	1	650130	0.992715	421	0.0000	0.0000	0.0000	5746			99.1163		
+GSE322563 native v2	wg	exact_plus_proximal_close	v25_sigmoid	650131	1	650130	0.993793	1	0.0000	0.0000	0.0000	4037			99.3792		
+GSE77348	chr5_6_10	class_exact	delta_beta_only	41341	0	41341		1	0.0000	0.0000	0.0000						
+GSE77348	chr5_6_10	class_exact	limma_style	41341	0	41341		1	0.0000	0.0000	0.0000						
+GSE77348	chr5_6_10	class_exact	v25_diff	41341	0	41341		299	0.0000	0.0000	0.0000						
+GSE77348	chr5_6_10	class_exact	v25_sigmoid	41341	0	41341		1	0.0000	0.0000	0.0000						
+GSE77348	chr5_6_10	class_proximal	v25_sigmoid	297543	1	297542	0.983517	6	0.0000	0.0000	0.0000			4904			98.3522
+GSE77348	chr5_6_10	class_proximal_close	v25_sigmoid	441309	1	441308	0.996652	8	0.0000	0.0000	0.0000	1479			99.6651		
+GSE77348	chr5_6_10	class_regional	v25_sigmoid	2199804	1	2199803	0.962871	60	0.0000	0.0000	0.0000		81671			96.2874	
+GSE77348	chr5_6_10	exact_only	delta_beta_only	41341	0	41341		1	0.0000	0.0000	0.0000						
+GSE77348	chr5_6_10	exact_only	limma_style	41341	0	41341		1	0.0000	0.0000	0.0000						
+GSE77348	chr5_6_10	exact_only	v25_diff	41341	0	41341		299	0.0000	0.0000	0.0000						
+GSE77348	chr5_6_10	exact_only	v25_sigmoid	41341	0	41341		1	0.0000	0.0000	0.0000						
+GSE77348	chr5_6_10	exact_plus_proximal_close	delta_beta_only	482650	1	482649	0.996668	9	0.0000	0.0000	0.0000	1609			99.6668		
+GSE77348	chr5_6_10	exact_plus_proximal_close	limma_style	482650	1	482649	0.985004	5	0.0000	0.0000	0.0000	7239			98.5004		
+GSE77348	chr5_6_10	exact_plus_proximal_close	v25_diff	482650	1	482649	0.993063	299	0.0000	0.0000	0.0000	3965			99.1787		
+GSE77348	chr5_6_10	exact_plus_proximal_close	v25_sigmoid	482650	1	482649	0.993139	1	0.0000	0.0000	0.0000	3313			99.3138		
+GSE77348	wg	class_exact	delta_beta_only	235041	0	235041		1	0.0000	0.0000	0.0000						
+GSE77348	wg	class_exact	limma_style	235041	0	235041		1	0.0000	0.0000	0.0000						
+GSE77348	wg	class_exact	v25_diff	235041	0	235041		1493	0.0000	0.0000	0.0000						
+GSE77348	wg	class_exact	v25_sigmoid	235041	0	235041		1	0.0000	0.0000	0.0000						
+GSE77348	wg	class_proximal	v25_sigmoid	1953701	1	1953700	0.983565	7	0.0000	0.0000	0.0000			32109			98.3566
+GSE77348	wg	class_proximal_close	v25_sigmoid	2737629	1	2737628	0.996784	14	0.0000	0.0000	0.0000	8807			99.6783		
+GSE77348	wg	class_regional	v25_sigmoid	14861449	1	14861448	0.961796	93	0.0000	0.0000	0.0000		567769			96.1796	
+GSE77348	wg	exact_only	delta_beta_only	235041	0	235041		1	0.0000	0.0000	0.0000						
+GSE77348	wg	exact_only	limma_style	235041	0	235041		1	0.0000	0.0000	0.0000						
+GSE77348	wg	exact_only	v25_diff	235041	0	235041		1493	0.0000	0.0000	0.0000						
+GSE77348	wg	exact_only	v25_sigmoid	235041	0	235041		1	0.0000	0.0000	0.0000						
+GSE77348	wg	exact_plus_proximal_close	delta_beta_only	2972670	1	2972669	0.996794	10	0.0000	0.0000	0.0000	9530			99.6794		
+GSE77348	wg	exact_plus_proximal_close	limma_style	2972670	1	2972669	0.984863	8	0.0000	0.0000	0.0000	44997			98.4863		
+GSE77348	wg	exact_plus_proximal_close	v25_diff	2972670	1	2972669	0.993172	1493	0.0000	0.0000	0.0000	24935			99.1612		
+GSE77348	wg	exact_plus_proximal_close	v25_sigmoid	2972670	1	2972669	0.993221	1	0.0000	0.0000	0.0000	20154			99.3221		
+GSE69914 (tissue)	chr5_6_10	class_exact	delta_beta_only	41341	0	41341		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	chr5_6_10	class_exact	limma_style	41341	0	41341		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	chr5_6_10	class_exact	v25_diff	41341	0	41341		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	chr5_6_10	class_exact	v25_sigmoid	41341	0	41341		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	chr5_6_10	class_proximal	v25_sigmoid	297543	1	297542	0.974678	9	0.0000	0.0000	0.0000			7534			97.4683
+GSE69914 (tissue)	chr5_6_10	class_proximal_close	v25_sigmoid	441309	1	441308	0.618807	4	0.0000	0.0000	0.0000	168225			61.8807		
+GSE69914 (tissue)	chr5_6_10	class_regional	v25_sigmoid	2199804	1	2199803	0.816363	19	0.0000	0.0000	0.0000		403961			81.6365	
+GSE69914 (tissue)	chr5_6_10	exact_only	delta_beta_only	41341	0	41341		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	chr5_6_10	exact_only	limma_style	41341	0	41341		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	chr5_6_10	exact_only	v25_diff	41341	0	41341		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	chr5_6_10	exact_only	v25_sigmoid	41341	0	41341		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	chr5_6_10	exact_plus_proximal_close	delta_beta_only	482650	1	482649	0.955771	5	0.0000	0.0000	0.0000	21348			95.5771		
+GSE69914 (tissue)	chr5_6_10	exact_plus_proximal_close	limma_style	482650	1	482649	0.922546	2	0.0000	0.0000	0.0000	37384			92.2546		
+GSE69914 (tissue)	chr5_6_10	exact_plus_proximal_close	v25_diff	482650	1	482649	0.914417	2	0.0000	0.0000	0.0000	41308			91.4416		
+GSE69914 (tissue)	chr5_6_10	exact_plus_proximal_close	v25_sigmoid	482650	1	482649	0.621674	2	0.0000	0.0000	0.0000	182600			62.1674		
+GSE69914 (tissue)	wg	class_exact	delta_beta_only	235041	0	235041		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	wg	class_exact	limma_style	235041	0	235041		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	wg	class_exact	v25_diff	235041	0	235041		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	wg	class_exact	v25_sigmoid	235041	0	235041		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	wg	class_proximal	v25_sigmoid	1953701	1	1953700	0.974423	4	0.0000	0.0000	0.0000			49969			97.4424
+GSE69914 (tissue)	wg	class_proximal_close	v25_sigmoid	2737629	1	2737628	0.607088	3	0.0000	0.0000	0.0000	1075649			60.7088		
+GSE69914 (tissue)	wg	class_regional	v25_sigmoid	14861449	1	14861448	0.804848	56	0.0000	0.0000	0.0000		2900242			80.4848	
+GSE69914 (tissue)	wg	exact_only	delta_beta_only	235041	0	235041		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	wg	exact_only	limma_style	235041	0	235041		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	wg	exact_only	v25_diff	235041	0	235041		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	wg	exact_only	v25_sigmoid	235041	0	235041		1	0.0000	0.0000	0.0000						
+GSE69914 (tissue)	wg	exact_plus_proximal_close	delta_beta_only	2972670	1	2972669	0.958269	6	0.0000	0.0000	0.0000	124054			95.8269		
+GSE69914 (tissue)	wg	exact_plus_proximal_close	limma_style	2972670	1	2972669	0.925434	2	0.0000	0.0000	0.0000	221661			92.5434		
+GSE69914 (tissue)	wg	exact_plus_proximal_close	v25_diff	2972670	1	2972669	0.922356	1	0.0000	0.0000	0.0000	230810			92.2356		
+GSE69914 (tissue)	wg	exact_plus_proximal_close	v25_sigmoid	2972670	1	2972669	0.610071	6	0.0000	0.0000	0.0000	1159132			61.0071		
