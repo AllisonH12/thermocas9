@@ -1,0 +1,17 @@
+# Pre-registered Roth System B targets for HEK293T/HCT116 direction-flip validation.
+# Coordinates are 1-based for hg19/hg38 columns. candidate_id uses the framework's
+# 0-based critical_c_pos convention: {chrom}:{critical_c_pos}{strand}:{pam_family}.
+# Source: Roth et al. Nature 2026 main text, Extended Data Fig. 9, and
+# Supplementary Table 1 oligos. transport_status is intentionally pending here;
+# scripts/check_methylation_transport.py writes the resolved transport table.
+target_id	gene	hg38_chrom	hg38_pam_cytosine_pos	hg38_strand	hg19_chrom	hg19_pam_cytosine_pos	hg19_strand	spacer_23bp	pam_8bp	pam_family	candidate_id	editable_in_HEK293T	editable_in_HCT116	meth_state_HEK293T	meth_state_HCT116	selective_in_HEK_dir	selective_in_HCT_dir	transport_status	catalog_resolution	endpoint_membership
+T3	VEGFA	chr6	43774557	-	chr6	43742294	-	AGAGACCTGAACAGCGGAGAGTC	CTCACGAA	NNNNCGA	chr6:43742293-:NNNNCGA	false	false	methylated	methylated	false	false	pending	augmented_addition	E1+E2
+T9	VEGFA	chr6	43774413	-	chr6	43742150	-	ATCCCCTGAGAGGACAGGGAACC	CCATCCAA	NNNNCCA	chr6:43742149-:NNNNCCA	true	true	unmethylated	unmethylated	false	false	pending	augmented_addition	E1+E2
+T4	EMX1	chr2	72918297	-	chr2	73145426	-	AATGGAGAGGGTCCCGGTGCTGG	GCGCCGAA	NNNNCGA	chr2:73145425-:NNNNCGA	true	false	unmethylated	methylated	true	false	pending	exact_match	E1+E2
+T5	PRDX4	chrX	23667711	+	chrX	23685828	+	GGAGACAGAGGAGAGGCCCCGGA	CTCGCGAA	NNNNCGA	chrX:23685827+:NNNNCGA	false	true	methylated	unmethylated	false	true	pending	exact_match	E1+E2
+T10	APBB2	chr4	40857045	+	chr4	40859062	+	TTCCTCACCTTTGCCTCCCGGTC	CTTCCGAA	NNNNCGA	chr4:40859061+:NNNNCGA	true	na	unmethylated	na	false	false	pending	exact_match	E2
+T11	EGFLAM	chr5	38258842	+	chr5	38258944	+	GGCGCGGTGTCGCTCCGAGCGGC	CATCCGAA	NNNNCGA	chr5:38258943+:NNNNCGA	true	na	unmethylated	na	false	false	pending	exact_match	E2
+T12	LUZP2	chr11	24497191	+	chr11	24518737	+	GCCGGGCACCAAGGAGCGACAGG	ATCCCGAA	NNNNCGA	chr11:24518736+:NNNNCGA	true	na	unmethylated	na	false	false	pending	exact_match	E2
+T13	ABHD15	chr17	29566530	+	chr17	27893548	+	CCCCCGGCGCTGGTGATCCGGCG	GCCCCGAA	NNNNCGA	chr17:27893547+:NNNNCGA	false	na	methylated	na	false	false	pending	exact_match	E2
+T14	GDA	chr9	72149771	-	chr9	74764687	-	GAGCCGCGGCGCTCACTGCGCAC	CGAGCGAA	NNNNCGA	chr9:74764686-:NNNNCGA	false	na	methylated	na	false	false	pending	exact_match	E2
+T15	ZNF503	chr10	75396267	+	chr10	77156025	+	CCAGAGTGGGACCGGGGCCGCGG	CGTCCGAA	NNNNCGA	chr10:77156024+:NNNNCGA	false	na	methylated	na	false	false	pending	exact_match	E2

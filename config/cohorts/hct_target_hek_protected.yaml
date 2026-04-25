@@ -1,0 +1,48 @@
+# Roth System B direction: HCT116 target / HEK293T protected comparator.
+# The cohort block is valid for the existing loader; RRBS-specific metadata
+# below it is consumed by the planned RRBS summary materialization script.
+
+cohort:
+  name: Roth-HCT116-target-HEK293T-protected
+  tumor_dataset: ENCODE-HCT116-RRBS
+  normal_dataset: ENCODE-HEK293T-RRBS
+  platform: RRBS
+  min_samples_tumor: 2
+  min_samples_normal: 2
+  probabilistic_mode: tumor_plus_gap_sigmoid
+  differential_delta: 0.2
+  sigma_fixed: 0.07071067811865477
+
+evidence_thresholds:
+  exact_bp: 0
+  proximal_close_bp: 10
+  proximal_bp: 25
+  regional_bp: 50
+
+rrbs_sources:
+  tumor_role: target
+  normal_role: protected_comparator
+  tumor_cell_line: HCT116
+  normal_cell_line: HEK293T
+  tumor_encode_accessions:
+    - ENCFF001TMM
+    - ENCFF001TMN
+  normal_encode_accessions:
+    - ENCFF001TMR
+    - ENCFF001TMQ
+    - ENCFF001TMS
+    - ENCFF001TMT
+
+transport_policy:
+  methylated_beta_gt: 0.7
+  unmethylated_beta_lt: 0.3
+  ambiguous_beta_min: 0.3
+  ambiguous_beta_max: 0.7
+  min_reads_per_site: 10
+  min_replicates_per_cell_line: 2
+  max_nearest_cpg_distance_bp: 50
+
+summary_materialization:
+  q25_q75_policy: sigma_floor_binding_for_low_replicates
+  coverage_policy: gate_only_not_evidence_class
+  output_cohort_dir: data/derived/roth_hct_target_hek_protected_rrbs_cohort
