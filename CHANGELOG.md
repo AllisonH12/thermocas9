@@ -7,19 +7,53 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased] — submission-freeze post-`memo-2026-04-22`
 
 > Submission-freeze cycle for the bioRxiv / *Bioinformatics* preprint.
-> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bf` for the
+> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bg` for the
 > current submission-freeze state. See `git log memo-2026-04-22..main`
 > for the full per-commit history.
 
 ### Added
 
+- **V2.5-sigmoid recommended probabilistic prioritization axis**
+  (`tumor_plus_gap_sigmoid`). Ships as a first-class
+  `probabilistic_mode` enum value with `sigma_fixed` cohort-YAML
+  field + iff-semantics validators. PAPER.md §5.2.2 WG panel:
+  AUC-equivalent to V2.5-diff on matched cell lines (within 0.002),
+  `tie_band@100 = 1` at WG scale on every matched cell-line cohort
+  vs V2.5-diff's 421–1,493 on the same WG catalogs, and higher
+  transported-label tissue AUC (+0.05 to +0.08; per-positive
+  heterogeneous, see PAPER.md §5.9). V2.5-diff retained for
+  backward compatibility and AUC parity with pre-V2.5-sigmoid
+  scored JSONLs.
+- **Canonical R `limma::lmFit + eBayes` parity** at
+  `memo-2026-04-22-ba`. Per-probe Spearman/Pearson `t_mod` ≥ 0.9997
+  across all three primary cohorts vs R `limma` 3.66.0 on identical
+  sample-level β + group inputs. PAPER.md §5.8;
+  `examples/r_limma_parity_*.{tsv,md}`.
+- **EvidenceClass distribution + stratified benchmark** (PAPER.md
+  §5.7). Full chr5/6/10 catalogs are dominated by `regional`
+  records; matched-cell-line top-100 windows are 100/100 EXACT
+  under both V2.5-diff and V2.5-sigmoid. EvidenceClass-stratified
+  AUC for V2.5-sigmoid + V2.5-diff + Δβ-only + limma-style
+  reported in `examples/evidence_class_stratified_benchmark.{tsv,md}`.
+- **Feature-matched negative-universe controls** (PAPER.md §5.9).
+  Same-(EvidenceClass × pam_family × is_cpg_pam × chrom)
+  matched-pool empirical *p*-values for the three Roth positives:
+  V2.5-sigmoid `p` ∈ [0.0018, 0.0390] across all 9 matched
+  cell-line cells; tissue is per-positive heterogeneous (GATA3
+  *p* = 0.019; ESR1 *p* = 0.44 matched-near-random). Artifact:
+  `examples/feature_matched_negative_controls.{tsv,md}`.
+- **p_trust sensitivity sweep** (PAPER.md §5.6) under EvidenceClass
+  base weights × ramp_n grid. AUC exactly invariant to ramp_n
+  within each cohort (structural, per-cohort uniform `(n_t, n_n)`);
+  near-invariant to base-weight set on cell-lines, ±0.04 on tissue.
+  Artifact: `examples/p_trust_sensitivity_sweep.{tsv,md}`.
 - **Δβ-only baseline** (`naive_selectivity = β_normal − β_tumor`)
   benchmarked across all cohort paths × positives tiers. Reported
-  alongside V1, V2 `tumor_only`, and V2.5 differential in every
-  results table. V2.5 beats Δβ-only on every matched-cell-line row
-  (+0.010 to +0.080); on tissue, V2.5 (0.711–0.773) far exceeds
-  Δβ-only (0.435–0.591) — where the probabilistic envelope earns
-  its complexity.
+  alongside V1, V2 `tumor_only`, and V2.5-diff in every primary
+  results table. V2.5-diff beats Δβ-only on every matched-cell-line
+  row (+0.010 to +0.080); on tissue, V2.5-diff (0.711–0.773) far
+  exceeds Δβ-only (0.435–0.591); V2.5-sigmoid further improves
+  tissue AUC over V2.5-diff (PAPER.md §5.2.2).
 - **`MANUSCRIPT.md`** — Bioinformatics-submission-shaped sibling
   to `PAPER.md`. Structured abstract, leads with the
   "no single axis dominates" framing.
@@ -40,10 +74,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `SOURCE_DATE_EPOCH` so Typst embeds deterministic
   `CreationDate` / `ModDate`. Byte-identical re-renders verified
   within `pandoc 3.9` + `typst 0.14.2`.
-- **Figures**: `fig2_auc_bars` (4-axis × 4-cohort-path × 3-tier
-  cross-cohort AUC) and `fig3_topgene_heatmap` (5-column top-20
-  gene-presence; cross-cell-line intersection *CELF2*, *XPNPEP1*;
-  tissue cohort has zero gene overlap with any cell-line shortlist).
+- **Figures**: `fig2_auc_bars` is the V2.5-sigmoid-centered
+  final-method summary (V2.5-sigmoid vs V2.5-diff vs limma-style
+  on WG validated AUC + log-scale `tie_band@100` across the four
+  evaluated cohort paths). The historical 4-axis × 3-tier
+  sensitivity figure is preserved as supplementary
+  `fig2_supp_historical_sensitivity`. `fig3_topgene_heatmap`
+  (5-column top-20 gene-presence; cross-cell-line intersection
+  *CELF2*, *XPNPEP1*; tissue cohort has zero gene overlap with any
+  cell-line shortlist) is unchanged.
 
 ### Shipped recommendation
 
