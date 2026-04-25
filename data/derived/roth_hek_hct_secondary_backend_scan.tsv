@@ -1,0 +1,10 @@
+source	cell_line	target_id	coordinate_build	window_or_probe	observed_beta	coverage_or_probe_distance	status	reason
+ENCODE WGBS	HCT116	all	na	assay search	na	na	no_wgbs_experiment	ENCODE has RRBS and DNAme-array experiments for HCT116 but no WGBS experiment under the HCT116 term
+ENCODE WGBS	HEK293	all	na	assay search	na	na	no_wgbs_experiment	ENCODE has RRBS and DNAme-array experiments for HEK293 but no WGBS experiment under the HEK293 term
+ENCODE WGBS	HEK293T	all	na	assay search	na	na	no_wgbs_experiment	ENCODE has no WGBS experiment under the HEK293T term
+GEO GSE60106/GSM1465024	HCT116	T9	hg19	nearest row chr6:43742124-43742125	0.500000	coverage=4;distance=25	low_coverage	fails min-read coverage and has no second replicate
+GEO GSE60106/GSM1465024	HCT116	T3	hg19	nearest row chr6:43742292-43742293	0.714300	coverage=7;distance=1	low_coverage	fails min-read coverage and has no second replicate
+GEO GSE224406 BSseq_Ctrl	HEK293T	T9	hg38	nearest row chr6:43774387-43774388	0.818182	coverage=11;distance=25	non_transporting_proxy	conflicts with Roth unmethylated T9 label and is a HEK293T proxy WGBS source
+GEO GSE224406 BSseq_Ctrl	HEK293T	T3	hg38	nearest row chr6:43774555-43774556	1.000000	coverage=8;distance=2	low_coverage	fails min-read coverage in the HEK293T proxy WGBS source
+EPIC v2 probe catalog	HCT116/HEK293T	T9	hg19	nearest probe cg24475391_BC21		231	probe_too_distant	nearest native EPIC v2 probe is outside the PAM-cytosine transport window and no matched HEK293T/HCT116 EPIC v2 pair was found
+EPIC v2 probe catalog	HCT116/HEK293T	T3	hg19	nearest probe cg09517633_TC21		399	probe_too_distant	nearest native EPIC v2 probe is outside the PAM-cytosine transport window and no matched HEK293T/HCT116 EPIC v2 pair was found
