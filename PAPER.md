@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-az` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ba` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -1194,6 +1194,46 @@ the limma-style ranking score, matching `scripts/limma_candidate_ranking.py`'s
 site has Δ < 0 → t < 0 → −t > 0" sign convention; verified at this
 tag.)
 
+### 5.8 Canonical R `limma::lmFit + eBayes` parity
+
+The pure-Python Smyth (2004) empirical-Bayes moderated-`t`
+implementation in `scripts/limma_ebayes.py` is the source of every
+"limma-style moderated-`t`" number reported in §4.3, §5.1, §5.2.2, and
+§5.7. To address the reviewer ask of the previous tag, we ran
+canonical `limma::lmFit(β_matrix, design) %>% eBayes()` (R 4.5.3,
+Bioconductor `limma` 3.66.0) on the same sample-level β matrices and
+group vectors the Python pipeline consumes via the shared adapters in
+`scripts/run_limma_per_cohort.py`, then compared per-probe
+moderated-`t` statistics by Spearman / Pearson correlation, top-K |t|
+Jaccard overlap, and absolute-difference diagnostics:
+
+| cohort | n_t / n_n | probes (Py / R / both) | Spearman `t_mod` | Pearson `t_mod` | top-100 | top-1000 |
+|---|:---:|---|---:|---:|---:|---:|
+| GSE69914 (tissue) | 305 / 50 | 485,512 / 485,512 / 485,512 | **1.000000** | **1.000000** | **1.000** | **1.000** |
+| GSE77348          | 3 / 3   | 485,577 / 485,577 / 485,577 | **1.000000** | **1.000000** | **1.000** | **0.999** |
+| GSE322563 HM450   | 2 / 2   | 937,690 / 881,183 / 881,183 | **0.999674** | **0.997085** | **0.960** | **0.903** |
+
+The tissue cohort and the GSE77348 cell-line cohort show
+floating-point parity (Spearman/Pearson 1.000000; max |Python − R|
+`t_mod` = 1.9 × 10⁻⁴ on tissue, 0.43 maximum / 0.002 median on
+GSE77348). On GSE322563 HM450 (n = 2/2, residual `df = 0`) R's
+`eBayes` declines to fit ~56,500 underdetermined probes that Python
+substitutes a finite value for; on the 881k probes both implementations
+fit, Spearman is 0.9997 and the top-100 / top-1000 |t| Jaccard is 0.96
+/ 0.90. Differences are fully accounted for by R's stricter
+NaN-coding of `df = 0` cohort probes; none of the probes affecting the
+PAPER §5.2.2 candidate-mapped AUC numbers (which all have
+`evidence_class ∈ {EXACT, PROXIMAL_CLOSE, PROXIMAL, REGIONAL}` with
+non-zero variance after candidate-mapping) is in the dropped subset.
+Per-cohort artifacts at `examples/r_limma_parity_{gse69914,gse77348,gse322563}.{tsv,md}`;
+reproduce via `uv run python scripts/run_r_limma_parity.py --cohort
+<cohort>` (requires R + Bioconductor `limma`).
+
+The §4.3 "limma-style moderated-`t`" naming convention is therefore
+strictly accurate — the math is canonical `limma::eBayes`, the
+implementation is independent (pure stdlib + numpy/scipy) but
+functionally equivalent.
+
 ---
 
 ## 6 · Discussion
@@ -1258,7 +1298,7 @@ context, guide quality, and off-target risk.
    `EvidenceClass` bins.
 6. A second independent-lab MCF-7 / MCF-10A EPIC cohort if one becomes
    public.
-7. Formal SCREEN cCRE integration and an R `limma` parity check.
+7. Formal SCREEN cCRE integration. (R `limma` parity check completed at this tag — §5.8.)
 
 ---
 
@@ -1369,7 +1409,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-az`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ba`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
@@ -1391,7 +1431,7 @@ cohort YAMLs, and scripts in this tag.
 
 This appendix preserves the full audit trail for the threshold-based
 V2 composite and its V2.4 intermediate, moved out of the main body
-in `memo-2026-04-22-az` so the main paper carries the final-method
+in `memo-2026-04-22-ba` so the main paper carries the final-method
 narrative (Δβ-only / V1 / V2.5-diff / V2.5-sigmoid / limma-style
 moderated-`t`). The V2 / V2.4 modes remain selectable via
 `probabilistic_mode` (`tumor_plus_normal_protection` and

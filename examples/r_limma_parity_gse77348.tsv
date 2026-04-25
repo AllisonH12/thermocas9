@@ -1,0 +1,17 @@
+metric	value
+n_python_probes	485577
+n_r_probes	485577
+n_common	485577
+n_common_nonnan_t	485577
+n_r_nan_t	0
+spearman_t_mod	1
+pearson_t_mod	1
+spearman_delta_beta	1
+pearson_delta_beta	1
+spearman_s_tilde_sq	1
+pearson_s_tilde_sq	1
+topk100_overlap_t	1
+topk1000_overlap_t	0.999
+max_abs_diff_t_mod	0.427091
+median_abs_diff_t_mod	0.00203921
+max_abs_diff_delta_beta	1.33333e-06
