@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-24.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10e` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10f` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -1636,15 +1636,15 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10e`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10f`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
 - **Benchmark artifacts**: every `BenchmarkResult` JSONL row under `examples/*_roth_labels/` carries `precision_at_k`, `precision_at_k_{min,max}`, `recall_at_k`, `recall_at_k_{min,max}`, `roc_auc`, `tie_band_size_at_k`, and `tie_break_policy`.
 - **EvidenceClass controls**: `examples/evidence_class_distribution.{tsv,md}` audits full-catalog and top-100 EvidenceClass composition for V2.5-diff and V2.5-sigmoid; `examples/evidence_class_stratified_benchmark.{tsv,md}` reports the WG / chr5/6/10 EvidenceClass-controlled rank-lift benchmark for V2.5-sigmoid, V2.5-diff, Δβ-only, and the limma-style baseline.
 - **Feature-matched controls**: `examples/feature_matched_negative_controls.{tsv,md}` reports the within-chromosome matched-negative audit used in §5.9; reproduce with `uv run python scripts/feature_matched_negative_controls.py`.
-- **Robustness sweeps**: `examples/sigmoid_delta_sigma_wg_sweep.{tsv,md}` and `scripts/sigmoid_delta_sigma_wg_sweep.py` reproduce the V2.5-sigmoid `(δ × σ_fixed)` 5 × 6 grid sweep used in §5.2; `examples/tissue_per_positive_wg_ranks.{tsv,md}` reports the GSE69914 per-positive WG-rank table used in §5.3.
-- **Roth System B transport / subset artifacts** (§5.10 / Appendix B): `data/positives/positives_roth_hek_hct_v0.tsv`, `data/derived/roth_hek_hct_transport.tsv`, `data/derived/roth_hek_hct_secondary_backend_scan.tsv`, and `data/derived/roth_hek_hct_subset_{scores,benchmark}.tsv`; pre-registration audit trail in `prereg/2026-04-24-hek-hct-system-b-transport-addendum.md`. Reproducer: `uv run python scripts/score_roth_transport_subset.py`.
+- **Sweeps.** `examples/sigmoid_delta_sigma_wg_sweep.{tsv,md}` and `scripts/sigmoid_delta_sigma_wg_sweep.py` reproduce the V2.5-sigmoid `(δ × σ_fixed)` 5 × 6 grid (§5.2); `examples/tissue_per_positive_wg_ranks.{tsv,md}` reports the GSE69914 per-positive WG-rank table (§5.3).
+- **System B artifacts** (§5.10 / Appendix B). `data/positives/positives_roth_hek_hct_v0.tsv`, `data/derived/roth_hek_hct_transport.tsv`, `data/derived/roth_hek_hct_secondary_backend_scan.tsv`, and `data/derived/roth_hek_hct_subset_{scores,benchmark}.tsv`; pre-registration audit trail in `prereg/2026-04-24-hek-hct-system-b-transport-addendum.md`. Reproducer: `uv run python scripts/score_roth_transport_subset.py`.
 - **Annotated top-20 TSVs**: under `examples/*/top20_annotated_*.tsv`.
 
 ## Reproducing the cross-cohort matrix
