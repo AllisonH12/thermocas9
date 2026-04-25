@@ -4,7 +4,7 @@
 
 **Date.** 2026-04-22.
 
-Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-22-bq`.
+Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-22-br`.
 
 ---
 
@@ -14,7 +14,7 @@ Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-
 
 **Results.** We present `thermocas`, an open probabilistic scoring framework built around a *compositional skeleton* `p_targ × (gap factor) × p_trust` paired with a tie-band-aware benchmarking contract (`precision_at_k_{min, max}`, `tie_band_size_at_k`, mid-rank Mann-Whitney AUC on every `BenchmarkResult`). The gap-factor slot admits several instances; two ship in this tag as selectable `probabilistic_mode` enum values: **V2.5-diff** (`tumor_plus_differential_protection`, `p_diff = P(β_normal − β_tumor > δ)` under an independent-normal approximation on per-probe β summaries with σ_floor = 0.05) and **V2.5-sigmoid** (`tumor_plus_gap_sigmoid`, a fixed-bandwidth logistic `sigmoid((β_n − β_t − δ) / σ_fixed)` with σ_fixed ≈ 0.0707). We benchmark across four public methylation cohorts — GSE322563 (Roth MCF-7/MCF-10A, primary endpoint; both HM450-intersect and native EPIC v2 ingest paths), GSE77348 (δ-development cohort, n=3/3), GSE69914 (n=305 primary tumor + 50 healthy-donor tissue, unpaired), GSE68379 (Sanger panel, OOD boundary) — against five baselines: raw Δβ-only, an uncertainty-aware Δβ_z, the deterministic V1 score, the V2 `tumor_only` diagnostic, and a sample-level limma-style moderated-t DMR baseline (Smyth 2004 empirical-Bayes variance prior, probe-level first then candidate-mapped). **On matched cell-line cohorts, Δβ-only is already strong** (validated AUC 0.96–0.97) and V2.5 variants add small but consistent margins (+0.010 to +0.080 across nine tier × path rows). **A 1,000,000-draw permutation null on the n=3 primary endpoint** places V2.5-diff at one-sided random-triple `p = 4 × 10⁻⁶ / 1.5 × 10⁻⁵ / 2.8 × 10⁻⁵` across the three matched-cell-line cohort paths (GSE322563 HM450 / GSE322563 native EPIC v2 / GSE77348) — lower random-null *p*-values than Δβ-only's `8.6 × 10⁻⁵ / 3.1 × 10⁻⁴ / 1.1 × 10⁻⁴` on the same cohort paths (against-random check, not a formal pairwise superiority test; the paired V2.5-diff / V2.5-sigmoid versus Δβ-only comparison floors at sign-flip `p = 0.125` with `n_pos = 3` and is reported separately in PAPER.md §5.1.3). **Because the validated set contains only three Roth Fig. 5d targets, AUC is interpreted as a rank-lift summary rather than an inferential discovery-performance estimate.** **The headline tissue ranking stress-test result (under transported Roth labels, not tissue-specific ThermoCas9 validation).** A probe-level limma-style moderated-t baseline (Smyth 2004 empirical-Bayes, sample-level β matrices, then candidate-mapped) is competitive on cell lines (0.959 / 0.991 / 0.962) but **collapses to near-random on bulk tissue (GSE69914, AUC 0.573)**, while V2.5-sigmoid **recovers tissue to AUC 0.862** — a +0.29 swing on the same probe-level statistical inputs, confirming that the `p_targ × p_trust` wrapping is the load-bearing contribution, not the gap factor's specific shape. *The tissue stress-test gain is per-positive heterogeneous: GATA3 remains strong under feature-matched controls, while ESR1 is matched-near-random under V2.5-sigmoid (PAPER.md §5.9).* **A frozen whole-genome panel** (HM450 SHA256 `d20661c5…`, 19.8M candidates; EPIC v2 SHA256 `39df8f0f…`, 35.4M candidates; PAPER.md §5.2.2) further shows V2.5-sigmoid matches V2.5-diff's AUC on matched cell-line cohorts within 0.002 but strictly beats V2.5-diff on top-K usability — `tie_band@100 = 1` vs 421 / 1,127 / 1,493 for V2.5-diff under the WG denominator — and improves tissue AUC over V2.5-diff by +0.05 to +0.08 across a bandwidth-robust sweep. The shipped recommendation is: **V1 as overall package default** (backward compatibility + `tie_band = 1`); **V2.5-sigmoid as recommended probabilistic prioritization axis** for new non-boundary runs (hypothesis generation; not a discovery claim absent prospective wet-lab validation), **selected by post-repair sensitivity and whole-genome stress testing — its prospective ranking utility remains to be validated on newly generated labels or wet-lab follow-up**; V2.5-diff retained for audit/backward-compatibility and AUC parity; `tumor_only` as `probabilistic_mode`-enum default (opt-in-required for V2.5-diff/V2.5-sigmoid via explicit cohort-YAML configuration). The package also adds a k-way-merge pan-cancer aggregator for genome-scale atlas builds and a per-candidate annotation pipeline (nearest gene, CpG-island context, RepeatMasker overlap, ENCODE DNase-HS cluster breadth) with a Markdown shortlist aimed at experimental collaborators.
 
-**Availability and implementation.** `thermocas` is open source at <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-bq` for the version evaluated here. 245 unit tests pass under `uv run pytest -q`. Python 3.11+, BSD-3.
+**Availability and implementation.** `thermocas` is open source at <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-br` for the version evaluated here. 245 unit tests pass under `uv run pytest -q`. Python 3.11+, BSD-3.
 
 **Contact.** <allisonhmercer@gmail.com>
 
@@ -357,6 +357,61 @@ with ESR1 matched-near-random under V2.5-sigmoid (`p` = 0.44) and
 EGFLAM moderate (`p` = 0.26). The §6.1 recommendation row reflects
 this nuance directly.
 
+### 5.7 Robustness sweeps and pre-registered external validation
+
+Two journal-hardening checks added since the §5.6 self-contained
+tables landed:
+
+**V2.5-sigmoid robustness over `(δ, σ_fixed)`.** A 5 × 6 grid sweep
+over δ ∈ {0.10, 0.15, 0.20, 0.25, 0.30} and
+σ_fixed ∈ {0.03, 0.05, 0.0707, 0.10, 0.15, 0.20} on the frozen WG
+denominators (`examples/sigmoid_delta_sigma_wg_sweep.{tsv,md}`;
+reproduce with `uv run python scripts/sigmoid_delta_sigma_wg_sweep.py`):
+
+| cohort | default AUC (tie@100) | best AUC in grid | full-grid AUC range | max tie@100 |
+|---|---:|---:|---:|---:|
+| GSE322563 HM450     | 0.988 (1) | 0.990 | 0.967–0.990 | 1 |
+| GSE322563 native v2 | 0.998 (1) | 0.998 | 0.995–0.998 | 1 |
+| GSE77348            | 0.981 (1) | 0.983 | 0.957–0.983 | 1 |
+| GSE69914 tissue     | 0.862 (6) | 0.874 | 0.811–0.874 | 11 |
+
+The shipped default `(δ = 0.20, σ_fixed ≈ 0.0707)` is not claimed to
+be the global optimum. The narrower robustness result is: the default
+sits in a broad high-AUC region, the low-`n` whole-genome tied-band
+problem is eliminated across the **entire** matched-cell-line grid,
+and every tested tissue grid cell remains above V2.5-diff's 0.778 WG
+AUC. This is a more useful robustness statement than a single-point
+bandwidth check.
+
+**Pre-registered Roth System B HEK293T / HCT116 extension.** An
+independent biological extension was pre-registered (frozen at four
+`prereg-*` tags before scoring) using the Roth Fig. 5a / Extended
+Data Fig. 9 / Supplementary Fig. 10 HEK293T / HCT116 validation
+panel — different cell lines, different loci, different methylation
+modality (ENCODE RRBS + targeted BSS rather than HM450 / EPIC v2).
+The planned primary discriminator was *VEGFA* T9: an
+editable-but-non-selective target that V2.5 should demote and
+`tumor_only` should rank high. A strict transport rule
+(β > 0.7 / β < 0.3 with ≥ 10 reads in ≥ 2 replicates per cell line)
+was applied **before** any rank interpretation.
+
+Under that gate, *VEGFA* T3 and T9 did **not** transport on public
+ENCODE RRBS, and a secondary WGBS / EPIC v2 backend scan did not
+rescue T9 (PAPER.md §5.10 / `prereg/2026-04-24-hek-hct-system-b-transport-addendum.md`).
+The retained *EMX1* T4 / *PRDX4* T5 directional pair therefore
+functions only as a *transport-confirmed polarity diagnostic*
+(V2.5-sigmoid ranks the direction-specific selective target above
+the opposite-direction target with AUC = 1.0 by construction,
+n_pos = n_neg = 1 per direction), not the planned T9-demotion
+selectivity benchmark. **The System B selectivity claim is therefore
+not evaluable on the public methylation backend at this revision.**
+A T9 hypothetical under Roth's own BSS polarity would have shown
+~18-fold separation, but PAPER.md §5.10 explicitly does **not**
+count this as validation because T9 failed the pre-registered
+public-backend transport rule. Reproduce with
+`uv run python scripts/score_roth_transport_subset.py`; outputs
+`data/derived/roth_hek_hct_subset_{scores,benchmark}.tsv`.
+
 ---
 
 ## 6 Discussion
@@ -403,7 +458,8 @@ The decision table below is the literal recommended hierarchy:
 3. **V2.5-diff σ_floor = 0.05** is empirical. A sweep over σ_floor ∈ {0.02, 0.05, 0.10, 0.15} (PAPER.md §5.3.1; `examples/sigma_floor_sweep.*`) shows the matched-cell-line AUC ranking is robust (≤0.02 movement across a 7.5×-range sweep) but tissue AUC peaks at σ_floor = 0.10, not the shipped default. This σ_floor sensitivity is a V2.5-diff property only; V2.5-sigmoid uses a fixed bandwidth `σ_fixed` (default ≈0.0707) and is not σ_floor-dependent. Formal regime-specific σ_floor default selection for V2.5-diff is deferred.
 4. **Catalog scope.** Primary tables in §5.1 use chr5/6/10 candidates within ±500 bp of a methylation probe (the chromosomes carrying Roth Fig. 5d targets). The frozen whole-genome panel cited in the abstract (PAPER.md §5.2.2) extends the matched cell-line + tissue evidence to 19.8M HM450 (SHA256 `d20661c5…`) and 35.4M EPIC v2 (SHA256 `39df8f0f…`) candidates, and PAPER.md §5.9 adds within-chromosome feature-matched negative controls. Cross-chromosome and chromosome-class matched controls remain future work.
 5. **SCREEN cCRE Registry** is not integrated; DNase-HS clusters are a proxy.
-6. **No prospective wet-lab validation.** The claim is AUC + tie-band-aware top-K on public methylation data. All named top hits are unvalidated predictions.
+6. **System B transport failure.** The pre-registered HEK293T / HCT116 System B extension (§5.7; PAPER.md §5.10) does **not** upgrade the headline selectivity claim because *VEGFA* T9 — the editable-but-non-selective discriminator the pre-registration named — is low-coverage in the public ENCODE RRBS backend and is not rescued by the secondary WGBS / EPIC v2 scan. The retained *EMX1* T4 / *PRDX4* T5 subset is a polarity diagnostic, not the planned T9-demotion test.
+7. **No prospective wet-lab validation.** The claim is AUC + tie-band-aware top-K on public methylation data. All named top hits are unvalidated predictions.
 
 ### 6.4 Related work
 
@@ -428,7 +484,7 @@ Two bodies of prior art are adjacent but non-overlapping. Generic CRISPR guide-s
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-bq` for the exact revision evaluated here. BSD-3 licensed. `git rev-parse memo-2026-04-22-bq` resolves to a SHA in a fresh clone. Supersedes all prior same-day dated memo tags; see the PAPER.md tag ledger for per-tag provenance (what each tag added and what was corrected in the next one). A `scripts/verify_manuscript_claims.py` guard enforces a set of *selected known-risk* numerical claims — constants (`src/thermocas/probabilistic.py`), universal-quantifier wording, artifact counts, figure captions, and the tag-span claims most recently caught in reviewer cycles — against the committed bench JSONLs and package source. It is not a full table-AUC verifier; new numerical claims should be audited by hand or added to the `check_*` function set. Run it before cutting any subsequent tag.
+- **Code**: <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-br` for the exact revision evaluated here. BSD-3 licensed. `git rev-parse memo-2026-04-22-br` resolves to a SHA in a fresh clone. Supersedes all prior same-day dated memo tags; see the PAPER.md tag ledger for per-tag provenance (what each tag added and what was corrected in the next one). A `scripts/verify_manuscript_claims.py` guard enforces a set of *selected known-risk* numerical claims — constants (`src/thermocas/probabilistic.py`), universal-quantifier wording, artifact counts, figure captions, and the tag-span claims most recently caught in reviewer cycles — against the committed bench JSONLs and package source. It is not a full table-AUC verifier; new numerical claims should be audited by hand or added to the `check_*` function set. Run it before cutting any subsequent tag.
 - **Tests**: 245 passing under `uv run pytest -q`.
 - **Cohorts**: public GEO series GSE322563, GSE77348, GSE69914, GSE68379. Build scripts in `scripts/build_gse*_cohort.py`.
 - **Reference annotations**: UCSC hg19 `refGene.txt.gz`, `cpgIslandExt.txt.gz`, `rmsk.txt.gz`, and `wgEncodeRegDnaseClusteredV3.txt.gz` (fetched on demand from hgdownload.soe.ucsc.edu).
@@ -489,7 +545,7 @@ for f in refGene.txt.gz cpgIslandExt.txt.gz rmsk.txt.gz wgEncodeRegDnaseClustere
 done
 ```
 
-From a fresh clone of the repository at `memo-2026-04-22-bq` with the
+From a fresh clone of the repository at `memo-2026-04-22-br` with the
 above raw inputs staged:
 
 ```bash

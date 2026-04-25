@@ -7,7 +7,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased] — submission-freeze post-`memo-2026-04-22`
 
 > Submission-freeze cycle for the bioRxiv / *Bioinformatics* preprint.
-> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bq` for the
+> Stable release is still `v0.4.0`; cite `memo-2026-04-22-br` for the
 > current submission-freeze state. See `git log memo-2026-04-22..main`
 > for the full per-commit history.
 
@@ -35,6 +35,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   under both V2.5-diff and V2.5-sigmoid. EvidenceClass-stratified
   AUC for V2.5-sigmoid + V2.5-diff + Δβ-only + limma-style
   reported in `examples/evidence_class_stratified_benchmark.{tsv,md}`.
+- **Pre-registered Roth System B HEK293T / HCT116 extension** (PAPER.md §5.10; MANUSCRIPT §5.7). Frozen at four prereg tags before scoring. *VEGFA* T9, the planned non-selective discriminator, did not transport on public ENCODE RRBS and was not rescued by the secondary WGBS / EPIC v2 backend scan; the retained *EMX1* T4 / *PRDX4* T5 directional pair functions as a polarity diagnostic only. The System B selectivity claim is **not evaluable** on the public methylation backend; a T9 hypothetical under Roth's BSS polarity would have shown ~18-fold separation but is explicitly not counted as validation because T9 failed the pre-registered transport rule. Scripts: `scripts/score_roth_transport_subset.py`; artifacts: `data/derived/roth_hek_hct_subset_{scores,benchmark}.tsv` + `prereg/2026-04-24-hek-hct-system-b-transport-addendum.md`.
+- **V2.5-sigmoid `(δ, σ_fixed)` robustness sweep** (PAPER.md §5.2; MANUSCRIPT §5.7). 5 × 6 grid over δ ∈ {0.10, 0.15, 0.20, 0.25, 0.30} × σ_fixed ∈ {0.03, 0.05, 0.0707, 0.10, 0.15, 0.20} on the frozen WG denominators. Default sits in a broad high-AUC region; tied-band reduction (`tie_band@100 = 1`) holds across the entire matched-cell-line grid; tissue stays above V2.5-diff's 0.778 WG AUC across every grid cell. Script: `scripts/sigmoid_delta_sigma_wg_sweep.py`; artifacts: `examples/sigmoid_delta_sigma_wg_sweep.{tsv,md}`.
+- **Tissue per-positive WG-rank table** (PAPER.md §5.3). Per-positive WG percentiles for V2.5-sigmoid / V2.5-diff / Δβ-only / limma-style on GSE69914 tissue. Makes the per-positive heterogeneity explicit at the WG-percentile level (ESR1 88.88%, EGFLAM 75.01%, GATA3 94.81% under V2.5-sigmoid) alongside the §5.9 feature-matched p-values. Artifacts: `examples/tissue_per_positive_wg_ranks.{tsv,md}`.
 - **Feature-matched negative-universe controls** (PAPER.md §5.9).
   Same-(EvidenceClass × pam_family × is_cpg_pam × chrom)
   matched-pool empirical *p*-values for the three Roth positives:
