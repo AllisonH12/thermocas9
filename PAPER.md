@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-bi` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-bj` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -649,9 +649,9 @@ GSE69914, all four axes including Δβ-only, is at
 | *GATA3*  | 0.015 | 0.59 | 0.58 | 31,061 (98.96%) | **28,325** (99.05%) | 61,254 (97.94%) |
 
 **Reading the table.**
-*ESR1* drives the AUC story: it is in the top ~0.05% of the score
-distribution under V2.5-diff on both matched cell-line cohorts, with V1
-also placing it well. *EGFLAM* and *GATA3* sit in the top 1–3%
+*ESR1* drives the AUC story: it is in the top ~0.1% of the score
+distribution under V2.5-diff on both matched cell-line cohorts (99.91%
+on GSE322563 HM450, 99.87% on GSE77348), with V1 also placing it well. *EGFLAM* and *GATA3* sit in the top 1–3%
 under V2.5-diff — meaningful rank lift over V1, but **outside the top
 100 on every axis tested**. None of the three validated positives
 appears in any cohort's top-20 (§5.5). This is the operational
@@ -1210,8 +1210,10 @@ tag.)
 
 The pure-Python Smyth (2004) empirical-Bayes moderated-`t`
 implementation in `scripts/limma_ebayes.py` is the source of every
-"limma-style moderated-`t`" number reported in §4.3, §5.1, §5.2.2, and
-§5.7. To address the reviewer ask of the previous tag, we ran
+"limma-style moderated-`t`" number reported in this paper (including
+§4.3, §5.1, §5.2.2, §5.7, and the §5.9 feature-matched controls; any
+section that adds a limma-style column inherits from the same
+implementation). To address the reviewer ask of the previous tag, we ran
 canonical `limma::lmFit(β_matrix, design) %>% eBayes()` (R 4.5.3,
 Bioconductor `limma` 3.66.0) on the same sample-level β matrices and
 group vectors the Python pipeline consumes via the shared adapters in
@@ -1509,7 +1511,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-bi`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-bj`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).

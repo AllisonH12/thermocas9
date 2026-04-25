@@ -7,7 +7,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased] — submission-freeze post-`memo-2026-04-22`
 
 > Submission-freeze cycle for the bioRxiv / *Bioinformatics* preprint.
-> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bi` for the
+> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bj` for the
 > current submission-freeze state. See `git log memo-2026-04-22..main`
 > for the full per-commit history.
 
@@ -39,7 +39,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Same-(EvidenceClass × pam_family × is_cpg_pam × chrom)
   matched-pool empirical *p*-values for the three Roth positives:
   V2.5-sigmoid `p` ∈ [0.0018, 0.0390] across all 9 matched
-  cell-line cells; tissue is per-positive heterogeneous (GATA3
+  cell-line rows; tissue is per-positive heterogeneous (GATA3
   *p* = 0.019; ESR1 *p* = 0.44 matched-near-random). Artifact:
   `examples/feature_matched_negative_controls.{tsv,md}`.
 - **p_trust sensitivity sweep** (PAPER.md §5.6) under EvidenceClass
