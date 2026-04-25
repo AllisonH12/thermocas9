@@ -675,13 +675,17 @@ At `n_pos = 3`, inferential AUC intervals are coarse and dominated by
 the rank of each positive. We therefore report a 1,000,000-draw
 random-triple null: draw three random candidates without replacement,
 compute AUC under the same mid-rank tie handling, and estimate
-`Pr(AUC_random_triple ≥ AUC_observed)`.
+`Pr(AUC_random_triple ≥ AUC_observed)`. The empirical *p*-value uses
+the standard +1 smoothing `(n_ge + 1) / (n_perm + 1)`, so the resolution
+floor is ~10⁻⁶; values in the first decade above that floor should be
+read as finite-Monte-Carlo tail-count estimates, not precise
+probabilities.
 
 | cohort | axis | observed AUC | random-triple null 2.5–97.5% | one-sided *p* (Pr ≥ obs) |
 |---|---|---:|---|---:|
 | GSE322563 HM450      | V1 final_score | 0.821 | [0.166, 0.817] | 2.2 × 10⁻² |
 | GSE322563 HM450      | Δβ-only        | 0.974 | [0.181, 0.823] | 8.6 × 10⁻⁵ |
-| **GSE322563 HM450**  | **V2.5 diff**  | **0.990** | [0.338, 0.802] | **4 × 10⁻⁶** |
+| **GSE322563 HM450**  | **V2.5 diff**  | **0.990** | [0.338, 0.802] | **<1 × 10⁻⁵** |
 | GSE322563 native v2  | V1 final_score | 0.933 | [0.206, 0.823] | 1.3 × 10⁻³ |
 | GSE322563 native v2  | Δβ-only        | 0.961 | [0.177, 0.823] | 3.1 × 10⁻⁴ |
 | **GSE322563 native v2** | **V2.5 diff** | **0.986** | [0.313, 0.817] | **1.5 × 10⁻⁵** |
@@ -690,8 +694,9 @@ compute AUC under the same mid-rank tie handling, and estimate
 | **GSE77348**         | **V2.5 diff**  | **0.982** | [0.176, 0.823] | **2.8 × 10⁻⁵** |
 
 V2.5-diff is the strictest listed axis on every row and sits below the
-old 10⁴-draw resolution floor, but this is an against-random check, not
-a superiority test between axes. The direct paired comparison with
+old 10⁴-draw resolution floor; the exact Monte Carlo tail-count
+estimates are preserved in the artifact. This is an against-random
+check, not a superiority test between axes. The direct paired comparison with
 Δβ-only is descriptive (§5.1.3). Full output:
 `examples/auc_uncertainty_1e6.md`; the negative bootstrap is omitted
 from the body because holding the positives fixed makes the spread
@@ -1103,7 +1108,9 @@ set (including RUNX2, SCML4, FOXC1/FOXCUT, MAS1L, COL21A1, MXI1,
 TENM2, MAT2B). Full annotated TSVs are committed under
 `examples/*/top20_annotated_*.tsv`. None of the three Roth-validated
 probes appears in any top-20; the primary endpoint is rank lift/AUC, not
-top-20 recovery.
+top-20 recovery. Operationally, the GSE69914 tissue top-20 is the subset
+closest to a usable ranked shortlist; the low-`n` cell-line top-20s are
+tie-window annotation views rather than stable prioritized lists.
 
 ### 5.6 p_trust sensitivity — base weights and ramp_n (V2.5-diff + V2.5-sigmoid)
 
@@ -1268,6 +1275,9 @@ positive (ties contribute 0.5; one-sided null). Matched-pool sizes
 range from 24,727 (GATA3 on GSE322563 HM450) to 271,676 (EGFLAM on
 GSE322563 native EPIC v2), so the resolution of the empirical *p*
 floor is 4 × 10⁻⁶ – 4 × 10⁻⁵, well below the rank values reported.
+These are descriptive per-positive empirical *p*-values, uncorrected for
+multiplicity; they are denominator-confounding audits, not a
+multiplicity-corrected discovery test.
 Bold marks V2.5-sigmoid cells with empirical *p* < 0.05 because it is
 the recommended axis; it does **not** mark the row-best axis.
 

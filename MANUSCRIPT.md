@@ -26,7 +26,7 @@ Roth et al. (2026) characterized *Geobacillus thermodenitrificans* T12 Cas9 (The
 
 Turning that mechanism into a genome-scale target-prioritization shortlist (hypothesis generation; not a discovery claim absent prospective wet-lab validation) is a ranking problem with three awkward properties. First, per-probe methylation summaries are noisy (arrays commonly report n = 2–3 replicates per side for cell-line cohorts) and the scorer must carry its own uncertainty rather than emit a scalar that hides it. Second, the "normal" arm is inconsistent: adjacent-normal tissue in bulk methylation studies is not the same object as a matched cell-line pair, and any assumption that baked in a fixed β_normal threshold would fail across cohort types. Third, on low-replicate cohorts the top-K of any probabilistic composite can sit inside a large tied band; reporting a single Precision@K value without a tie interval misleads a reader about the score's discriminative power.
 
-No public tool addressed these three problems together when we started. The closest prior art — generic CRISPR guide-scoring and Δβ ranking on methylation arrays — handles neither uncertainty propagation nor tie-band reporting. `thermocas` is the first open framework to target all three.
+No public tool we are aware of addressed these three problems together when we started. The closest prior art — generic CRISPR guide-scoring tools (Doench et al. 2016 [Azimuth]; Chuai et al. 2018 [DeepCRISPR]; Cancellieri et al. 2020 [CRISPRitz]) and methylation-array differential analysis tools (Akalin et al. 2012 [methylKit]; Aryee et al. 2014 [minfi]) — handles neither uncertainty propagation through a probability-scale composite nor explicit tie-band-aware top-K reporting. `thermocas` is, to our knowledge, the first open framework to target all three together; we welcome pointers to prior work we may have missed.
 
 **Contributions.**
 
@@ -77,7 +77,7 @@ the raw-Δβ baseline both lack — see PAPER.md §3.1, §3.3.
 
 **Shared factors.**
 
-- **`p_targ = P(β_tumor < τ_u)`** with `τ_u = 0.30` (the `DEFAULT_UNMETHYLATED_THRESHOLD` constant in `src/thermocas/probabilistic.py`) — the probability that the tumor arm is unmethylated at the PAM cytosine. Estimated by the same IQR-normal approximation used below. The 0.30 threshold is conservative relative to the methylation-convention "0.5 split between hypo- and hyper-methylated": we require the tumor to be *confidently* hypomethylated, not just below the mid-point, to avoid scoring-inflation at borderline probes. Reported benchmark results assume `τ_u = 0.30`; a downstream user who wants a different operational cutoff can pass `unmethylated_threshold` to `p_targetable_tumor(...)`.
+- **`p_targ = P(β_tumor < τ_u)`** with `τ_u = 0.30` (the `DEFAULT_UNMETHYLATED_THRESHOLD` constant in `src/thermocas/probabilistic.py`) — the probability that the tumor arm is unmethylated at the PAM cytosine. Estimated by a **method-of-moments Beta CDF with piecewise-linear fallback** (the `_cdf` dispatch in `src/thermocas/probabilistic.py:286`): when both quartiles are present and `IQR > 0` and the Beta moments are well-defined (`σ² < μ(1 − μ)`), we use the regularized incomplete beta on the fitted `Beta(α, β)`; otherwise we fall back to a piecewise-linear CDF on `(q25, mean, q75)` (also handles `q25 == q75`). This is a different per-probe density model than the IQR-normal approximation used for the `p_diff` gap factor below. The 0.30 threshold is conservative relative to the methylation-convention "0.5 split between hypo- and hyper-methylated": we require the tumor to be *confidently* hypomethylated, not just below the mid-point, to avoid scoring-inflation at borderline probes. Reported benchmark results assume `τ_u = 0.30`; a downstream user who wants a different operational cutoff can pass `unmethylated_threshold` to `p_targetable_tumor(...)`.
 - **`p_trust = EvidenceClass.base × min(1, min(n_t, n_n) / 30)`** — evidence-class confidence with a linear ramp up to n = 30, saturating to a per-class constant (`EXACT`: 0.95, `PROXIMAL_CLOSE`: 0.75, etc.).
 
 **V2.5-diff gap factor.**
@@ -106,9 +106,11 @@ Figure 1 summarizes V2.5-diff (which ships as the historical composite and is us
 | name | score | rationale |
 |---|---|---|
 | **Δβ-only** (naive) | `β_normal_mean − β_tumor_mean` | Literature-naive: rank by the raw methylation gap. No uncertainty propagation, no evidence weighting. The "obvious thing." |
+| **Δβ_z** (uncertainty-aware) | `(β_n − β_t) / sqrt(σ_t² + σ_n²)` using IQR-derived per-side σ (same σ as V2.5-diff's `p_diff`) | An uncertainty-aware effect-size ranker built from the same per-side dispersion signal as V2.5-diff; confirms that V2.5-diff's matched-cell-line lift over Δβ-only is not just an alias for σ-normalized Δβ. |
 | **V1 `final_score`** | weighted sum of sequence, selectivity, confidence, heterogeneity, and coverage components (continuous-valued) | The framework's stable-release axis, retained for top-K interpretability. |
 | **V2 `tumor_only`** | `p_targ × p_trust` (no protection factor) | Intermediate formulation after we dropped V2's `p_prot` factor. Retained as a diagnostic; not a prioritization axis. |
-| **V2** (deprecated) | `p_targ × p_prot × p_trust` with `p_prot = P(β_normal > 0.5)` | First-pass composite with a static threshold on the normal side. Empirically anti-predictive (AUC 0.38 on tissue cohort); rejected. Not carried forward as a recommended axis but reported in the comparison table for completeness. |
+| **limma-style moderated-`t`** | sample-level probe-level Smyth (2004) empirical-Bayes moderated `t`-statistic, candidate-mapped via the nearest probe assigned in `observation.probe_id` (ranked by `−t_mod` so targetable sites rank high). Pure-Python implementation; canonical R `limma::lmFit + eBayes` parity reported in PAPER.md §5.8. | Methods-journal-standard DMR comparator; the §5.3 / PAPER.md §5.2.2 contrast on tissue vs cell lines isolates the contribution of the V2.5 compositional wrapper. |
+| **V2** (deprecated; reported for completeness) | `p_targ × p_prot × p_trust` with `p_prot = P(β_normal > 0.5)` | First-pass composite with a static threshold on the normal side. Empirically anti-predictive (AUC 0.38 on tissue cohort); rejected. Not carried forward as a recommended axis. |
 
 ### 2.3 Why a normal approximation
 
@@ -151,7 +153,7 @@ All benchmarks report `held_out_chromosomes`. When enforced (`--enforce-holdout`
 |---|---|---:|---|---|
 | **GSE322563** | EPIC v2 | 2 / 2 | Independent primary endpoint (Roth's own MCF-7/MCF-10A samples) | GEO |
 | GSE77348 | HM450 | 3 / 3 | Development cohort — δ tuned here (tumor_plus_differential_protection, δ-sweep over {0.2, 0.3, 0.4, 0.5}) | GEO |
-| GSE69914 | HM450 | 305 / 50 | Sporadic breast tumor vs healthy-donor breast tissue — **unpaired**; adjacent-normal and BRCA1-carrier arms excluded by the build script. Tests predicted `p_trust` desaturation at high n. | GEO |
+| GSE69914 | HM450 | 305 / 50 | Sporadic breast tumor vs healthy-donor breast tissue — **unpaired**; adjacent-normal and BRCA1-carrier arms excluded by the build script. Tests predicted tied-band dissolution at high n (where `p_trust` saturates to its EvidenceClass ceiling and ranking is driven by continuous `p_targ × p_diff`). | GEO |
 | GSE68379 | HM450 | 52 / 50 (cross-series) | OOD boundary case: 52 Sanger GDSC1000 breast cell lines paired with 50 external healthy-donor normals from GSE69914 status=0. Cross-series lab/scanner batch effects are a known caveat. Documented as a boundary, not a generalization test. | GEO (tumor) + GEO (normal) |
 
 ### 4.2 Positives (label tiers)
@@ -228,7 +230,7 @@ The V2.5 primary-endpoint AUC differs by 0.004 under native vs intersect (0.990 
 
 ### 5.3 Tissue cohort — GSE69914 (n = 305/50)
 
-At high replicate count, `p_trust` desaturates and the composite's ordering is driven by continuous `p_targ × p_diff`. On GSE69914 (numbers straight from the committed `examples/gse69914_roth_labels/bench_*.jsonl`):
+At high replicate count, the low-`n` tied bands dissolve — `p_trust` saturates to its EvidenceClass ceiling (a per-class constant), and the composite's ordering is driven by continuous `p_targ × p_diff` variation rather than by the discrete `p_trust` floor that dominates n = 2/2 or 3/3 cohorts. On GSE69914 (numbers straight from the committed `examples/gse69914_roth_labels/bench_*.jsonl`):
 
 | axis | validated AUC | narrow AUC | wide AUC | tie_band@100 |
 |---|---:|---:|---:|---:|
@@ -302,7 +304,15 @@ Three truths coexist:
 2. **The recommended probabilistic axis is `gap_sigmoid`** (`probabilistic_mode: tumor_plus_gap_sigmoid`, ships in this tag). PAPER.md §5.2.2 cross-cohort WG panel shows `gap_sigmoid` is AUC-equivalent to shipped V2.5 on matched cell lines (GSE322563 HM450 0.989 vs 0.989, native v2 0.998 vs 0.998, GSE77348 0.982 vs 0.982), has higher transported-label AUC on the single tissue cohort tested (GSE69914 0.862 vs 0.778), and critically has `tie_band@100 = 1` at WG scale on every matched cell-line cohort (vs V2.5's 421–1,493 on the same WG catalogs, where V2.5's top-K becomes unusable). The tissue advantage is per-positive heterogeneous (PAPER.md §5.9: GATA3 carries the matched-pool signal, ESR1 is matched-near-random under `gap_sigmoid`; PAPER.md §5.7: in the EvidenceClass-restricted `EXACT + PROXIMAL_CLOSE` ESR1 universe, `gap_sigmoid` trails V2.5-diff / Δβ-only / limma-style). Shipped V2.5 (`probabilistic_mode: tumor_plus_differential_protection`) is retained as a selectable mode for backward compatibility and AUC parity on cell-line cohorts but is no longer recommended over `gap_sigmoid` for new prioritization runs. For GSE68379 (OOD cross-series), no axis is supported.
 3. **V2 `tumor_only` is retained as a diagnostic**, not a prioritization axis. Its tied bands at K = 100 are **5,271–14,914 across the five cohort paths tested** (GSE68379 5,271; GSE69914 6,540; GSE322563 HM450 10,005; GSE77348 11,848; GSE322563 native 14,914) — in every case large enough that ordering within the top-100 is determined by tie-break, not by score. Its raw AUC can lead (as on GSE69914 tissue, 0.803–0.874), but its top-K is not usable for target-shortlist construction.
 
-The decision table below is the literal recommended hierarchy.
+The decision table below is the literal recommended hierarchy:
+
+| Use case | Recommendation |
+|---|---|
+| New probabilistic prioritization runs | **V2.5-sigmoid** (`tumor_plus_gap_sigmoid`). Hypothesis generation only; AUC-equivalent to V2.5-diff on matched cell lines (within 0.002), avoids V2.5-diff's low-`n` WG tied-band blowup (`tie_band@100 = 1` vs 421–1,493), higher transported-label AUC on the single tissue cohort tested (per-positive heterogeneous; see §5.4 / PAPER.md §5.7 / §5.9). |
+| Backward-compatible probabilistic runs | **V2.5-diff** (`tumor_plus_differential_protection`). Retained for AUC parity with earlier scored JSONLs; not preferred for new WG-scale prioritization. |
+| Stable deterministic top-K | **V1 `final_score`** (tagged `v0.4.0`). Continuous score with `tie_band = 1` by construction; retained for backward compatibility, not AUC leadership. |
+| Diagnostic ablation | **V2 `tumor_only`**. Useful AUC sanity check, but top-K collapses into thousands-record tied bands (5,271–14,914 across the five cohort paths tested). |
+| Cross-series label transport (GSE68379-like) | **Unsupported**. Cell-line drift can invert label logic; do not pool with prioritization-mode benchmarks. |
 
 ### 6.3 Limitations
 
@@ -355,9 +365,50 @@ This work would not exist without Roth et al.'s characterization of ThermoCas9 a
 
 ---
 
+## References
+
+1. Roth M.O. et al. *Molecular basis for methylation-sensitive editing by Cas9.* **Nature** (2026). DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
+2. Smyth G.K. *Linear models and empirical Bayes methods for assessing differential expression in microarray experiments.* **Statistical Applications in Genetics and Molecular Biology** 3, Article 3 (2004). DOI [10.2202/1544-6115.1027](https://doi.org/10.2202/1544-6115.1027).
+3. Doench J.G. et al. *Optimized sgRNA design to maximize activity and minimize off-target effects of CRISPR-Cas9 [Azimuth].* **Nature Biotechnology** 34, 184–191 (2016). DOI [10.1038/nbt.3437](https://doi.org/10.1038/nbt.3437).
+4. Chuai G. et al. *DeepCRISPR: optimized CRISPR guide RNA design by deep learning.* **Genome Biology** 19, 80 (2018). DOI [10.1186/s13059-018-1459-4](https://doi.org/10.1186/s13059-018-1459-4).
+5. Cancellieri S. et al. *CRISPRitz: rapid, high-throughput and variant-aware in silico off-target site identification for CRISPR genome editing.* **Bioinformatics** 36, 2001–2008 (2020). DOI [10.1093/bioinformatics/btz867](https://doi.org/10.1093/bioinformatics/btz867).
+6. Akalin A. et al. *methylKit: a comprehensive R package for the analysis of genome-wide DNA methylation profiles.* **Genome Biology** 13, R87 (2012). DOI [10.1186/gb-2012-13-10-r87](https://doi.org/10.1186/gb-2012-13-10-r87).
+7. Aryee M.J. et al. *Minfi: a flexible and comprehensive Bioconductor package for the analysis of Infinium DNA methylation microarrays.* **Bioinformatics** 30, 1363–1369 (2014). DOI [10.1093/bioinformatics/btu049](https://doi.org/10.1093/bioinformatics/btu049).
+8. Roth et al. (2026) Roth MCF-7 / MCF-10A EPIC v2 methylation series. **GEO accession** [GSE322563](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE322563).
+9. MCF-7 / MCF-10A HM450 surrogate methylation series. **GEO accession** [GSE77348](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE77348).
+10. Sporadic breast tumor + healthy-donor breast tissue HM450 methylation series. **GEO accession** [GSE69914](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE69914).
+11. Sanger GDSC1000 breast cell-line panel HM450 methylation series. **GEO accession** [GSE68379](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE68379).
+
+---
+
 ## Appendix A · Reproducibility
 
-From a fresh clone of the repository at `memo-2026-04-22-bo`:
+The reproducer commands below assume the public raw inputs have already
+been staged under `data/raw/` (those files are gitignored because of
+their size; ~10 GB total). To stage them:
+
+```bash
+# GEO methylation series (one curl per cohort; ~5–8 GB total uncompressed)
+mkdir -p data/raw/{gse322563,epic_v2,gse77348,gse69914,gse68379,ucsc}
+
+curl -L -o data/raw/gse322563/GSE322563_beta_matrix_EPIC_v2.txt.gz \
+  "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE322nnn/GSE322563/suppl/GSE322563_beta_matrix_EPIC_v2.txt.gz"
+curl -L -o data/raw/gse69914/GSE69914_series_matrix.txt.gz \
+  "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE69nnn/GSE69914/matrix/GSE69914_series_matrix.txt.gz"
+# (GSE77348 and GSE68379 supplementary URLs follow the same NCBI GEO ftp pattern.)
+
+# EPIC v2 platform annotation (Illumina GPL33022)
+curl -L -o data/raw/epic_v2/GPL33022_family.soft.gz \
+  "https://ftp.ncbi.nlm.nih.gov/geo/platforms/GPL33nnn/GPL33022/soft/GPL33022_family.soft.gz"
+
+# UCSC hg19 reference annotations
+for f in refGene.txt.gz cpgIslandExt.txt.gz rmsk.txt.gz wgEncodeRegDnaseClusteredV3.txt.gz; do
+  curl -L -o "data/raw/ucsc/$f" "https://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/$f"
+done
+```
+
+From a fresh clone of the repository at `memo-2026-04-22-bo` with the
+above raw inputs staged:
 
 ```bash
 # One-time env setup
