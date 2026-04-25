@@ -7,9 +7,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased] — submission-freeze post-`memo-2026-04-22`
 
 > Submission-freeze cycle for the bioRxiv / *Bioinformatics* preprint.
-> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bs` for the
+> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bt` for the
 > current submission-freeze state. See `git log memo-2026-04-22..main`
 > for the full per-commit history.
+
+### Changed
+
+- **`memo-2026-04-22-bt`** (MANUSCRIPT-only): clarify in §6.4 Related
+  work that probe-level differential-methylation callers are not
+  excluded as comparators — the limma-style moderated-`t` baseline is
+  reported alongside V2.5 across every cohort × tier in §5.6. Pre-empts
+  the obvious reviewer question about the relationship between the
+  category-level prior-art exclusion and the in-paper limma comparator.
+  PAPER.md unchanged (still on `paper-5-10h`).
 
 ### Added
 
