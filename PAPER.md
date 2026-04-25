@@ -23,14 +23,18 @@ The primary endpoint is GSE322563 validated-label AUC at the three Roth
 Fig. 5d target probes, evaluated under both HM450-intersect and native
 EPIC v2 ingest paths. **Because the validated set contains only three
 Roth Fig. 5d targets, AUC is interpreted as a rank-lift summary rather
-than an inferential discovery-performance estimate.** V2.5-diff and
-V2.5-sigmoid place all three positives in the upper few percentiles of
-the WG candidate universe (top ~0.06–4.6% of millions of candidates, axis- and
-cohort-dependent: ESR1 in the top ~0.1%, GATA3 in the top ~1%,
-EGFLAM up to ~4.6% on GSE77348 — see §5.1 / §5.2.2 per-positive
+than an inferential discovery-performance estimate.** On this
+matched-cell-line endpoint, raw Δβ-only already captures most of the
+rank lift; V2.5-diff and V2.5-sigmoid add small descriptive gains at
+`n_pos = 3`, while the more transferable contribution is the
+tie-band-aware benchmark contract and whole-genome tied-band diagnosis.
+The V2.5 variants place all three positives in the upper few percentiles
+of the WG candidate universe (top ~0.06–4.6% of millions of candidates,
+axis- and cohort-dependent: ESR1 in the top ~0.1%, GATA3 in the top
+~1%, EGFLAM up to ~4.6% on GSE77348 — see §5.1 / §5.2.2 per-positive
 ranks); a 10⁶-draw random-triple null resolves the rank lift beyond
-the earlier 10⁴ floor, while the paired V2.5-diff / V2.5-sigmoid versus Δβ-only comparison
-remains descriptive at `n_pos = 3`. The
+the earlier 10⁴ floor, while the paired V2.5-diff / V2.5-sigmoid versus
+Δβ-only comparison remains descriptive at `n_pos = 3`. The
 strongest ranking stress-test result is on GSE69914 tissue under
 transported Roth labels: a probe-level limma-style moderated-t DMR
 baseline is competitive on matched cell lines but falls to AUC 0.573
@@ -221,11 +225,16 @@ multiplicative composability with downstream probabilistic inputs
 efficiency priors) — not a frequentist guarantee that "0.9" means "90%
 of 0.9-scored sites edit successfully." Read the score as a
 probability-scale ranking axis throughout. The multiplicative form is a
-ranking heuristic, not an independence model: `p_targ`, the gap factor,
-and `p_trust` are empirically correlated on real methylation catalogs
-(e.g. EXACT-class records cluster at extreme β values which also drive
-`p_targ` and `p_diff`), so the product should not be interpreted as a
-calibrated joint probability.
+gating-style ranking heuristic: a candidate should be penalized if any
+required component — target-side unmethylation, normal-side gap, or
+observation trust — is weak. An additive score over the same signals
+would allow a very strong component to compensate for a failed gate,
+which is less aligned with the intended selectivity screen. This is not
+an independence model: `p_targ`, the gap factor, and `p_trust` are
+empirically correlated on real methylation catalogs (e.g. EXACT-class
+records cluster at extreme β values which also drive `p_targ` and
+`p_diff`), so the product should not be interpreted as a calibrated
+joint probability.
 
 ### 3.2 Choice of δ
 
@@ -1439,6 +1448,14 @@ target-side editability check are in **Appendix B**. Reproduce with
 | Diagnostic ablation | **V2 tumor_only**. Useful AUC sanity check, but top-K collapses into thousands-record tied bands. |
 | Cross-series label transport | **Unsupported**. Cell-line drift can invert label logic; do not pool with prioritization-mode benchmarks. |
 
+This recommendation is not a uniform-superiority claim across all
+restricted universes. In the GSE69914 `EXACT + PROXIMAL_CLOSE` tissue
+subset, the single evaluable positive is *ESR1*, and V2.5-sigmoid
+underperforms V2.5-diff, Δβ-only, and the limma-style moderated-`t`
+baseline (§5.7). We therefore interpret V2.5-sigmoid as a default
+prioritization axis with favorable whole-genome tied-band behavior, not
+as a dominance claim over all comparators.
+
 Mode enum mapping:
 
 - V2.5-sigmoid: `tumor_plus_gap_sigmoid`
@@ -1640,19 +1657,53 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
-- **Benchmark artifacts**: every `BenchmarkResult` JSONL row under `examples/*_roth_labels/` carries `precision_at_k`, `precision_at_k_{min,max}`, `recall_at_k`, `recall_at_k_{min,max}`, `roc_auc`, `tie_band_size_at_k`, and `tie_break_policy`.
-- **EvidenceClass controls**: `examples/evidence_class_distribution.{tsv,md}` audits full-catalog and top-100 EvidenceClass composition for V2.5-diff and V2.5-sigmoid; `examples/evidence_class_stratified_benchmark.{tsv,md}` reports the WG / chr5/6/10 EvidenceClass-controlled rank-lift benchmark for V2.5-sigmoid, V2.5-diff, Δβ-only, and the limma-style baseline.
-- **Feature-matched controls**: `examples/feature_matched_negative_controls.{tsv,md}` reports the within-chromosome matched-negative audit used in §5.9; reproduce with `uv run python scripts/feature_matched_negative_controls.py`.
-- **Sweeps.**
-  - `examples/sigmoid_delta_sigma_wg_sweep.{tsv,md}` and `scripts/sigmoid_delta_sigma_wg_sweep.py` — V2.5-sigmoid `(δ × σ_fixed)` 5 × 6 grid (§5.2).
-  - `examples/tissue_per_positive_wg_ranks.{tsv,md}` — GSE69914 per-positive WG-rank table (§5.3).
-- **System B artifacts** (§5.10 / Appendix B).
-  - `data/positives/positives_roth_hek_hct_v0.tsv`
-  - `data/derived/roth_hek_hct_transport.tsv`
-  - `data/derived/roth_hek_hct_secondary_backend_scan.tsv`
-  - `data/derived/roth_hek_hct_subset_{scores,benchmark}.tsv`
-  - `prereg/2026-04-24-hek-hct-system-b-transport-addendum.md` (audit trail)
-  - Reproducer: `uv run python scripts/score_roth_transport_subset.py`
+- **Benchmark artifacts**: every `BenchmarkResult` JSONL row under the
+  Roth-label examples carries `precision_at_k`,
+  `precision_at_k_{min,max}`, `recall_at_k`, `recall_at_k_{min,max}`,
+  `roc_auc`, `tie_band_size_at_k`, and `tie_break_policy`.
+- **EvidenceClass controls.** Full-catalog composition and
+  EvidenceClass-controlled rank-lift benchmark:
+
+  ```
+  examples/evidence_class_distribution.tsv
+  examples/evidence_class_distribution.md
+  examples/evidence_class_stratified_benchmark.tsv
+  examples/evidence_class_stratified_benchmark.md
+  ```
+
+- **Feature-matched controls.** Within-chromosome matched-negative audit
+  used in §5.9:
+
+  ```
+  examples/feature_matched_negative_controls.tsv
+  examples/feature_matched_negative_controls.md
+  uv run python scripts/feature_matched_negative_controls.py
+  ```
+
+- **Sweeps.** V2.5-sigmoid `(δ × σ_fixed)` grid (§5.2) and
+  GSE69914 per-positive WG-rank table (§5.3):
+
+  ```
+  examples/sigmoid_delta_sigma_wg_sweep.tsv
+  examples/sigmoid_delta_sigma_wg_sweep.md
+  scripts/sigmoid_delta_sigma_wg_sweep.py
+  examples/tissue_per_positive_wg_ranks.tsv
+  examples/tissue_per_positive_wg_ranks.md
+  ```
+
+- **System B artifacts** (§5.10 / Appendix B). Transport tables,
+  scored subset, and pre-registration audit trail:
+
+  ```
+  data/positives/positives_roth_hek_hct_v0.tsv
+  data/derived/roth_hek_hct_transport.tsv
+  data/derived/roth_hek_hct_secondary_backend_scan.tsv
+  data/derived/roth_hek_hct_subset_scores.tsv
+  data/derived/roth_hek_hct_subset_benchmark.tsv
+  prereg/2026-04-24-hek-hct-system-b-transport-addendum.md
+  uv run python scripts/score_roth_transport_subset.py
+  ```
+
 - **Annotated top-20 TSVs**: under `examples/*/top20_annotated_*.tsv`.
 
 ## Reproducing the cross-cohort matrix
