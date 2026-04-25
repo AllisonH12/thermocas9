@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-bn` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-bo` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -29,7 +29,7 @@ the WG candidate universe (top ~0.06–4.6% of millions of candidates, axis- and
 cohort-dependent: ESR1 in the top ~0.1%, GATA3 in the top ~1%,
 EGFLAM up to ~4.6% on GSE77348 — see §5.1 / §5.2.2 per-positive
 ranks); a 10⁶-draw random-triple null resolves the rank lift beyond
-the earlier 10⁴ floor, while the paired V2.5-vs-Δβ comparison
+the earlier 10⁴ floor, while the paired V2.5-diff / V2.5-sigmoid versus Δβ-only comparison
 remains descriptive at `n_pos = 3`. The
 strongest ranking stress-test result is on GSE69914 tissue under
 transported Roth labels: a probe-level limma-style moderated-t DMR
@@ -131,7 +131,7 @@ MCF-10A cell line at the three *ESR1* / *GATA3* / *EGFLAM* probes
 they chose to validate but does not generalize. The intermediate
 V2.4 fix dropped `p_prot` to the `tumor_only` mode (`p_targ ×
 p_trust`); that improved AUC but the top-100 collapsed onto
-"always-unmethylated" loci (good AUC, unusable for discovery), so a
+"always-unmethylated" loci (good AUC, unusable for prioritization), so a
 deeper fix — replacing the threshold with a differential gap factor —
 was needed. **Appendix A** carries the full V2 → V2.4 audit trail
 (first-pass composite definition, factor-ablation table on
@@ -1392,7 +1392,7 @@ context, guide quality, and off-target risk.
    `EvidenceClass` bins.
 6. A second independent-lab MCF-7 / MCF-10A EPIC cohort if one becomes
    public.
-7. Formal SCREEN cCRE integration. (R `limma` parity check completed at `memo-2026-04-22-ba` — §5.8.)
+7. Formal SCREEN cCRE integration.
 
 ---
 
@@ -1511,7 +1511,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-bn`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-bo`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
@@ -1534,7 +1534,7 @@ cohort YAMLs, and scripts in this tag.
 
 This appendix preserves the full audit trail for the threshold-based
 V2 composite and its V2.4 intermediate, moved out of the main body
-in `memo-2026-04-22-aw` so the main paper carries the final-method
+in an earlier revision so the main paper carries the final-method
 narrative (Δβ-only / V1 / V2.5-diff / V2.5-sigmoid / limma-style
 moderated-`t`). The V2 / V2.4 modes remain selectable via
 `probabilistic_mode` (`tumor_plus_normal_protection` and
