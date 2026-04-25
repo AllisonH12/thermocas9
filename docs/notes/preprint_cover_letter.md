@@ -7,7 +7,7 @@
 3. **Bioinformatics Advances** or **BMC Bioinformatics** as the acceptance-optimized backup (explicitly welcoming to benchmarked methods/software contributions without prospective-validation expectations).
 4. **The CRISPR Journal** only if a field-specific audience is preferred over broader computational-methods readership — narrower but higher topical familiarity.
 5. **Nature Methods** only if the smallest-possible prospective validation is added first (see variant section at the bottom). Without that, expect desk reject.
-**Manuscript reference.** `PAPER.md` (or `MANUSCRIPT.md` for the Bioinformatics-shaped version) in <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-be`.
+**Manuscript reference.** `PAPER.md` (or `MANUSCRIPT.md` for the Bioinformatics-shaped version) in <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-bf`.
 
 ---
 
@@ -17,7 +17,7 @@ Dear Editors,
 
 We are submitting our manuscript, *"Compositional probability-scale scoring and tie-band-aware benchmarking for methylome-guided ThermoCas9 target-site ranking"*, for consideration.
 
-**What the paper contributes.** The recent description of ThermoCas9 (Roth et al., *Nature* 2026) established that methylation of the fifth PAM cytosine protects genomic loci from cleavage, opening a route to tumor-selective targeting at loci whose methylation state diverges between cancer and matched normal tissue. Translating that mechanism into a target-discovery ranking requires a scorer that (a) is cohort-agnostic, (b) is honest about evidence quality, and (c) reports ties explicitly rather than pretending to rank-order indistinguishable candidates. No such scorer was publicly available when we started this work.
+**What the paper contributes.** The recent description of ThermoCas9 (Roth et al., *Nature* 2026) established that methylation of the fifth PAM cytosine protects genomic loci from cleavage, opening a route to tumor-selective targeting at loci whose methylation state diverges between cancer and matched normal tissue. Translating that mechanism into a target-prioritization ranking (hypothesis generation; not a discovery claim absent prospective wet-lab validation) requires a scorer that (a) is cohort-agnostic, (b) is honest about evidence quality, and (c) reports ties explicitly rather than pretending to rank-order indistinguishable candidates. No such scorer was publicly available when we started this work.
 
 The paper's core contribution is a **compositional probability-scale scoring skeleton** paired with a **tie-band-aware benchmarking contract** specialized to the methylation-sensitive-Cas9 ranking problem. The skeleton is
 `probability-scale selectivity score = p_targetable_tumor × (gap factor) × p_observation_trustworthy`,
@@ -28,11 +28,11 @@ where each factor is independently replaceable — the specific choice of gap fa
 - an annotation pipeline that attaches nearest gene, CpG-island context, RepeatMasker overlap, and ENCODE DNase-HS cluster breadth to each shortlisted candidate, plus a Markdown companion to the TSV aimed at experimental collaborators,
 - a streaming k-way-merge pan-cancer aggregator with cross-cohort metadata-parity enforcement, so the framework scales to genome-scale atlas builds without loading every cohort into memory.
 
-Benchmark `BenchmarkResult` JSONLs, positives lists, annotated top-20 TSV + Markdown shortlists, figures, and the test suite are all committed at the immutable tag `memo-2026-04-22-be`. The large per-cohort scored-candidate JSONLs (`data/derived/scored_*.jsonl`, tens of millions of records each) are gitignored but fully reproducible from the committed build scripts and cohort YAMLs — the exact `uv run` invocations are listed in the manuscript's reproducibility appendix. 245 unit tests pass.
+Benchmark `BenchmarkResult` JSONLs, positives lists, annotated top-20 TSV + Markdown shortlists, figures, and the test suite are all committed at the immutable tag `memo-2026-04-22-bf`. The large per-cohort scored-candidate JSONLs (`data/derived/scored_*.jsonl`, tens of millions of records each) are gitignored but fully reproducible from the committed build scripts and cohort YAMLs — the exact `uv run` invocations are listed in the manuscript's reproducibility appendix. 245 unit tests pass.
 
 **What the paper does NOT claim.** We want to be explicit about scope. This is a *methods and benchmarking* paper on public data. It does not include prospective wet-lab validation of new target sites; the `thermocas` framework is an open educational research tool, not a clinical decision-support system. Per-site p-values are not reported because `p_observation_trustworthy` saturates by `EvidenceClass`, not continuously; what `p_therapeutic_selectivity` provides is a defensible *ranking axis*, not a hypothesis test.
 
-**Why we think this venue.** The paper's core contribution is methodological — a probabilistic scoring formulation, a benchmarking protocol with honest tie-band reporting, and an open framework with audit-level test coverage — rather than a biological discovery. The target-discovery problem it solves is of immediate interest to the small but growing methylation-sensitive-CRISPR community catalyzed by the Roth paper. We believe your readership is well-placed to evaluate the rigor of both the formulation and the benchmarking.
+**Why we think this venue.** The paper's core contribution is methodological — a probability-scale scoring formulation, a benchmarking protocol with honest tie-band reporting, and an open framework with audit-level test coverage — rather than a biological discovery. The target-prioritization problem it addresses is of immediate interest to the small but growing methylation-sensitive-CRISPR community catalyzed by the Roth paper. We believe your readership is well-placed to evaluate the rigor of both the formulation and the benchmarking.
 
 **Competing interests.** The author declares no competing interests.
 
@@ -61,6 +61,6 @@ Append before "Suggested reviewers":
 
 - **If submitting to bioRxiv only**: no cover letter is required. Use the first four paragraphs of the body as the bioRxiv abstract prompt and paste them into the summary field. The claim-narrowing paragraph ("What the paper does NOT claim") is especially useful here — bioRxiv readers see method papers from anonymous-ish accounts all the time, and explicit scope-limiting reads as professional, not defensive.
 - **Timing**: the Roth follow-up note (`roth_followup_2026-04-22.md`) carries more weight if it goes *after* the preprint is up, so readers of the follow-up can cite a Google Scholar result rather than a GitHub tag. Sequence: preprint first, Roth note second, same week.
-- **Tag-reference check before submission**: `git rev-parse memo-2026-04-22-be` must still resolve, and both `PAPER.md` and `MANUSCRIPT.md` citations must still read `memo-2026-04-22-be`. Do not let development on `main` implicitly move the reference.
+- **Tag-reference check before submission**: `git rev-parse memo-2026-04-22-bf` must still resolve, and both `PAPER.md` and `MANUSCRIPT.md` citations must still read `memo-2026-04-22-bf`. Do not let development on `main` implicitly move the reference.
 - **Reviewer suggestions**: the three fields listed under "Suggested reviewers" are generic by design — fill in specific names per venue from recent program committees / corresponding authors in each area.
 - **Revision checkpoint**: if this letter sits more than a week before submission, re-verify (a) the tag, (b) the test count (`uv run pytest -q`), and (c) the set of committed benchmark artifacts under `examples/`. Update the numbers if they've moved.

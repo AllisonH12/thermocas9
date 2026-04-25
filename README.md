@@ -245,7 +245,7 @@ Fig. 5d validated target coordinates (`EGFLAM T11`, `ESR1 T17`,
 
 | cohort type | example | recommended axis | why |
 |---|---|---|---|
-| **All non-boundary cohort shapes** (matched cell-line at n = 2/2 to 3/3 *and* primary tissue at n ≳ 30/side) | GSE322563, GSE77348, GSE69914 | **`tumor_plus_gap_sigmoid`** (`p_targ × sigmoid((β_n − β_t − δ) / σ_fixed) × p_trust`, default `sigma_fixed ≈ 0.0707`, `differential_delta = 0.2`) | Uniformly equal-or-better than shipped V2.5 across every tested non-boundary cohort × dimension at WG scale (PAPER.md §5.2.2). AUC within 0.002 of V2.5 on all three matched cell-line cohorts; AUC +0.05 to +0.08 on tissue; **`tie_band@100 = 1` on every matched cell-line WG cohort** vs V2.5's 421–1,493 on the same WG catalogs (top-K usability matters as the denominator scales). |
+| **All non-boundary cohort shapes** (matched cell-line at n = 2/2 to 3/3 *and* primary tissue at n ≳ 30/side) | GSE322563, GSE77348, GSE69914 | **`tumor_plus_gap_sigmoid`** (`p_targ × sigmoid((β_n − β_t − δ) / σ_fixed) × p_trust`, default `sigma_fixed ≈ 0.0707`, `differential_delta = 0.2`) | **Recommended probabilistic prioritization axis** (hypothesis generation; not a discovery claim absent prospective wet-lab validation). AUC-equivalent to V2.5-diff within 0.002 on all three matched cell-line cohorts; **`tie_band@100 = 1` on every matched cell-line WG cohort** vs V2.5-diff's 421–1,493 on the same WG catalogs (top-K usability matters as the denominator scales); higher transported-label AUC on the single tissue cohort tested (+0.05 to +0.08 on GSE69914, but per-positive heterogeneous — see PAPER.md §5.9). |
 | **Audit / parity vs prior runs** | any | `tumor_plus_differential_protection` (shipped V2.5) | Retained as a selectable mode for backward compatibility and AUC parity on cell-line cohorts. AUC-equal to gap_sigmoid on cell lines, but top-K becomes unusable at WG scale on n = 2/2 or 3/3 cohorts. Not recommended for new prioritization runs. |
 | **Out-of-distribution / cross-series cohorts** | GSE68379 (Sanger MCF-7 vs external normals) | unsupported | PAPER.md §5.4: AUC inverts on every axis under cross-series label transport. Do not pool. |
 | **Top-K stability priority / backward compat** | — | V1 `final_score` | V1's continuous-valued deterministic score has `tie_band = 1` at every K regardless of cohort shape. This is the stable-release default (tag `v0.4.0`) for backward compatibility; not the AUC leader anywhere. |
@@ -292,8 +292,8 @@ record as the `p_therapeutic_selectivity` field):
 |---|---|---|
 | `tumor_only` (default) | `p_targ × p_trust` | **analysis-only** — competitive AUC on tissue, but tie_band at K=100 ranges **5,271–14,914 across the five cohort paths tested** (GSE68379 5,271; GSE69914 6,540; GSE322563 HM450 10,005; GSE77348 11,848; GSE322563 native 14,914). Do NOT use for target-list generation. |
 | `tumor_plus_normal_protection` | `p_targ × p_prot × p_trust` | opt-in; known anti-predictive on TCGA-BRCA bulk and inverted on the MCF-7/MCF-10A surrogate. Retained for audit. |
-| `tumor_plus_differential_protection` (V2.5-diff) | `p_targ × p_diff × p_trust` where `p_diff = P(β_n − β_t > δ)` | Retained for backward compatibility and AUC parity with pre-ag scored JSONLs. Matches V2.5-sigmoid on matched cell-line AUC within 0.002 (PAPER.md §5.2.2 WG panel), but its top-K becomes unusable at WG scale on n = 2/2 or 3/3 cohorts (`tie_band@100 = 421–1,493` vs V2.5-sigmoid's 1). On tissue, V2.5-sigmoid beats V2.5-diff by +0.05 to +0.09 AUC. **Not recommended for new discovery runs.** |
-| `tumor_plus_gap_sigmoid` (V2.5-sigmoid) | `p_targ × sigmoid((β_n − β_t − δ) / σ_fixed) × p_trust` with `sigma_fixed` strictly positive (default √2 × σ_floor ≈ 0.0707) | **Recommended probabilistic discovery axis** across every tested non-boundary cohort shape. Uniformly equal-or-better than V2.5-diff on matched cell-line (AUC within 0.002, strictly smaller WG tied bands) and strictly better on tissue (+0.05 to +0.08 AUC). Ships as a first-class `probabilistic_mode` enum value with iff-semantics validators. |
+| `tumor_plus_differential_protection` (V2.5-diff) | `p_targ × p_diff × p_trust` where `p_diff = P(β_n − β_t > δ)` | Retained for backward compatibility and AUC parity with pre-ag scored JSONLs. Matches V2.5-sigmoid on matched cell-line AUC within 0.002 (PAPER.md §5.2.2 WG panel), but its top-K becomes unusable at WG scale on n = 2/2 or 3/3 cohorts (`tie_band@100 = 421–1,493` vs V2.5-sigmoid's 1). On tissue, V2.5-sigmoid beats V2.5-diff by +0.05 to +0.09 AUC. **Not recommended for new prioritization runs.** |
+| `tumor_plus_gap_sigmoid` (V2.5-sigmoid) | `p_targ × sigmoid((β_n − β_t − δ) / σ_fixed) × p_trust` with `sigma_fixed` strictly positive (default √2 × σ_floor ≈ 0.0707) | **Recommended probabilistic prioritization axis** (hypothesis generation; not a discovery claim absent prospective wet-lab validation). AUC-equivalent to V2.5-diff on matched cell-line (within 0.002) with strictly smaller WG tied bands, and higher transported-label AUC on the single tissue cohort tested (+0.05 to +0.08; per-positive heterogeneous, see PAPER.md §5.9). Ships as a first-class `probabilistic_mode` enum value with iff-semantics validators. |
 
 Both modes emit `p_targetable_tumor`, `p_protected_normal`, and
 `p_observation_trustworthy` for auditability — the `mode` field on
@@ -401,8 +401,8 @@ Three findings (V2.5-diff era):
    penalized more.
 2. **On primary tissue, `tumor_only` has higher AUC but unusable top-K.**
    V2.5-diff is the second-best AUC axis there *among the three columns
-   shown*; V2.5-sigmoid (added in `memo-2026-04-22-bc`) reaches AUC 0.862
-   on the same cohort and is the recommended tissue axis (PAPER.md
+   shown*; V2.5-sigmoid reaches AUC 0.862 on the same cohort and is the
+   recommended tissue axis (PAPER.md
    §5.2.2). V2.5-diff is the only probabilistic axis in this table whose
    top-K is interpretable on tissue (`tie_band = 2`).
 3. **V2.5-diff's tie_band behaves correctly with `n` on the chr5/6/10
