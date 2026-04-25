@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-24.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10b` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10c` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -532,13 +532,15 @@ These three fields are on every emitted `BenchmarkResult` JSONL row.
 
 ## 5 · Results
 
-Results are organized by the analysis roles frozen in §4.0: §5.1 reports
-the independent GSE322563 primary endpoint; §5.2 reports sensitivity and
-whole-genome stress testing used to select V2.5-sigmoid; §5.3 reports
-high-`n` tissue behavior; §5.4 reports the cross-series boundary case;
-§5.7-§5.9 report EvidenceClass, limma parity, and feature-matched
-denominator controls; §5.10 reports the independent-biology System B
-transport-gated diagnostic.
+Results are organized by the analysis roles frozen in §4.0: §5.1
+reports the independent GSE322563 primary endpoint; §5.2 reports
+sensitivity and whole-genome stress testing used to select
+V2.5-sigmoid; §5.3 reports high-`n` tissue behavior; §5.4 reports the
+cross-series boundary case; §5.5 reports tie-window-aware top-hit
+annotation; §5.6 reports `p_trust` sensitivity; §5.7–§5.9 report
+EvidenceClass, limma parity, and feature-matched denominator controls;
+§5.10 reports the independent-biology System B transport-gated
+diagnostic.
 
 ![V2.5-sigmoid vs V2.5-diff vs limma-style on WG validated AUC and tie_band@100](docs/figures/fig2_auc_bars.png)
 
@@ -982,13 +984,14 @@ Reproducible artifacts: `examples/limma_cross_cohort_panel.md` and
 
 GSE69914 (n = 305 / 50 primary breast vs. healthy donor tissue)
 tests whether the low-`n` tied-band behavior predicted in §3.5
-dissolves at `n ≫ 30`:
+dissolves at `n ≫ 30` (n_neg is the chr5/6/10 negative universe minus
+`n_pos`, ≈ 2.98M throughout):
 
-| label set | n_pos | n_neg | Δβ-only | Δβ_z | V1 | tumor_only | V2.5-diff | V2.5-diff tie_band@100 |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| validated | 3 | 2,979,994 | 0.591 | 0.504 | 0.660 | **0.803** | 0.773 | **2** |
-| narrow | 28 | 2,979,969 | 0.477 | — | 0.539 | **0.843** | 0.711 | 2 |
-| wide | 142 | 2,979,855 | 0.435 | — | 0.435 | **0.874** | 0.726 | 2 |
+| label set | n_pos | Δβ-only | Δβ_z | V1 | tumor_only | V2.5-diff | tie@100 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| validated |   3 | 0.591 | 0.504 | 0.660 | **0.803** | 0.773 | **2** |
+| narrow    |  28 | 0.477 |   —   | 0.539 | **0.843** | 0.711 |   2   |
+| wide      | 142 | 0.435 |   —   | 0.435 | **0.874** | 0.726 |   2   |
 
 On tissue, both Δβ-based baselines collapse to near-random or below
 (Δβ-only 0.435–0.591; Δβ_z 0.504 at validated). V1 tracks Δβ-only
@@ -1428,7 +1431,7 @@ matched `p_targ` and matched `p_trust`, the pre-registered T9 separation
 would be approximately 18-fold. We do **not** count this as validation,
 because T9 failed the pre-registered public-backend transport rule.
 
-The tag-C score run is therefore a **transport-confirmed subset
+The pre-registered scored-subset run is therefore a **transport-confirmed subset
 diagnostic**, not the original T9-demotion benchmark. On the retained
 directional pair, all axes rank the direction-specific selective target
 above the opposite-direction target (n_pos = 1, n_neg = 1 per
@@ -1686,13 +1689,14 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10b`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10c`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
 - **Benchmark artifacts**: every `BenchmarkResult` JSONL row under `examples/*_roth_labels/` carries `precision_at_k`, `precision_at_k_{min,max}`, `recall_at_k`, `recall_at_k_{min,max}`, `roc_auc`, `tie_band_size_at_k`, and `tie_break_policy`.
 - **EvidenceClass controls**: `examples/evidence_class_distribution.{tsv,md}` audits full-catalog and top-100 EvidenceClass composition for V2.5-diff and V2.5-sigmoid; `examples/evidence_class_stratified_benchmark.{tsv,md}` reports the WG / chr5/6/10 EvidenceClass-controlled rank-lift benchmark for V2.5-sigmoid, V2.5-diff, Δβ-only, and the limma-style baseline.
 - **Feature-matched controls**: `examples/feature_matched_negative_controls.{tsv,md}` reports the within-chromosome matched-negative audit used in §5.9; reproduce with `uv run python scripts/feature_matched_negative_controls.py`.
+- **Robustness sweeps**: `examples/sigmoid_delta_sigma_wg_sweep.{tsv,md}` reproduces the V2.5-sigmoid `(δ × σ_fixed)` 5 × 6 grid sweep used in §5.2; `examples/tissue_per_positive_wg_ranks.{tsv,md}` reports the GSE69914 per-positive WG-rank table used in §5.3. Scripts: `scripts/sigmoid_delta_sigma_wg_sweep.py`. The pre-registered Roth System B HEK293T / HCT116 transport-gated scored subset (§5.10) is at `data/derived/roth_hek_hct_subset_{scores,benchmark}.tsv` with the audit trail in `prereg/2026-04-24-hek-hct-system-b-transport-addendum.md`; reproducer `scripts/score_roth_transport_subset.py`.
 - **Roth System B transport / subset artifacts**: `data/positives/positives_roth_hek_hct_v0.tsv`, `data/derived/roth_hek_hct_transport.tsv`, `data/derived/roth_hek_hct_secondary_backend_scan.tsv`, and `data/derived/roth_hek_hct_subset_{scores,benchmark}.tsv` support §5.10; reproduce the subset score tables with `uv run python scripts/score_roth_transport_subset.py`.
 - **Annotated top-20 TSVs**: under `examples/*/top20_annotated_*.tsv`.
 
