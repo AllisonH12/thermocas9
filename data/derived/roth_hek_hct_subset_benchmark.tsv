@@ -1,0 +1,14 @@
+endpoint	direction	axis	n_pos	n_neg	auc	positive_targets	negative_targets	note
+E1_transport_confirmed_directionality	HEK_target_HCT_protected	p_targ_only	1	1	1.000000	T4	T5	T9 discriminator excluded by prereg-transport-addendum
+E1_transport_confirmed_directionality	HEK_target_HCT_protected	tumor_only	1	1	1.000000	T4	T5	T9 discriminator excluded by prereg-transport-addendum
+E1_transport_confirmed_directionality	HEK_target_HCT_protected	p_targ_x_p_prot	1	1	1.000000	T4	T5	T9 discriminator excluded by prereg-transport-addendum
+E1_transport_confirmed_directionality	HEK_target_HCT_protected	v25_diff	1	1	1.000000	T4	T5	T9 discriminator excluded by prereg-transport-addendum
+E1_transport_confirmed_directionality	HEK_target_HCT_protected	v25_sigmoid	1	1	1.000000	T4	T5	T9 discriminator excluded by prereg-transport-addendum
+E1_transport_confirmed_directionality	HEK_target_HCT_protected	delta_beta_only	1	1	1.000000	T4	T5	T9 discriminator excluded by prereg-transport-addendum
+E1_transport_confirmed_directionality	HCT_target_HEK_protected	p_targ_only	1	1	1.000000	T5	T4	T9 discriminator excluded by prereg-transport-addendum
+E1_transport_confirmed_directionality	HCT_target_HEK_protected	tumor_only	1	1	1.000000	T5	T4	T9 discriminator excluded by prereg-transport-addendum
+E1_transport_confirmed_directionality	HCT_target_HEK_protected	p_targ_x_p_prot	1	1	1.000000	T5	T4	T9 discriminator excluded by prereg-transport-addendum
+E1_transport_confirmed_directionality	HCT_target_HEK_protected	v25_diff	1	1	1.000000	T5	T4	T9 discriminator excluded by prereg-transport-addendum
+E1_transport_confirmed_directionality	HCT_target_HEK_protected	v25_sigmoid	1	1	1.000000	T5	T4	T9 discriminator excluded by prereg-transport-addendum
+E1_transport_confirmed_directionality	HCT_target_HEK_protected	delta_beta_only	1	1	1.000000	T5	T4	T9 discriminator excluded by prereg-transport-addendum
+E2_HEK293T_editability_confirmed	HEK_target_HCT_protected	p_targ_only	4	3	1.000000	T4,T10,T11,T12	T5,T14,T15	confirmed HEK293T transport only; T3/T9/T13 excluded
