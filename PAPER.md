@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-bd` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-be` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -35,7 +35,9 @@ strongest ranking stress-test result is on GSE69914 tissue under
 transported Roth labels: a probe-level limma-style moderated-t DMR
 baseline is competitive on matched cell lines but falls to AUC 0.573
 on tissue, while V2.5-sigmoid reaches AUC 0.862 on the same
-candidate mapping. A frozen
+candidate mapping. The tissue stress-test gain is per-positive
+heterogeneous: GATA3 remains strong under feature-matched controls,
+while ESR1 is matched-near-random under V2.5-sigmoid (§5.9). A frozen
 whole-genome panel shows V2.5-sigmoid matches V2.5-diff's cell-line AUC
 within 0.002, avoids V2.5-diff's whole-genome low-`n` top-K tied bands
 (`tie_band@100 = 1` vs 421–1,493), and improves tissue AUC by +0.05 to
@@ -445,7 +447,7 @@ Three positives files result, at increasing granularity:
 ### 4.3 Score axes
 
 Seven axes are benchmarked. For naming conventions see §7 Methods
-(canonical axis-naming table):
+(canonical axis names):
 
 - **Δβ-only** (`naive_selectivity`) — `β_normal_mean − β_tumor_mean`. The literature-naive baseline: rank by the raw methylation gap with no uncertainty propagation or evidence weighting. Reported up front so the value of the additional factors is auditable against the simplest possible scoring axis.
 - **Δβ_z** — `(β_n − β_t) / sqrt(σ_t² + σ_n²)` using the same IQR-derived σ as V2.5-diff's `p_diff`. An uncertainty-aware effect-size ranker built from the same per-side dispersion signal; confirms that V2.5-diff's advantage is not just an alias for σ-normalized Δβ.
@@ -1282,7 +1284,7 @@ the recommended axis; it does **not** mark the row-best axis.
 | GSE69914 (tissue)   | *GATA3*  | **0.0187** | 0.2085 | 0.2595 | 0.3772 |
 | GSE69914 (tissue)   | *EGFLAM* | 0.2588     | 0.4968 | 0.7632 | 0.7192 |
 
-Three results to flag honestly. (1) On every matched-cell-line cell
+Three results to flag honestly. (1) On every matched-cell-line row
 (9 of 12 rows above), every positive is in the top ~4% of its
 feature-matched pool under V2.5-sigmoid (`p` ∈ [0.0018, 0.0390]),
 and V2.5-sigmoid is among the strongest axes on every cell. The WG
@@ -1507,7 +1509,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-bd`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-be`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
