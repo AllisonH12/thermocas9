@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-24.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10i` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10j` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -159,8 +159,9 @@ values in this tag:
   section defines it.
 - **V2.5-sigmoid** = `tumor_plus_gap_sigmoid`, a fixed-bandwidth
   sigmoid replacement of `p_diff`. Introduced and benchmarked in
-  §5.2.1 + §5.2.2; the recommended probabilistic prioritization axis
-  per the §5.2.2 whole-genome panel.
+  §5.2.1 + §5.2.2; the worked/default whole-genome prioritization
+  axis selected in §5.2.2, with restricted-universe caveats in §5.7
+  and §6.1.
 
 Older artifacts may label V2.5-diff less precisely (the axis under
 test in §5.1–§5.2 and the axis the scored JSONLs in
@@ -1653,7 +1654,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10i`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10j`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).

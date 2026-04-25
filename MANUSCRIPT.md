@@ -4,7 +4,7 @@
 
 **Date.** 2026-04-22.
 
-Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-22-bt`.
+Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-22-bu`.
 
 ---
 
@@ -14,7 +14,7 @@ Code at <https://github.com/AllisonH12/thermocas9>, immutable tag `memo-2026-04-
 
 **Results.** We present `thermocas`, an open probabilistic scoring framework built around a *compositional skeleton* `p_targ × (gap factor) × p_trust` paired with a tie-band-aware benchmarking contract (`precision_at_k_{min, max}`, `tie_band_size_at_k`, mid-rank Mann-Whitney AUC on every `BenchmarkResult`). The gap-factor slot admits several instances; two ship in this tag as selectable `probabilistic_mode` enum values: **V2.5-diff** (`tumor_plus_differential_protection`, `p_diff = P(β_normal − β_tumor > δ)` under an independent-normal approximation on per-probe β summaries with σ_floor = 0.05) and **V2.5-sigmoid** (`tumor_plus_gap_sigmoid`, a fixed-bandwidth logistic `sigmoid((β_n − β_t − δ) / σ_fixed)` with σ_fixed ≈ 0.0707). We benchmark across four public methylation cohorts — GSE322563 (Roth MCF-7/MCF-10A, primary endpoint; both HM450-intersect and native EPIC v2 ingest paths), GSE77348 (δ-development cohort, n=3/3), GSE69914 (n=305 primary tumor + 50 healthy-donor tissue, unpaired), GSE68379 (Sanger panel, OOD boundary) — against five baselines: raw Δβ-only, an uncertainty-aware Δβ_z, the deterministic V1 score, the V2 `tumor_only` diagnostic, and a sample-level limma-style moderated-t DMR baseline (Smyth 2004 empirical-Bayes variance prior, probe-level first then candidate-mapped). **On matched cell-line cohorts, Δβ-only is already strong** (validated AUC 0.96–0.97) and V2.5 variants add small but consistent margins (+0.010 to +0.080 across nine tier × path rows). **A 1,000,000-draw permutation null on the n=3 primary endpoint** places V2.5-diff at one-sided random-triple `p = 4 × 10⁻⁶ / 1.5 × 10⁻⁵ / 2.8 × 10⁻⁵` across the three matched-cell-line cohort paths (GSE322563 HM450 / GSE322563 native EPIC v2 / GSE77348) — lower random-null *p*-values than Δβ-only's `8.6 × 10⁻⁵ / 3.1 × 10⁻⁴ / 1.1 × 10⁻⁴` on the same cohort paths (against-random check, not a formal pairwise superiority test; the paired V2.5-diff / V2.5-sigmoid versus Δβ-only comparison floors at sign-flip `p = 0.125` with `n_pos = 3` and is reported separately in PAPER.md §5.1.3). **Because the validated set contains only three Roth Fig. 5d targets, AUC is interpreted as a rank-lift summary rather than an inferential discovery-performance estimate.** **The headline tissue ranking stress-test result (under transported Roth labels, not tissue-specific ThermoCas9 validation).** A probe-level limma-style moderated-t baseline (Smyth 2004 empirical-Bayes, sample-level β matrices, then candidate-mapped) is competitive on cell lines (0.959 / 0.991 / 0.962) but **collapses to near-random on bulk tissue (GSE69914, AUC 0.573)**, while V2.5-sigmoid **recovers tissue to AUC 0.862** — a +0.29 swing on the same probe-level statistical inputs, confirming that the `p_targ × p_trust` wrapping is the load-bearing contribution, not the gap factor's specific shape. *The tissue stress-test gain is per-positive heterogeneous: GATA3 remains strong under feature-matched controls, while ESR1 is matched-near-random under V2.5-sigmoid (PAPER.md §5.9).* **A frozen whole-genome panel** (HM450 SHA256 `d20661c5…`, 19.8M candidates; EPIC v2 SHA256 `39df8f0f…`, 35.4M candidates; PAPER.md §5.2.2) further shows V2.5-sigmoid matches V2.5-diff's AUC on matched cell-line cohorts within 0.002 but strictly beats V2.5-diff on top-K usability — `tie_band@100 = 1` vs 421 / 1,127 / 1,493 for V2.5-diff under the WG denominator — and improves tissue AUC over V2.5-diff by +0.05 to +0.08 across a bandwidth-robust sweep. The shipped recommendation is: **V1 as overall package default** (backward compatibility + `tie_band = 1`); **V2.5-sigmoid as recommended probabilistic prioritization axis** for new non-boundary runs (hypothesis generation; not a discovery claim absent prospective wet-lab validation), **selected by post-repair sensitivity and whole-genome stress testing — its prospective ranking utility remains to be validated on newly generated labels or wet-lab follow-up**; V2.5-diff retained for audit/backward-compatibility and AUC parity; `tumor_only` as `probabilistic_mode`-enum default (opt-in-required for V2.5-diff/V2.5-sigmoid via explicit cohort-YAML configuration). The package also adds a k-way-merge pan-cancer aggregator for genome-scale atlas builds and a per-candidate annotation pipeline (nearest gene, CpG-island context, RepeatMasker overlap, ENCODE DNase-HS cluster breadth) with a Markdown shortlist aimed at experimental collaborators.
 
-**Availability and implementation.** `thermocas` is open source at <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-bt` for the version evaluated here. 245 unit tests pass under `uv run pytest -q`. Python 3.11+, BSD-3.
+**Availability and implementation.** `thermocas` is open source at <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-bu` for the version evaluated here. 245 unit tests pass under `uv run pytest -q`. Python 3.11+, BSD-3.
 
 **Contact.** <allisonhmercer@gmail.com>
 
@@ -60,8 +60,9 @@ V2.5-sigmoid (tumor_plus_gap_sigmoid)              — p_targ × p_gap_sigmoid �
 
 Both ship as selectable `probabilistic_mode` enum values in this
 tag. V2.5-diff is retained for backward compatibility and AUC parity
-on cell-line cohorts; V2.5-sigmoid is the recommended axis on every
-tested non-boundary cohort shape per the PAPER.md §5.2.2 WG panel.
+on cell-line cohorts; V2.5-sigmoid is the worked/default whole-genome
+prioritization axis selected in PAPER.md §5.2.2, with
+restricted-universe caveats in PAPER.md §5.7 and §6.1.
 
 **Calibration scope.** `p_therapeutic_selectivity` is a *bounded
 probability-scale ranking score in [0, 1]*, not a calibrated probability
@@ -476,7 +477,7 @@ Two bodies of prior art are adjacent but non-overlapping. Generic CRISPR guide-s
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-bt` for the exact revision evaluated here. BSD-3 licensed. `git rev-parse memo-2026-04-22-bt` resolves to a SHA in a fresh clone. Supersedes all prior same-day dated memo tags; see the PAPER.md tag ledger for per-tag provenance (what each tag added and what was corrected in the next one). A `scripts/verify_manuscript_claims.py` guard enforces a set of *selected known-risk* numerical claims — constants (`src/thermocas/probabilistic.py`), universal-quantifier wording, artifact counts, figure captions, and the tag-span claims most recently caught in reviewer cycles — against the committed bench JSONLs and package source. It is not a full table-AUC verifier; new numerical claims should be audited by hand or added to the `check_*` function set. Run it before cutting any subsequent tag.
+- **Code**: <https://github.com/AllisonH12/thermocas9>, tagged `memo-2026-04-22-bu` for the exact revision evaluated here. BSD-3 licensed. `git rev-parse memo-2026-04-22-bu` resolves to a SHA in a fresh clone. Supersedes all prior same-day dated memo tags; see the PAPER.md tag ledger for per-tag provenance (what each tag added and what was corrected in the next one). A `scripts/verify_manuscript_claims.py` guard enforces a set of *selected known-risk* numerical claims — constants (`src/thermocas/probabilistic.py`), universal-quantifier wording, artifact counts, figure captions, and the tag-span claims most recently caught in reviewer cycles — against the committed bench JSONLs and package source. It is not a full table-AUC verifier; new numerical claims should be audited by hand or added to the `check_*` function set. Run it before cutting any subsequent tag.
 - **Tests**: 245 passing under `uv run pytest -q`.
 - **Cohorts**: public GEO series GSE322563, GSE77348, GSE69914, GSE68379. Build scripts in `scripts/build_gse*_cohort.py`.
 - **Reference annotations**: UCSC hg19 `refGene.txt.gz`, `cpgIslandExt.txt.gz`, `rmsk.txt.gz`, and `wgEncodeRegDnaseClusteredV3.txt.gz` (fetched on demand from hgdownload.soe.ucsc.edu).
@@ -537,7 +538,7 @@ for f in refGene.txt.gz cpgIslandExt.txt.gz rmsk.txt.gz wgEncodeRegDnaseClustere
 done
 ```
 
-From a fresh clone of the repository at `memo-2026-04-22-bt` with the
+From a fresh clone of the repository at `memo-2026-04-22-bu` with the
 above raw inputs staged:
 
 ```bash

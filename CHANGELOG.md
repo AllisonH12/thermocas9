@@ -7,12 +7,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased] — submission-freeze post-`memo-2026-04-22`
 
 > Submission-freeze cycle for the bioRxiv / *Bioinformatics* preprint.
-> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bt` for the
+> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bu` for the
 > current submission-freeze state. See `git log memo-2026-04-22..main`
 > for the full per-commit history.
 
 ### Changed
 
+- **`memo-2026-04-22-bu`** + **`paper-5-10j`** (cross-surface wording
+  consistency): mirror the paper-5-10i §4 V2.5-sigmoid soften (from
+  *"recommended … on every non-boundary cohort shape"* to *"worked /
+  default whole-genome prioritization axis selected in §5.2.2, with
+  restricted-universe caveats in §5.7 and §6.1"*) into the two
+  parallel statements that were still carrying the strong universal-
+  quantifier wording: PAPER.md §2 enum description (paper-5-10j) and
+  MANUSCRIPT.md §2 V2.5-sigmoid description (memo-2026-04-22-bu).
+  Aligns body wording across surfaces with the §6.1 non-uniform-
+  superiority disclosure shipped at paper-5-10h. README.md retained
+  unchanged per the README chronology-preservation rule.
 - **`memo-2026-04-22-bt`** (MANUSCRIPT-only): clarify in §6.4 Related
   work that probe-level differential-methylation callers are not
   excluded as comparators — the limma-style moderated-`t` baseline is
