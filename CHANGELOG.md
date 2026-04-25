@@ -7,7 +7,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased] — submission-freeze post-`memo-2026-04-22`
 
 > Submission-freeze cycle for the bioRxiv / *Bioinformatics* preprint.
-> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bj` for the
+> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bk` for the
 > current submission-freeze state. See `git log memo-2026-04-22..main`
 > for the full per-commit history.
 
@@ -26,9 +26,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   scored JSONLs.
 - **Canonical R `limma::lmFit + eBayes` parity** at
   `memo-2026-04-22-ba`. Per-probe Spearman/Pearson `t_mod` ≥ 0.9997
-  across all three primary cohorts vs R `limma` 3.66.0 on identical
-  sample-level β + group inputs. PAPER.md §5.8;
-  `examples/r_limma_parity_*.{tsv,md}`.
+  across the three R-parity cohorts (GSE69914 tissue / GSE77348 /
+  GSE322563 HM450) vs R `limma` 3.66.0 on identical sample-level β
+  + group inputs. PAPER.md §5.8; `examples/r_limma_parity_*.{tsv,md}`.
 - **EvidenceClass distribution + stratified benchmark** (PAPER.md
   §5.7). Full chr5/6/10 catalogs are dominated by `regional`
   records; matched-cell-line top-100 windows are 100/100 EXACT
