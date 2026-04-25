@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-24.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10c` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10d` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -43,15 +43,19 @@ within 0.002, avoids V2.5-diff's whole-genome low-`n` top-K tied bands
 (`tie_band@100 = 1` vs 421–1,493), and improves tissue AUC by +0.05 to
 +0.08.
 
-The recommended probabilistic prioritization axis (hypothesis
-generation; not a discovery claim absent prospective wet-lab
-validation) is V2.5-sigmoid; V2.5-diff is retained for
+The recommended probabilistic prioritization axis for hypothesis
+generation is V2.5-sigmoid, **selected by post-repair sensitivity and
+whole-genome stress testing on the same benchmark family used here
+rather than by independent prospective validation**. It preserves
+matched-cell-line rank lift where Δβ-only is already strong, eliminates
+V2.5-diff's low-`n` whole-genome tied-band pathology, and improves the
+shipped-default tissue stress-test AUC; the tissue gain is per-positive
+heterogeneous and partly reflects the shipped V2.5-diff σ_floor default
+(§5.3.1), and prospective utility remains to be validated on newly
+generated labels or wet-lab follow-up. V2.5-diff is retained for
 backward-compatible AUC parity, V1 remains the package default for
 deterministic top-K behavior, and `tumor_only` remains the default
-`probabilistic_mode` enum value for compatibility. **V2.5-sigmoid is
-selected by post-repair sensitivity and whole-genome stress testing;
-its prospective ranking utility remains to be validated on newly
-generated labels or wet-lab follow-up.** This is a scoring-method and
+`probabilistic_mode` enum value for compatibility. This is a scoring-method and
 benchmarking contribution on public methylation data, not prospective
 editing validation. Whole-genome catalogs are SHA256-frozen and all
 benchmark artifacts are committed under `examples/`.
@@ -216,7 +220,12 @@ multiplicative composability with downstream probabilistic inputs
 (target-mutation models, gRNA off-target probabilities, delivery-
 efficiency priors) — not a frequentist guarantee that "0.9" means "90%
 of 0.9-scored sites edit successfully." Read the score as a
-probability-scale ranking axis throughout.
+probability-scale ranking axis throughout. The multiplicative form is a
+ranking heuristic, not an independence model: `p_targ`, the gap factor,
+and `p_trust` are empirically correlated on real methylation catalogs
+(e.g. EXACT-class records cluster at extreme β values which also drive
+`p_targ` and `p_diff`), so the product should not be interpreted as a
+calibrated joint probability.
 
 ### 3.2 Choice of δ
 
@@ -937,7 +946,10 @@ As a journal-hardening robustness check, we also swept V2.5-sigmoid
 directly over δ ∈ {0.10, 0.15, 0.20, 0.25, 0.30} and σ_fixed ∈ {0.03,
 0.05, 0.0707, 0.10, 0.15, 0.20} on the frozen whole-genome denominators
 (`examples/sigmoid_delta_sigma_wg_sweep.{tsv,md}`; reproduce with
-`uv run python scripts/sigmoid_delta_sigma_wg_sweep.py`):
+`uv run python scripts/sigmoid_delta_sigma_wg_sweep.py`). **This grid is
+a descriptive post-selection robustness surface, not an additional
+model-selection step; no `(δ, σ_fixed)` cell from the grid is used to
+revise the recommended default.**
 
 | cohort | default AUC (tie@100) | best AUC in grid | full-grid AUC range | max tie@100 |
 |---|---:|---:|---:|---:|
@@ -1071,6 +1083,16 @@ usability: on GSE322563 HM450 the K=100 tied band shrinks 719 → 190 → 1
 GSE69914 peaks at 0.854 when σ_floor = 0.10, not at the V2.5-diff
 default 0.05. Full per-positive grid:
 `examples/sigma_floor_sweep.md`.
+
+**Implication for the V2.5-sigmoid tissue advantage.** The fair reading
+of the §5.2.2 V2.5-sigmoid 0.862 vs V2.5-diff 0.778 tissue contrast is
+that V2.5-sigmoid wins against the *shipped* V2.5-diff default
+(σ_floor = 0.05): increasing V2.5-diff's σ_floor to 0.10 raises GSE69914
+tissue AUC to 0.854, within ~0.01 of V2.5-sigmoid's 0.862. We retain
+V2.5-sigmoid because it gives tissue performance near that high-σ_floor
+regime *and* eliminates low-`n` whole-genome tied bands under the
+fixed-bandwidth default — not because every possible V2.5-diff
+σ_floor setting is dominated.
 
 ### 5.3.2 δ sensitivity
 
@@ -1382,101 +1404,25 @@ is documented as a §6.3 follow-up. Per-cohort artifact at
 
 ### 5.10 Roth System B HEK293T/HCT116 pre-registered extension
 
-After the §5.9 matched-negative audit, we pre-registered an independent
-Roth System B extension using the HEK293T / HCT116 validation panel from
-Roth Fig. 5a / Extended Data Fig. 9 / Supplementary Fig. 10. This panel
-is useful because it is biologically independent of the MCF-7 / MCF-10A
-Fig. 5d breast targets: different cell lines, different loci, and a
-different methylation modality (Roth used ENCODE RRBS plus targeted BSS,
-then validated editing by cleavage / indel readouts). The planned
-primary discriminator was VEGFA T9: an editable but non-selective target
-that `tumor_only` should rank high and V2.5 should demote. The
-pre-registration was frozen before scoring at `prereg-coords`,
-`prereg-transport`, and `prereg-transport-addendum`; scored subset
-artifacts were frozen at `prereg-scored`.
-
-The transport rule was deliberately strict and was applied before any
-rank interpretation: ENCODE RRBS had to agree with Roth's BSS state
-using β > 0.7 for methylated, β < 0.3 for unmethylated, and ≥10 reads
-in at least two replicates per cell line at the PAM cytosine or nearest
-covered cytosine within 50 bp. Under that rule, the two direction-flip
-targets transported, but the VEGFA controls did not:
-
-| target | role in pre-reg | HEK293T transport | HCT116 transport | consequence |
-|---|---|---|---|---|
-| VEGFA T3 | protected/off in both lines | low coverage | low coverage | excluded |
-| VEGFA T9 | editable/non-selective discriminator | low coverage | low coverage | excluded |
-| EMX1 T4 | HEK293T-selective positive | confirmed | confirmed | retained |
-| PRDX4 T5 | HCT116-selective positive | confirmed | confirmed | retained |
-
-The low-coverage T9 row is the key result of §5.10. Because T9 was the
-pre-registered falsification / success discriminator for V2.5
-selectivity, the System B selectivity claim is **not evaluable** on the
-public ENCODE RRBS backend. A secondary-backend scan was performed before
-scoring and did not rescue T9: ENCODE has RRBS / DNAme-array data but no
-WGBS experiment under the HCT116 / HEK293 / HEK293T terms; one public
-HCT116 WGBS file had sparse one-sample VEGFA coverage (T9 coverage 4,
-T3 coverage 7); a HEK293T WGBS proxy did not transport-confirm T9; and
-native EPIC v2 probes near T9/T3 were hundreds of bases away with no
-matched HEK293T / HCT116 EPIC v2 pair. This is recorded in
-`prereg/2026-04-24-hek-hct-system-b-transport-addendum.md` and
-`data/derived/roth_hek_hct_secondary_backend_scan.tsv`.
-
-Under Roth's own BSS polarity values, the missing T9 control would have
-β_target ≈ β_comparator ≈ 0, so V2.5-sigmoid would assign
-`p_gap_sigmoid = sigmoid((0 - 0.2) / 0.0707) ≈ 0.0558`. A
-direction-specific EMX1/PRDX4 selective positive with β_target ≈ 0 and
-β_comparator ≈ 1 would have `p_gap_sigmoid ≈ 0.99999`. Thus, at
-matched `p_targ` and matched `p_trust`, the pre-registered T9 separation
-would be approximately 18-fold. We do **not** count this as validation,
-because T9 failed the pre-registered public-backend transport rule.
-
-The pre-registered scored-subset run is therefore a **transport-confirmed subset
-diagnostic**, not the original T9-demotion benchmark. On the retained
-directional pair, all axes rank the direction-specific selective target
-above the opposite-direction target (n_pos = 1, n_neg = 1 per
-direction; AUC = 1.0 by construction of the two retained controls):
-
-**HEK293T target / HCT116 protected**
-
-| Role | Target | β target / β comparator | V2.5-sigmoid score |
-|---|---|---:|---:|
-| Selective positive | EMX1 T4 | 0.007 / 1.000 | 0.010000 |
-| Opposite-direction control | PRDX4 T5 | 0.751 / 0.061 | 0.000000 |
-
-**HCT116 target / HEK293T protected**
-
-| Role | Target | β target / β comparator | V2.5-sigmoid score |
-|---|---|---:|---:|
-| Selective positive | PRDX4 T5 | 0.061 / 0.751 | 0.008128 |
-| Opposite-direction control | EMX1 T4 | 1.000 / 0.007 | 0.000000 |
-
-We therefore do not interpret this AUC as method validation.
-
-Endpoint 2, the HEK293T binary editability check, remains usable after
-transport filtering only as a target-side editability diagnostic. On
-confirmed HEK293T calls, `p_targ` alone separates four editable /
-unmethylated targets (T4, T10, T11, T12) from three protected /
-not-edited targets (T5, T14, T15) with AUC = 1.000. T3 and T9 are
-excluded for low coverage, and T13 is excluded as ambiguous (β = 0.535
-against Roth's methylated label). This supports the narrow statement
-that the target-side methylation factor recovers Roth's HEK293T
-editability labels when independent RRBS transport is confirmed; it
-does **not** test V2.5's selectivity claim because the non-selective T9
-decoy is missing.
-
-The practical interpretation is conservative: System B improves the
-audit trail and validates the transport-gating workflow, but it does not
-add an independent selectivity validation because the pre-registered T9
-discriminator is missing. It shows that the pre-registered transport
-gate can reject a tempting benchmark when the public methylation backend
-does not support the decisive control. The scored subset is useful for
-debugging polarity and target-side editability, but the paper's
-recommendation remains grounded in the MCF-7 / MCF-10A cohorts, the
-tissue stress test, and the §5.9 matched-negative audit.
-Reproduce with `uv run python scripts/score_roth_transport_subset.py`;
-outputs are `data/derived/roth_hek_hct_subset_scores.tsv` and
-`data/derived/roth_hek_hct_subset_benchmark.tsv`.
+We pre-registered an independent Roth System B extension on the
+HEK293T / HCT116 validation panel before scoring (four `prereg-*`
+tags). The strict pre-applied transport rule (β > 0.7 / β < 0.3 with
+≥ 10 reads in ≥ 2 replicates per cell line) excluded both *VEGFA*
+control targets on public ENCODE RRBS — including T9, the planned
+editable-but-non-selective discriminator that V2.5 should demote — and
+a secondary WGBS / EPIC v2 backend scan did not rescue T9. The retained
+*EMX1* T4 / *PRDX4* T5 directional pair has n_pos = n_neg = 1 per
+direction, so the AUC = 1.0 it produces is essentially uninformative
+about V2.5-sigmoid's selectivity claim. **The System B selectivity
+claim is therefore not evaluable on the public methylation backend at
+this revision; this section is a workflow audit (the pre-registered
+transport gate worked; the decisive control was correctly excluded
+rather than absorbed into the score) rather than a validation.** Full
+transport audit, secondary-backend scan, T9 hypothetical (~18-fold
+separation under Roth's BSS polarity, explicitly **not** counted as
+validation), retained directional-pair scores, and Endpoint-2
+target-side editability check are in **Appendix B**. Reproduce with
+`uv run python scripts/score_roth_transport_subset.py`.
 
 ---
 
@@ -1486,7 +1432,7 @@ outputs are `data/derived/roth_hek_hct_subset_scores.tsv` and
 
 | Use case | Recommendation |
 |---|---|
-| New probabilistic prioritization runs | **V2.5-sigmoid**. Hypothesis generation only; AUC-equivalent to V2.5-diff on matched cell lines, avoids V2.5-diff's low-`n` WG tied-band blowup, and has a higher transported-label AUC on the single tissue cohort tested (§5.2.2). On matched cell lines, all three positives are in the top ~4% of their feature-matched pools (§5.9). Tissue gain is per-positive heterogeneous — see §6.2 limitation 7. |
+| New probabilistic prioritization runs | **Recommended probabilistic prioritization axis for hypothesis generation: V2.5-sigmoid.** It preserves the matched-cell-line rank lift of V2.5-diff and Δβ-only (where Δβ-only is already very strong on this n_pos = 3 endpoint, AUC 0.974 on GSE322563 HM450 vs V2.5-diff's 0.990), eliminates V2.5-diff's low-`n` whole-genome tied-band pathology (`tie_band@100 = 1` vs 421–1,493), and improves the shipped-default tissue stress-test AUC. The primary matched-cell-line AUC gain over Δβ-only is small and descriptive at `n_pos = 3`; the tissue gain is per-positive heterogeneous (§6.2 limitation 7) and partly reflects the shipped V2.5-diff σ_floor default (§5.3.1: V2.5-diff at σ_floor = 0.10 reaches tissue AUC 0.854, within ~0.01 of V2.5-sigmoid). Prospective wet-lab validation or newly generated labels remain required. |
 | Backward-compatible probabilistic runs | **V2.5-diff**. Retained for AUC parity with earlier scored JSONLs; not preferred for new WG-scale prioritization because low-`n` tied bands expand to 421–1,493 records. |
 | Stable deterministic top-K | **V1 final_score**. Continuous and retained for backward compatibility, not AUC leadership. |
 | Diagnostic ablation | **V2 tumor_only**. Useful AUC sanity check, but top-K collapses into thousands-record tied bands. |
@@ -1689,7 +1635,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10c`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10d`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
@@ -1769,6 +1715,130 @@ both tumor *and* normal are low-methylated) — good AUC, unusable for
 target prioritization. The deeper fix — the V2.5-generation
 differential gap factor
 (§3) — was needed.
+
+---
+
+## Appendix B · Roth System B HEK293T/HCT116 pre-registered extension (full audit trail)
+
+The §5.10 main-body summary establishes that the System B selectivity
+test is not evaluable on the public methylation backend at this
+revision. This appendix carries the supporting transport audit, the
+secondary-backend scan, the T9 hypothetical, the retained directional
+pair scores, and the Endpoint-2 target-side editability check.
+
+### B.1 Pre-registration and panel choice
+
+After the §5.9 matched-negative audit, we pre-registered an independent
+Roth System B extension using the HEK293T / HCT116 validation panel from
+Roth Fig. 5a / Extended Data Fig. 9 / Supplementary Fig. 10. This panel
+is biologically independent of the MCF-7 / MCF-10A Fig. 5d breast
+targets: different cell lines, different loci, and a different
+methylation modality (Roth used ENCODE RRBS plus targeted BSS, then
+validated editing by cleavage / indel readouts). The planned primary
+discriminator was *VEGFA* T9: an editable but non-selective target
+that `tumor_only` should rank high and V2.5 should demote. The
+pre-registration was frozen before scoring at `prereg-coords`,
+`prereg-transport`, and `prereg-transport-addendum`; scored subset
+artifacts were frozen at `prereg-scored`.
+
+### B.2 Transport rule and per-target outcome
+
+The transport rule was deliberately strict and was applied **before**
+any rank interpretation: ENCODE RRBS had to agree with Roth's BSS
+state using β > 0.7 for methylated, β < 0.3 for unmethylated, and
+≥ 10 reads in at least two replicates per cell line at the PAM cytosine
+or nearest covered cytosine within 50 bp. Under that rule, the two
+direction-flip targets transported, but the *VEGFA* controls did not:
+
+| target | role in pre-reg | HEK293T transport | HCT116 transport | consequence |
+|---|---|---|---|---|
+| *VEGFA* T3 | protected/off in both lines | low coverage | low coverage | excluded |
+| *VEGFA* T9 | editable/non-selective discriminator | low coverage | low coverage | excluded |
+| *EMX1* T4 | HEK293T-selective positive | confirmed | confirmed | retained |
+| *PRDX4* T5 | HCT116-selective positive | confirmed | confirmed | retained |
+
+The low-coverage T9 row is the key result of System B. Because T9 was
+the pre-registered falsification / success discriminator for V2.5
+selectivity, the System B selectivity claim is **not evaluable** on the
+public ENCODE RRBS backend.
+
+### B.3 Secondary-backend scan
+
+A secondary-backend scan was performed before scoring and did not
+rescue T9: ENCODE has RRBS / DNAme-array data but no WGBS experiment
+under the HCT116 / HEK293 / HEK293T terms; one public HCT116 WGBS file
+had sparse one-sample *VEGFA* coverage (T9 coverage 4, T3 coverage 7);
+a HEK293T WGBS proxy did not transport-confirm T9; and native EPIC v2
+probes near T9/T3 were hundreds of bases away with no matched
+HEK293T / HCT116 EPIC v2 pair. Recorded in
+`prereg/2026-04-24-hek-hct-system-b-transport-addendum.md` and
+`data/derived/roth_hek_hct_secondary_backend_scan.tsv`.
+
+### B.4 T9 hypothetical (explicitly **not** counted as validation)
+
+Under Roth's own BSS polarity values, the missing T9 control would
+have β_target ≈ β_comparator ≈ 0, so V2.5-sigmoid would assign
+`p_gap_sigmoid = sigmoid((0 − 0.2) / 0.0707) ≈ 0.0558`. A
+direction-specific *EMX1* / *PRDX4* selective positive with
+β_target ≈ 0 and β_comparator ≈ 1 would have
+`p_gap_sigmoid ≈ 0.99999`. Thus, at matched `p_targ` and matched
+`p_trust`, the pre-registered T9 separation would be approximately
+18-fold. We do **not** count this as validation, because T9 failed the
+pre-registered public-backend transport rule.
+
+### B.5 Retained directional pair (uninformative AUC)
+
+The pre-registered scored-subset run is therefore a
+*transport-confirmed subset diagnostic*, not the original T9-demotion
+benchmark. On the retained directional pair, all axes rank the
+direction-specific selective target above the opposite-direction target;
+with n_pos = n_neg = 1 per direction, the AUC = 1.0 is essentially
+uninformative about V2.5-sigmoid's selectivity claim:
+
+**HEK293T target / HCT116 protected**
+
+| Role | Target | β target / β comparator | V2.5-sigmoid score |
+|---|---|---:|---:|
+| Selective positive | *EMX1* T4 | 0.007 / 1.000 | 0.010000 |
+| Opposite-direction control | *PRDX4* T5 | 0.751 / 0.061 | 0.000000 |
+
+**HCT116 target / HEK293T protected**
+
+| Role | Target | β target / β comparator | V2.5-sigmoid score |
+|---|---|---:|---:|
+| Selective positive | *PRDX4* T5 | 0.061 / 0.751 | 0.008128 |
+| Opposite-direction control | *EMX1* T4 | 1.000 / 0.007 | 0.000000 |
+
+We therefore do not interpret this AUC as method validation.
+
+### B.6 Endpoint 2 — target-side editability diagnostic only
+
+Endpoint 2, the HEK293T binary editability check, remains usable after
+transport filtering only as a target-side editability diagnostic. On
+confirmed HEK293T calls, `p_targ` alone separates four editable /
+unmethylated targets (*T4*, *T10*, *T11*, *T12*) from three
+protected / not-edited targets (*T5*, *T14*, *T15*) with AUC = 1.000.
+*T3* and *T9* are excluded for low coverage, and *T13* is excluded as
+ambiguous (β = 0.535 against Roth's methylated label). This supports
+the narrow statement that the target-side methylation factor recovers
+Roth's HEK293T editability labels when independent RRBS transport is
+confirmed; it does **not** test V2.5's selectivity claim because the
+non-selective T9 decoy is missing.
+
+### B.7 Practical interpretation
+
+System B improves the audit trail and validates the transport-gating
+workflow, but it does not add an independent selectivity validation
+because the pre-registered T9 discriminator is missing. It shows that
+the pre-registered transport gate can reject a tempting benchmark when
+the public methylation backend does not support the decisive control.
+The scored subset is useful for debugging polarity and target-side
+editability, but the paper's recommendation remains grounded in the
+MCF-7 / MCF-10A cohorts, the tissue stress test, and the §5.9
+matched-negative audit. Reproduce with
+`uv run python scripts/score_roth_transport_subset.py`; outputs are
+`data/derived/roth_hek_hct_subset_scores.tsv` and
+`data/derived/roth_hek_hct_subset_benchmark.tsv`.
 
 ---
 
