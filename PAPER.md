@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-24.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10g` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10i` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -472,7 +472,7 @@ Seven axes are benchmarked. For naming conventions see §7 Methods
 - **V1** — `final_score = sequence × selectivity × confidence − heterogeneity_penalty − low_coverage_penalty`. Deterministic, continuous-valued, tie band always 1.
 - **V2** (`tumor_only`) — `p_targ × p_trust`. Retained for audit; default in v0.4.0.
 - **V2.5-diff** (`tumor_plus_differential_protection`) — `p_targ × p_diff × p_trust` with δ = 0.2 and σ_floor = 0.05. The original V2.5 composite; retained in this tag for backward compatibility and AUC parity on cell-line cohorts.
-- **V2.5-sigmoid** (`tumor_plus_gap_sigmoid`) — `p_targ × sigmoid((β_n − β_t − δ) / σ_fixed) × p_trust` with δ = 0.2 and σ_fixed ≈ 0.0707. The **recommended probabilistic prioritization axis** on every non-boundary cohort shape tested (§5.2.2 whole-genome panel); ships as a first-class `probabilistic_mode` enum value in this tag.
+- **V2.5-sigmoid** (`tumor_plus_gap_sigmoid`) — `p_targ × sigmoid((β_n − β_t − δ) / σ_fixed) × p_trust` with δ = 0.2 and σ_fixed ≈ 0.0707. The worked/default whole-genome prioritization axis selected in §5.2.2, with restricted-universe caveats in §5.7 and §6.1; ships as a first-class `probabilistic_mode` enum value in this tag.
 - **limma-style moderated-t** — sample-level probe-level Smyth (2004) empirical-Bayes moderated `t`-statistic, candidate-mapped via the nearest probe assigned in `observation.probe_id`. Pure-Python reimplementation of the variance-prior math; canonical R `limma::lmFit + eBayes` parity is reported in §5.8. Included as the methods-journal-standard DMR comparator; §5.1 + §5.2.2 report AUC + tie-band alongside the other axes.
 
 **limma-style moderated-t baseline.** Standard DMR tools rank CpG probes or
@@ -1653,7 +1653,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10g`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10i`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
