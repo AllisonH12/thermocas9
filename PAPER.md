@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-bp` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-bq` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -1330,7 +1330,7 @@ is documented as a §6.3 follow-up. Per-cohort artifact at
 
 | Use case | Recommendation |
 |---|---|
-| New probabilistic prioritization runs | **V2.5-sigmoid**. Hypothesis generation only; AUC-equivalent to V2.5-diff on matched cell lines, avoids V2.5-diff's low-`n` WG tied-band blowup, and has a higher transported-label AUC on the single tissue cohort tested (§5.2.2). On matched cell lines, all three positives are in the top ~4% of their feature-matched pools (§5.9); on tissue, the matched-pool signal collapses onto GATA3 alone, with ESR1 near-random and EGFLAM moderate, and the EvidenceClass-restricted `EXACT + PROXIMAL_CLOSE` ESR1 universe reverses against V2.5-sigmoid (V2.5-diff / Δβ-only / limma-style all rank ESR1 higher there; §5.7). |
+| New probabilistic prioritization runs | **V2.5-sigmoid**. Hypothesis generation only; AUC-equivalent to V2.5-diff on matched cell lines, avoids V2.5-diff's low-`n` WG tied-band blowup, and has a higher transported-label AUC on the single tissue cohort tested (§5.2.2). On matched cell lines, all three positives are in the top ~4% of their feature-matched pools (§5.9). Tissue gain is per-positive heterogeneous — see §6.2 limitation 6. |
 | Backward-compatible probabilistic runs | **V2.5-diff**. Retained for AUC parity with earlier scored JSONLs; not preferred for new WG-scale prioritization because low-`n` tied bands expand to 421–1,493 records. |
 | Stable deterministic top-K | **V1 final_score**. Continuous and retained for backward compatibility, not AUC leadership. |
 | Diagnostic ablation | **V2 tumor_only**. Useful AUC sanity check, but top-K collapses into thousands-record tied bands. |
@@ -1373,12 +1373,16 @@ context, guide quality, and off-target risk.
    constant. It is robust on matched cell lines but tissue-sensitive
    (§5.3.1). The current recommendation is V2.5-sigmoid, whose
    fixed-bandwidth behavior is evaluated separately in §5.2.2.
-6. **EvidenceClass-restricted tissue reversal.** In the high-confidence
-   `EXACT + PROXIMAL_CLOSE` GSE69914 universe, only ESR1 is evaluable,
-   and V2.5-sigmoid trails V2.5-diff, Δβ-only, and the limma-style
-   moderated-t baseline. This single-positive restricted-universe
-   result limits the tissue stress-test interpretation but does not
-   revise the whole-genome all-positive recommendation.
+6. **Tissue per-positive heterogeneity + EvidenceClass-restricted
+   reversal.** The cohort-level GSE69914 tissue gain under V2.5-sigmoid
+   collapses onto GATA3 alone (§5.9 feature-matched controls: GATA3
+   *p* = 0.019, ESR1 *p* = 0.44 matched-near-random, EGFLAM *p* = 0.26
+   moderate). In the high-confidence `EXACT + PROXIMAL_CLOSE` GSE69914
+   universe, only ESR1 is evaluable, and V2.5-sigmoid trails V2.5-diff,
+   Δβ-only, and the limma-style moderated-`t` baseline (§5.7). This
+   single-positive restricted-universe result limits the tissue
+   stress-test interpretation but does not revise the whole-genome
+   all-positive recommendation.
 7. **Top-hit annotation is descriptive.** Low-`n` top-20 lists are
    tie-window slices, not stable rankings. They require secondary
    biological filters before wet-lab selection.
@@ -1521,7 +1525,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-bp`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-bq`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
