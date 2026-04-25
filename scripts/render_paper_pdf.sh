@@ -61,7 +61,7 @@ done
 # differ. Add new doc stems to this case as needed.
 case "$SRC_STEM" in
     PAPER)
-        TITLE="Compositional probabilistic scoring and tie-band-aware benchmarking for methylome-guided ThermoCas9 target-site ranking"
+        TITLE="Compositional probability-scale scoring and tie-band-aware benchmarking for methylome-guided ThermoCas9 target-site ranking"
         SUBTITLE="Technical memo from the thermocas methylome-analysis framework (audit-trail revision)"
         ;;
     MANUSCRIPT)
