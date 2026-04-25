@@ -109,7 +109,11 @@ def _auc_from_bench(path: Path) -> float:
 
 def fig2_auc_bars() -> None:
     """Final-method Figure 2: V2.5-sigmoid vs V2.5-diff vs limma-style on
-    AUC and `tie_band@100` across the four primary cohorts at WG denominator.
+    AUC and `tie_band@100` across the four evaluated cohort paths at WG
+    denominator (GSE322563 HM450 is the independent primary endpoint;
+    GSE322563 native EPIC v2 is a parallel ingest path on the same
+    Roth samples; GSE77348 is the δ-development cohort; GSE69914 is
+    the high-`n` tissue cohort).
 
     Numbers are sourced from the committed cross-cohort WG panel
     (`examples/genome_wide_panel.tsv` for V2.5-diff and V2.5-sigmoid;

@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-22.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-aw` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `memo-2026-04-22-ax` (immutable pointer to the exact revision that produced this paper).
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -24,9 +24,13 @@ Fig. 5d target probes, evaluated under both HM450-intersect and native
 EPIC v2 ingest paths. **Because the validated set contains only three
 Roth Fig. 5d targets, AUC is interpreted as a rank-lift summary rather
 than an inferential discovery-performance estimate.** V2.5 axes place
-all three positives in the top percentile; a 10⁶-draw random-triple
-null resolves the rank lift beyond the earlier 10⁴ floor, while the
-paired V2.5-vs-Δβ comparison remains descriptive at `n_pos = 3`. The
+all three positives in the upper few percentiles of the WG candidate
+universe (top ~0.06–4.6% of millions of candidates, axis- and
+cohort-dependent: ESR1 in the top ~0.1%, GATA3 in the top ~1%,
+EGFLAM up to ~4.6% on GSE77348 — see §5.1 / §5.2.2 per-positive
+ranks); a 10⁶-draw random-triple null resolves the rank lift beyond
+the earlier 10⁴ floor, while the paired V2.5-vs-Δβ comparison
+remains descriptive at `n_pos = 3`. The
 strongest empirical result is on
 GSE69914 tissue: a probe-level limma-style moderated-t DMR baseline is competitive
 on matched cell lines but falls to AUC 0.573 on tissue, while
@@ -528,8 +532,12 @@ These three fields are on every emitted `BenchmarkResult` JSONL row.
 **Figure 2 — Final-method summary.** Whole-genome validated-label
 performance (n_pos = 3 Roth Fig. 5d target probes) for the recommended
 probabilistic prioritization axis (V2.5-sigmoid) against the V2.5-diff
-predecessor and the limma-style moderated-`t` DMR baseline, on the four
-primary cohorts. **(a)** WG AUC: V2.5-sigmoid matches V2.5-diff on the
+predecessor and the limma-style moderated-`t` DMR baseline, across the
+four evaluated cohort paths (GSE322563 HM450 is the independent
+primary endpoint per §4.0; GSE322563 native EPIC v2 is the same Roth
+samples under a parallel ingest path; GSE77348 is the δ-development
+cohort surfaced as supporting evidence; GSE69914 is the high-`n`
+tissue cohort). **(a)** WG AUC: V2.5-sigmoid matches V2.5-diff on the
 three matched cell-line cohorts within 0.001 (0.989 vs 0.988, 0.998 vs
 0.998, 0.982 vs 0.981) and beats it on tissue (0.862 vs 0.778); the
 limma-style baseline is competitive on cell lines (0.959 / 0.991 /
@@ -642,8 +650,10 @@ also placing it well. *EGFLAM* and *GATA3* sit in the top 1–3%
 under V2.5-diff — meaningful rank lift over V1, but **outside the top
 100 on every axis tested**. None of the three validated positives
 appears in any cohort's top-20 (§5.5). This is the operational
-meaning of "rank lift on n=3": V2.5-diff reliably places known positives
-in the top percentile of millions of candidates, but on n=2/2 cohorts
+meaning of "rank lift on n=3": V2.5-diff reliably places known
+positives in the upper few percentiles of millions of candidates
+(ESR1 top ~0.1%, GATA3 top ~1%, EGFLAM top ~2–4.6% depending on
+cohort), but on n=2/2 cohorts
 the top tied band at K=100 is large enough that the validated
 positives sit *behind* a 190- to 421-record block of equally-scored
 candidates.
@@ -1082,23 +1092,27 @@ TENM2, MAT2B). Full annotated TSVs are committed under
 probes appears in any top-20; the primary endpoint is rank lift/AUC, not
 top-20 recovery.
 
-### 5.6 p_trust sensitivity — base weights and ramp_n
+### 5.6 p_trust sensitivity — base weights and ramp_n (V2.5-diff + V2.5-sigmoid)
 
 Validated-label AUC is exactly invariant to `ramp_n ∈ {10, 20, 30,
-50, 100}` within each cohort. The reason is structural: the
-`p_trust` ramp is `min(1, min(n_t, n_n) / ramp_n)`; with per-cohort
-uniform `(n_t, n_n)` (verified across 100k sampled records on every
-cohort: a single distinct pair), `ramp_n` reduces to a global
-multiplicative scale on every record's `p_therapeutic_selectivity`,
-which is rank-preserving. AUC is also near-invariant (Δ ≤ 0.001) to
-the per-`EvidenceClass` base-weight set on the three matched
-cell-line cohorts, because their top-100 windows are 100/100 EXACT
-records (§5.7 below). On GSE69914 tissue (top-100 = 33 EXACT / 67
-PROXIMAL_CLOSE), AUC moves up to ±0.006 across an aggressive
-(0.95/0.85/0.65/0.35), shipped (0.95/0.75/0.45/0.15), and
-conservative (0.99/0.50/0.20/0.05) base-weight set — small enough
-that the shipped setting is within `≲ 0.006` of the per-cohort best
-on every cohort × tier combination tested. Full sweep in
+50, 100}` within each cohort, on both V2.5-diff and V2.5-sigmoid.
+The reason is structural: the `p_trust` ramp is `min(1, min(n_t,
+n_n) / ramp_n)`; with per-cohort uniform `(n_t, n_n)` (verified
+across 100k sampled records on every cohort: a single distinct
+pair), `ramp_n` reduces to a global multiplicative scale on every
+record's `p_therapeutic_selectivity`, which is rank-preserving.
+AUC is also near-invariant (Δ ≤ 0.001) to the per-`EvidenceClass`
+base-weight set on the three matched cell-line cohorts, because
+their top-100 windows are 100/100 EXACT records under both axes
+(§5.7 below). On GSE69914 tissue (top-100 = 33 EXACT / 67
+PROXIMAL_CLOSE under V2.5-diff, 28 / 72 under V2.5-sigmoid), AUC
+moves up to ±0.04 across an aggressive (0.95/0.85/0.65/0.35),
+shipped (0.95/0.75/0.45/0.15), and conservative
+(0.99/0.50/0.20/0.05) base-weight set on V2.5-sigmoid (0.864 vs
+0.829 vs 0.866) and ±0.005 on V2.5-diff (0.773 / 0.767 / 0.776) —
+the V2.5-sigmoid recommendation holds across all three weight
+sets, with the conservative set the per-cohort best on tissue
+under both axes. Full sweep with both axes side-by-side in
 `examples/p_trust_sensitivity_sweep.{tsv,md}` at this tag;
 reproduce via `uv run python scripts/p_trust_sensitivity_sweep.py`.
 
@@ -1125,10 +1139,18 @@ tissue cohort's higher `n` lifts records away from `p_trust`
 saturation (per-class median `p_trust` 0.95 EXACT vs 0.75
 PROXIMAL_CLOSE on tissue, vs 0.06–0.10 EXACT on the matched
 cell-line cohorts where `n_t = n_n = 2/2 or 3/3` puts the saturating
-`min(1, n / ramp_n)` factor near zero). V2.5-sigmoid's top-100
-EvidenceClass mix is structurally identical because both V2.5
-variants share the same outer `p_targ × ... × p_trust` factor; only
-the gap-factor slot differs.
+`min(1, n / ramp_n)` factor near zero).
+
+The V2.5-sigmoid top-100 EvidenceClass mix is reported directly
+(recomputed in `scripts/evidence_class_distribution.py` from the
+same scored JSONL via `p_gap_sigmoid` with δ = 0.2, σ_fixed ≈
+0.0707) rather than assumed identical to V2.5-diff's. It is
+100/100 EXACT on every matched cell-line cohort (matching V2.5-diff
+exactly) and 28 EXACT / 72 PROXIMAL_CLOSE on GSE69914 tissue
+(slightly broader than V2.5-diff's 33 / 67 because the smooth
+sigmoid promotes records with intermediate gaps that V2.5-diff's
+σ_floor-saturating `p_diff` rounds to 0/1; the EvidenceClass mix is
+not identical between the two axes).
 
 ---
 
@@ -1144,10 +1166,11 @@ the gap-factor slot differs.
 | Diagnostic ablation | V2 `tumor_only` | Useful AUC sanity check; not a discovery axis because top-K collapses into thousands-record tied bands. |
 | Cross-series label transport (GSE68379-like) | Unsupported | Cell-line drift can invert label logic; do not pool with discovery-mode benchmarks. |
 
-On low-`n` matched cell-line cohorts, the V2.5 generation should be read
-as a **rank-lift tool**, not a stable top-K shortlist generator. It
-lifts the three Roth positives into the top percentile of millions of
-candidates (§5.1), but the visible top-20 can be a window inside a
+On low-`n` matched cell-line cohorts, the V2.5 generation should be
+read as a **rank-lift tool**, not a stable top-K shortlist generator.
+It lifts the three Roth positives into the upper few percentiles of
+millions of candidates (§5.1: ESR1 top ~0.1%, GATA3 top ~1%, EGFLAM
+top ~2–4.6%), but the visible top-20 can be a window inside a
 hundreds-record tied band. Selecting individual wet-lab candidates from
 that class requires secondary evidence such as annotation, chromatin
 context, guide quality, and off-target risk.
@@ -1304,7 +1327,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-aw`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`memo-2026-04-22-ax`** for this document. 245 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
@@ -1325,7 +1348,7 @@ cohort YAMLs, and scripts in this tag.
 
 This appendix preserves the full audit trail for the threshold-based
 V2 composite and its V2.4 intermediate, moved out of the main body
-in `memo-2026-04-22-aw` so the main paper carries the final-method
+in `memo-2026-04-22-ax` so the main paper carries the final-method
 narrative (Δβ-only / V1 / V2.5-diff / V2.5-sigmoid / limma-style
 moderated-`t`). The V2 / V2.4 modes remain selectable via
 `probabilistic_mode` (`tumor_plus_normal_protection` and
