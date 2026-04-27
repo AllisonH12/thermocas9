@@ -13,5 +13,5 @@ canonical text stays in lockstep with the framework tags.
 Boundary rules that apply to every page on this directory:
 
 1. The framework is **educational research**, not clinical decision support. Every page must preserve that boundary either inline or via a footer block.
-2. Any numerical claim is sourced from the immutable tag (`paper-5-10j` for `PAPER.md`-rooted claims, `memo-2026-04-22-bu` for `MANUSCRIPT.md`-rooted claims). When the tag advances, re-check the numbers in these drafts before re-publishing.
+2. Any numerical claim is sourced from the immutable tag (`paper-5-10j` for `PAPER.md`-rooted claims, `memo-2026-04-22-bv` for `MANUSCRIPT.md`-rooted claims). When the tag advances, re-check the numbers in these drafts before re-publishing.
 3. Roth et al. *Nature* 2026 (DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z)) is cited on every page that mentions the underlying biology.

@@ -7,12 +7,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased] — submission-freeze post-`memo-2026-04-22`
 
 > Submission-freeze cycle for the bioRxiv / *Bioinformatics* preprint.
-> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bu` for the
+> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bv` for the
 > current submission-freeze state. See `git log memo-2026-04-22..main`
 > for the full per-commit history.
 
 ### Changed
 
+- **`memo-2026-04-22-bv`** (docs commit, no body changes): commit
+  `docs/notes/external_validation_instruction.md` for the first time so
+  the website-draft cross-references at
+  `docs/website/01_preprint_landing.md` and
+  `docs/website/02_method_explainer.md` resolve at the citable tag.
+  Tag-ref bump bu → bv across the four non-PAPER surfaces + the four
+  `docs/website/` drafts. PAPER.md / MANUSCRIPT.md / CHANGELOG body
+  unchanged in substance; PAPER stays on `paper-5-10j`.
 - **`memo-2026-04-22-bu`** + **`paper-5-10j`** (cross-surface wording
   consistency): mirror the paper-5-10i §4 V2.5-sigmoid soften (from
   *"recommended … on every non-boundary cohort shape"* to *"worked /
