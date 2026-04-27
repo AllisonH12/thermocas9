@@ -1,0 +1,43 @@
+# TCGA-COAD methylation cohort for Phase 4 atlas pan-cancer expansion.
+# Atlas-v0 compatible: tumor_plus_differential_protection mode with the same
+# scoring policy fields the BRCA WG release used.
+#
+# Provenance:
+#   - GDC API (https://api.gdc.cancer.gov), platform Illumina Human Methylation 450
+#   - 312 tumor methylation files from 295 unique tumor cases (some patients
+#     have >1 tumor sample, e.g. FFPE vs FF or technical replicates).
+#     Summaries aggregate per-sample/per-file, matching framework convention
+#     (samples are the experimental unit).
+#   - 38 adjacent normal files / 38 cases (Solid Tissue Normal).
+#   - Live GDC inventory + fetch run on 2026-04-26.
+
+cohort:
+  name: TCGA-COAD
+  tumor_dataset: TCGA-COAD
+  normal_dataset: TCGA-COAD-normal
+  platform: HM450
+  min_samples_tumor: 30
+  min_samples_normal: 10
+
+  # V2.5-diff for atlas-v0 compatibility. Sigmoid (V2.5-sigmoid) is the
+  # framework's recommended axis going forward but produces a different
+  # scoring_policy.policy_id that the existing atlas v0 release isn't built
+  # against; produce sigmoid as a separate artifact later if desired.
+  probabilistic_mode: tumor_plus_differential_protection
+  differential_delta: 0.2
+
+# Same probe-distance evidence bands the BRCA cohorts use.
+evidence_thresholds:
+  exact_bp: 0
+  proximal_close_bp: 25
+  proximal_bp: 50
+  regional_bp: 500
+
+# Same penalty weights as BRCA. low_coverage_n_threshold matches the
+# p_trust_ramp_n=30 default in src/thermocas/probabilistic.py so a low-n
+# normal cohort would surface as low-trust, not silently inflated.
+penalties:
+  heterogeneity_iqr_threshold: 0.30
+  heterogeneity_weight: 0.4
+  low_coverage_n_threshold: 30
+  low_coverage_weight: 0.3

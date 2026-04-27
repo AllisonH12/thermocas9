@@ -1,0 +1,44 @@
+# TCGA-LUAD methylation cohort for Phase 4 atlas pan-cancer expansion
+# (third cancer; mirrors tcga_coad_v0.yaml).
+# Atlas-v0 compatible: tumor_plus_differential_protection mode with the same
+# scoring policy fields the BRCA WG and TCGA-COAD WG releases used.
+#
+# Provenance:
+#   - GDC API (https://api.gdc.cancer.gov), platform Illumina Human Methylation 450
+#   - 473 tumor methylation files from 458 unique tumor cases / 469 unique tumor
+#     samples (some patients have >1 tumor sample, e.g. FFPE vs FF or technical
+#     replicates: 11 cases with >1 file, 4 samples with >1 file).
+#     Summaries aggregate per-sample/per-file, matching framework convention
+#     (samples are the experimental unit).
+#   - 32 adjacent-normal files / 32 cases (Solid Tissue Normal, clean 1:1).
+#   - Live GDC inventory + fetch run on 2026-04-27.
+#   - LUAD has the smallest matched-normal comparator in the atlas to date
+#     (n=32); above the framework p_trust_ramp_n=30 saturation threshold but
+#     tighter than BRCA tissue (n=50) or TCGA-COAD (n=38).
+
+cohort:
+  name: TCGA-LUAD
+  tumor_dataset: TCGA-LUAD
+  normal_dataset: TCGA-LUAD-normal
+  platform: HM450
+  min_samples_tumor: 30
+  min_samples_normal: 10
+
+  # V2.5-diff for atlas-v0 compatibility, matching BRCA + COAD.
+  probabilistic_mode: tumor_plus_differential_protection
+  differential_delta: 0.2
+
+# Same probe-distance evidence bands as BRCA + COAD.
+evidence_thresholds:
+  exact_bp: 0
+  proximal_close_bp: 25
+  proximal_bp: 50
+  regional_bp: 500
+
+# Same penalty weights as BRCA + COAD. low_coverage_n_threshold matches the
+# p_trust_ramp_n=30 default in src/thermocas/probabilistic.py.
+penalties:
+  heterogeneity_iqr_threshold: 0.30
+  heterogeneity_weight: 0.4
+  low_coverage_n_threshold: 30
+  low_coverage_weight: 0.3
