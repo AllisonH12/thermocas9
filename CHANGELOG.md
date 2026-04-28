@@ -7,12 +7,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased] — submission-freeze post-`memo-2026-04-22`
 
 > Submission-freeze cycle for the bioRxiv / *Bioinformatics* preprint.
-> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bw` for the
+> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bx` for the
 > current submission-freeze state. See `git log memo-2026-04-22..main`
 > for the full per-commit history.
 
 ### Changed
 
+- **`memo-2026-04-22-bx`** (bioRxiv-submission preparation, MANUSCRIPT-only):
+  trim the structured Abstract from 723 → 321 words to fit bioRxiv's
+  350-word hard cap. The trimmed version preserves the four load-bearing
+  results (1M-permutation null on the n=3 primary endpoint; tissue
+  limma collapse 0.573 vs V2.5-sigmoid recovery 0.862; WG tie_band@100
+  collapse from 421–1,493 to 1; the four-cohort benchmark family) and
+  the four honest-scope caveats (n=3 validated set, rank-lift summary
+  framing, ESR1 matched-near-random tissue heterogeneity, no prospective
+  validation). Drops the abstract's SHA256 panel hashes, the
+  k-way-merge aggregator description, the annotation-pipeline detail,
+  and the formatted shipped-recommendation list — all preserved in §5/§6.
+  Adds a `## Funding` body section ("This work received no external
+  funding"). Tag-ref bump bw → bx across MANUSCRIPT, CHANGELOG, cover
+  letter, Roth-followup note, and the four `docs/website/` drafts.
+  PAPER.md unchanged (stays on `paper-5-10j`).
 - **`memo-2026-04-22-bw`** (atlas v1 for thermocas9.com — docs only):
   ships the per-cohort target-shortlist atlas as the third website
   page. Two new build scripts (`scripts/build_atlas_dotplot.py` for

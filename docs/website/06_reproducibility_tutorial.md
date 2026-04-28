@@ -20,7 +20,7 @@ No R, no LaTeX, no Conda required.
 ```bash
 git clone https://github.com/AllisonH12/thermocas9.git
 cd thermocas9
-git checkout memo-2026-04-22-bw        # MANUSCRIPT-shaped tag
+git checkout memo-2026-04-22-bx        # MANUSCRIPT-shaped tag
 
 # One-time environment setup — installs Python 3.11 + all locked deps
 uv sync
@@ -177,7 +177,7 @@ The committed Markdown file under `examples/gse322563_native_roth_labels/top20_a
 
 If a `BenchmarkResult` value diverges from the paper:
 
-1. Confirm `git rev-parse memo-2026-04-22-bw` resolves to the same SHA as the cloned tip.
+1. Confirm `git rev-parse memo-2026-04-22-bx` resolves to the same SHA as the cloned tip.
 2. Run `uv run python scripts/verify_manuscript_claims.py`. A green run means the bench artifacts and constants the paper cites are intact.
 3. If the verifier is green but your numbers differ, the divergence is almost always either (a) a different `--score-field` flag, (b) a different positives-list tier, or (c) a stale `data/raw/` download. Re-pull from Step 2 and re-run.
 

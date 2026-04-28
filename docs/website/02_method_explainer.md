@@ -79,7 +79,7 @@ A few things the paper is explicit about and that we want a website reader to se
 ## Where to go next
 
 - **Read the long version**: [`PAPER.pdf`](https://github.com/AllisonH12/thermocas9/blob/paper-5-10j/PAPER.pdf) (`paper-5-10j`).
-- **Read the journal-shaped version**: [`MANUSCRIPT.pdf`](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bw/MANUSCRIPT.pdf) (`memo-2026-04-22-bw`).
+- **Read the journal-shaped version**: [`MANUSCRIPT.pdf`](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bx/MANUSCRIPT.pdf) (`memo-2026-04-22-bx`).
 - **Reproduce a row of the AUC table on a laptop**: see the [reproducibility tutorial](./06_reproducibility_tutorial.md).
 - **Discuss a wet-lab collaboration**: <allisonhmercer@gmail.com>.
 

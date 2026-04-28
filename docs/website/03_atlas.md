@@ -17,7 +17,7 @@ For each of the three Roth Fig. 5d positives — *ESR1*, *EGFLAM*, *GATA3* — t
 
 This atlas page is a different artifact from the AUC bars in fig2 (which compare V2.5-diff / V2.5-sigmoid / limma-style at the cohort-AUC level): fig4 makes the per-positive heterogeneity inside the cohort visible.
 
-[Underlying data (JSON)](./atlas/per_positive_wg_percentile.json) · [Source: examples/genome_wide_panel.md (PAPER.md §5.2.2)](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bw/examples/genome_wide_panel.md)
+[Underlying data (JSON)](./atlas/per_positive_wg_percentile.json) · [Source: examples/genome_wide_panel.md (PAPER.md §5.2.2)](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bx/examples/genome_wide_panel.md)
 
 ---
 
@@ -27,10 +27,10 @@ For each of the four publication cohort paths, the top 100 candidate PAM sites u
 
 | Cohort | Source | Rows | TSV (full schema) | Markdown shortlist |
 |---|---|---:|---|---|
-| GSE322563 HM450 | Roth MCF-7 / MCF-10A, HM450-intersect path | 100 | [top100_atlas.tsv](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bw/examples/gse322563_roth_labels/top100_atlas.tsv) | [top100_atlas.md](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bw/examples/gse322563_roth_labels/top100_atlas.md) |
-| GSE322563 native EPIC v2 | Roth MCF-7 / MCF-10A, native EPIC v2 path | 100 | [top100_atlas.tsv](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bw/examples/gse322563_native_roth_labels/top100_atlas.tsv) | [top100_atlas.md](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bw/examples/gse322563_native_roth_labels/top100_atlas.md) |
-| GSE77348 | δ-development cohort, n = 3/3 | 100 | [top100_atlas.tsv](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bw/examples/gse77348_roth_labels/top100_atlas.tsv) | [top100_atlas.md](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bw/examples/gse77348_roth_labels/top100_atlas.md) |
-| GSE69914 tissue | Primary tumor (n = 305) + healthy-donor (n = 50), unpaired | 100 | [top100_atlas.tsv](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bw/examples/gse69914_roth_labels/top100_atlas.tsv) | [top100_atlas.md](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bw/examples/gse69914_roth_labels/top100_atlas.md) |
+| GSE322563 HM450 | Roth MCF-7 / MCF-10A, HM450-intersect path | 100 | [top100_atlas.tsv](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bx/examples/gse322563_roth_labels/top100_atlas.tsv) | [top100_atlas.md](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bx/examples/gse322563_roth_labels/top100_atlas.md) |
+| GSE322563 native EPIC v2 | Roth MCF-7 / MCF-10A, native EPIC v2 path | 100 | [top100_atlas.tsv](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bx/examples/gse322563_native_roth_labels/top100_atlas.tsv) | [top100_atlas.md](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bx/examples/gse322563_native_roth_labels/top100_atlas.md) |
+| GSE77348 | δ-development cohort, n = 3/3 | 100 | [top100_atlas.tsv](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bx/examples/gse77348_roth_labels/top100_atlas.tsv) | [top100_atlas.md](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bx/examples/gse77348_roth_labels/top100_atlas.md) |
+| GSE69914 tissue | Primary tumor (n = 305) + healthy-donor (n = 50), unpaired | 100 | [top100_atlas.tsv](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bx/examples/gse69914_roth_labels/top100_atlas.tsv) | [top100_atlas.md](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bx/examples/gse69914_roth_labels/top100_atlas.md) |
 
 The combined slim-schema JSON at [`./atlas/atlas_top100.json`](./atlas/atlas_top100.json) (~200 KB, 400 rows × 15 columns) is what an interactive Astro / Observable table component should consume. The per-row schema:
 
@@ -66,7 +66,7 @@ uv run python scripts/build_atlas_dotplot.py
 uv run python scripts/build_atlas_top100.py
 ```
 
-Both scripts source from artifacts that are committed at `memo-2026-04-22-bw` (the per-positive ranks) and reproducible from the committed build pipeline (the scored JSONLs themselves are gitignored at `data/derived/scored_*.jsonl` for size — see [the reproducibility tutorial](./06_reproducibility_tutorial.md) for the score-from-scratch recipe).
+Both scripts source from artifacts that are committed at `memo-2026-04-22-bx` (the per-positive ranks) and reproducible from the committed build pipeline (the scored JSONLs themselves are gitignored at `data/derived/scored_*.jsonl` for size — see [the reproducibility tutorial](./06_reproducibility_tutorial.md) for the score-from-scratch recipe).
 
 ## What is *not* in this atlas (intentionally)
 
@@ -76,6 +76,6 @@ Both scripts source from artifacts that are committed at `memo-2026-04-22-bw` (t
 
 ## <a id="scope"></a>Scope footer
 
-Every row on this page is a **candidate**, not a target. The scoring framework is open educational research — it has been benchmarked retrospectively against four public methylation cohorts, but **it has not been validated prospectively** against any wet-lab editing readout. The detailed external-validation study design is in [`docs/notes/external_validation_instruction.md`](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bw/docs/notes/external_validation_instruction.md). Do not select a row from any of the top-100 tables for therapeutic application without running the full freeze-and-validate pipeline that note describes.
+Every row on this page is a **candidate**, not a target. The scoring framework is open educational research — it has been benchmarked retrospectively against four public methylation cohorts, but **it has not been validated prospectively** against any wet-lab editing readout. The detailed external-validation study design is in [`docs/notes/external_validation_instruction.md`](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bx/docs/notes/external_validation_instruction.md). Do not select a row from any of the top-100 tables for therapeutic application without running the full freeze-and-validate pipeline that note describes.
 
 Roth et al., *Nature* 2026, [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
