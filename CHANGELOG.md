@@ -7,12 +7,35 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased] — submission-freeze post-`memo-2026-04-22`
 
 > Submission-freeze cycle for the bioRxiv / *Bioinformatics* preprint.
-> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bv` for the
+> Stable release is still `v0.4.0`; cite `memo-2026-04-22-bw` for the
 > current submission-freeze state. See `git log memo-2026-04-22..main`
 > for the full per-commit history.
 
 ### Changed
 
+- **`memo-2026-04-22-bw`** (atlas v1 for thermocas9.com — docs only):
+  ships the per-cohort target-shortlist atlas as the third website
+  page. Two new build scripts (`scripts/build_atlas_dotplot.py` for
+  the per-positive WG-rank dot-plot reading `examples/genome_wide_panel.md`;
+  `scripts/build_atlas_top100.py` for per-cohort top-100 shortlists
+  via `annotate_top_hits.py`). Four new top-100 TSV+MD pairs under
+  `examples/<cohort>_roth_labels/top100_atlas.{tsv,md}` (extends the
+  paper's §5.5 top-20 form). One new figure: `docs/figures/fig4_atlas_per_positive_wg_percentile.{png,svg}`
+  — visualizes the per-positive WG-rank story across all four cohort
+  paths, with the GSE69914 ESR1 reversal visible as a green dumbbell
+  going the wrong way under V2.5-sigmoid (PAPER.md §5.7 / §6.1
+  honest-disclosure made graphical). Two new website data files
+  under `docs/website/atlas/`: `per_positive_wg_percentile.json`
+  (~5 KB) and `atlas_top100.json` (~200 KB, 400 rows × 15 columns).
+  `docs/website/03_atlas.md` is the page itself; `docs/website/README.md`
+  index updated. Tag-ref bump bv → bw across the four non-PAPER
+  surfaces + the four `docs/website/` drafts so all cross-refs
+  resolve at the tag where the new atlas files exist. TCGA pan-cancer
+  rows (present in the working tree under `data/derived/scored_tcga_*_wg_differential.jsonl`
+  and `data/derived/tcga_*_summary/`) intentionally not on this
+  website surface yet — see the "What is *not* in this atlas" block
+  on `03_atlas.md` for the framing reasoning. PAPER.md / MANUSCRIPT.md
+  body unchanged in substance; PAPER stays on `paper-5-10j`.
 - **`memo-2026-04-22-bv`** (docs commit, no body changes): commit
   `docs/notes/external_validation_instruction.md` for the first time so
   the website-draft cross-references at

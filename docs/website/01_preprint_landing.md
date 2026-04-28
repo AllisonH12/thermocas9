@@ -1,6 +1,6 @@
 # `thermocas` — methylome-guided ranking of ThermoCas9 target sites
 
-**Status.** Open educational research framework. Not peer-reviewed. Not a clinical decision-support system. Hypothesis generation only — no claim of prospective wet-lab validation absent the editing study described in [§6.3 / §6.5 / `external_validation_instruction.md`](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bv/docs/notes/external_validation_instruction.md).
+**Status.** Open educational research framework. Not peer-reviewed. Not a clinical decision-support system. Hypothesis generation only — no claim of prospective wet-lab validation absent the editing study described in [§6.3 / §6.5 / `external_validation_instruction.md`](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bw/docs/notes/external_validation_instruction.md).
 
 ---
 
@@ -15,7 +15,7 @@
 **Versions.**
 
 - **`PAPER.pdf`** — long-form technical memo (audit-trail revision, includes V2 → V2.5 development history and Roth System B HEK293T/HCT116 appendix). Cite tag `paper-5-10j`. [Download PDF](https://github.com/AllisonH12/thermocas9/blob/paper-5-10j/PAPER.pdf).
-- **`MANUSCRIPT.pdf`** — *Bioinformatics*-submission-shaped short version. Cite tag `memo-2026-04-22-bv`. [Download PDF](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bv/MANUSCRIPT.pdf).
+- **`MANUSCRIPT.pdf`** — *Bioinformatics*-submission-shaped short version. Cite tag `memo-2026-04-22-bw`. [Download PDF](https://github.com/AllisonH12/thermocas9/blob/memo-2026-04-22-bw/MANUSCRIPT.pdf).
 - **bioRxiv DOI**: *to be added on posting*.
 - **Zenodo DOI** (citable archive of the tagged source): *to be minted on first GitHub release*.
 
@@ -50,7 +50,7 @@ Until the bioRxiv DOI is live, cite the immutable git tag:
 
 > Huang, A. (2026). *Compositional probability-scale scoring and tie-band-aware benchmarking for methylome-guided ThermoCas9 target-site ranking.* Technical memo, version `paper-5-10j`. <https://github.com/AllisonH12/thermocas9/tree/paper-5-10j>
 
-For the *Bioinformatics*-shaped short version, cite `memo-2026-04-22-bv` instead.
+For the *Bioinformatics*-shaped short version, cite `memo-2026-04-22-bw` instead.
 
 ## Contact
 

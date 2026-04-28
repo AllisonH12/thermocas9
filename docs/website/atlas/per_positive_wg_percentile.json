@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "description": "Per-positive whole-genome rank percentiles for the three Roth Fig. 5d positives across the four evaluated cohort paths, scored under V2.5-diff and V2.5-sigmoid. Source: examples/genome_wide_panel.md (PAPER.md \u00a75.2.2).",
+  "wg_denominators": {
+    "HM450": 19787820,
+    "EPIC_v2": 35400000
+  },
+  "rows": [
+    {
+      "cohort": "GSE322563 HM450",
+      "axis": "V2.5-diff",
+      "gene": "ESR1",
+      "wg_rank": 17661,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 99.9107
+    },
+    {
+      "cohort": "GSE322563 HM450",
+      "axis": "V2.5-sigmoid",
+      "gene": "ESR1",
+      "wg_rank": 12845,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 99.9351
+    },
+    {
+      "cohort": "GSE322563 HM450",
+      "axis": "V2.5-diff",
+      "gene": "EGFLAM",
+      "wg_rank": 460160,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 97.6745
+    },
+    {
+      "cohort": "GSE322563 HM450",
+      "axis": "V2.5-sigmoid",
+      "gene": "EGFLAM",
+      "wg_rank": 488531,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 97.5312
+    },
+    {
+      "cohort": "GSE322563 HM450",
+      "axis": "V2.5-diff",
+      "gene": "GATA3",
+      "wg_rank": 180297,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 99.0888
+    },
+    {
+      "cohort": "GSE322563 HM450",
+      "axis": "V2.5-sigmoid",
+      "gene": "GATA3",
+      "wg_rank": 185420,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 99.063
+    },
+    {
+      "cohort": "GSE322563 EPIC v2",
+      "axis": "V2.5-diff",
+      "gene": "ESR1",
+      "wg_rank": 5746,
+      "wg_denominator": 35400000,
+      "wg_rank_percentile": 99.9838
+    },
+    {
+      "cohort": "GSE322563 EPIC v2",
+      "axis": "V2.5-sigmoid",
+      "gene": "ESR1",
+      "wg_rank": 4037,
+      "wg_denominator": 35400000,
+      "wg_rank_percentile": 99.9886
+    },
+    {
+      "cohort": "GSE322563 EPIC v2",
+      "axis": "V2.5-diff",
+      "gene": "EGFLAM",
+      "wg_rank": 158502,
+      "wg_denominator": 35400000,
+      "wg_rank_percentile": 99.5523
+    },
+    {
+      "cohort": "GSE322563 EPIC v2",
+      "axis": "V2.5-sigmoid",
+      "gene": "EGFLAM",
+      "wg_rank": 167809,
+      "wg_denominator": 35400000,
+      "wg_rank_percentile": 99.526
+    },
+    {
+      "cohort": "GSE322563 EPIC v2",
+      "axis": "V2.5-diff",
+      "gene": "GATA3",
+      "wg_rank": 50096,
+      "wg_denominator": 35400000,
+      "wg_rank_percentile": 99.8585
+    },
+    {
+      "cohort": "GSE322563 EPIC v2",
+      "axis": "V2.5-sigmoid",
+      "gene": "GATA3",
+      "wg_rank": 51498,
+      "wg_denominator": 35400000,
+      "wg_rank_percentile": 99.8545
+    },
+    {
+      "cohort": "GSE77348",
+      "axis": "V2.5-diff",
+      "gene": "ESR1",
+      "wg_rank": 24935,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 99.874
+    },
+    {
+      "cohort": "GSE77348",
+      "axis": "V2.5-sigmoid",
+      "gene": "ESR1",
+      "wg_rank": 20154,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 99.8981
+    },
+    {
+      "cohort": "GSE77348",
+      "axis": "V2.5-diff",
+      "gene": "EGFLAM",
+      "wg_rank": 855023,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 95.679
+    },
+    {
+      "cohort": "GSE77348",
+      "axis": "V2.5-sigmoid",
+      "gene": "EGFLAM",
+      "wg_rank": 904130,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 95.4309
+    },
+    {
+      "cohort": "GSE77348",
+      "axis": "V2.5-diff",
+      "gene": "GATA3",
+      "wg_rank": 184710,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 99.0665
+    },
+    {
+      "cohort": "GSE77348",
+      "axis": "V2.5-sigmoid",
+      "gene": "GATA3",
+      "wg_rank": 183854,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 99.0709
+    },
+    {
+      "cohort": "GSE69914 tissue",
+      "axis": "V2.5-diff",
+      "gene": "ESR1",
+      "wg_rank": 514603,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 97.3994
+    },
+    {
+      "cohort": "GSE69914 tissue",
+      "axis": "V2.5-sigmoid",
+      "gene": "ESR1",
+      "wg_rank": 2200263,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 88.8807
+    },
+    {
+      "cohort": "GSE69914 tissue",
+      "axis": "V2.5-diff",
+      "gene": "EGFLAM",
+      "wg_rank": 9183566,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 53.5898
+    },
+    {
+      "cohort": "GSE69914 tissue",
+      "axis": "V2.5-sigmoid",
+      "gene": "EGFLAM",
+      "wg_rank": 4944861,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 75.0106
+    },
+    {
+      "cohort": "GSE69914 tissue",
+      "axis": "V2.5-diff",
+      "gene": "GATA3",
+      "wg_rank": 3490723,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 82.3592
+    },
+    {
+      "cohort": "GSE69914 tissue",
+      "axis": "V2.5-sigmoid",
+      "gene": "GATA3",
+      "wg_rank": 1026284,
+      "wg_denominator": 19787820,
+      "wg_rank_percentile": 94.8136
+    }
+  ]
+}
