@@ -6,6 +6,8 @@ import pytest
 
 from thermocas.grna import (
     SPACER_LEN,
+    SPACER_LEN_ROTH_SYSTEM_B,
+    SPACER_LEN_TYPE_II,
     _gc_content_score,
     _gc_fraction,
     _hairpin_score,
@@ -214,6 +216,43 @@ def test_score_spacer_returns_none_when_no_spacer_extractable():
 def test_spacer_len_is_20():
     """V3 contract: protospacer is 20 nt for Type II Cas9."""
     assert SPACER_LEN == 20
+    assert SPACER_LEN_TYPE_II == 20
+    assert SPACER_LEN is SPACER_LEN_TYPE_II  # backwards-compat alias
+
+
+def test_spacer_len_roth_system_b_is_23():
+    """Roth System B pre-registration uses a 23-bp spacer geometry."""
+    assert SPACER_LEN_ROTH_SYSTEM_B == 23
+
+
+def test_extract_spacer_honors_spacer_len_argument():
+    """extract_spacer accepts spacer_len; passing 23 returns a 23-nt spacer."""
+    # 23 nt of protospacer + 7 nt PAM (NNNNCGA) → 30 nt local context.
+    cand = _candidate(local_seq="ATGGAGTCCTAGACCTGCATGCC" + "ACGTCGA", pam="ACGTCGA")
+    s20 = extract_spacer(cand, _CGA_FAMILY)
+    s23 = extract_spacer(cand, _CGA_FAMILY, spacer_len=SPACER_LEN_ROTH_SYSTEM_B)
+    assert s20 is not None and len(s20) == 20
+    assert s23 is not None and len(s23) == 23
+    # 23-nt spacer is the 20-nt one with 3 extra upstream bases.
+    assert s23.endswith(s20)
+
+
+def test_score_spacer_honors_spacer_len_argument():
+    cand = _candidate(local_seq="ATGGAGTCCTAGACCTGCATGCC" + "ACGTCGA", pam="ACGTCGA")
+    s23 = score_spacer(cand, _CGA_FAMILY, spacer_len=SPACER_LEN_ROTH_SYSTEM_B)
+    assert s23 is not None
+    assert len(s23.spacer_seq) == 23
+    # Component scores are well-defined for 23-nt input (length-agnostic).
+    assert 0.0 <= s23.gc_content_score <= 1.0
+    assert 0.0 <= s23.final_score <= 1.0
+
+
+def test_extract_spacer_rejects_invalid_spacer_len():
+    cand = _candidate(local_seq="ATGGAGTCCTAGACCTGCAT" + "ACGTCGA", pam="ACGTCGA")
+    with pytest.raises(ValueError):
+        extract_spacer(cand, _CGA_FAMILY, spacer_len=0)
+    with pytest.raises(ValueError):
+        extract_spacer(cand, _CGA_FAMILY, spacer_len=-1)
 
 
 def test_score_spacer_strict_ordering():

@@ -20,6 +20,22 @@ Components (each in [0, 1], higher is better):
 
 `final_score` is the geometric mean of the four components — one bad component
 pulls the spacer down rather than averaging away.
+
+Spacer-length geometry
+----------------------
+This module exposes two named protospacer lengths and `extract_spacer` /
+`score_spacer` accept a `spacer_len` parameter so callers can pick which
+geometry applies:
+
+    SPACER_LEN_TYPE_II           = 20 nt (Type II SpCas9 / canonical default)
+    SPACER_LEN_ROTH_SYSTEM_B     = 23 nt (Roth System B pre-registration)
+    SPACER_LEN                    = 20 nt (alias of SPACER_LEN_TYPE_II;
+                                          preserved for backwards compatibility)
+
+Pick the value that matches the upstream wet-lab system the caller is
+prioritizing for. The scoring functions (`_gc_fraction`, `_melting_temp`,
+`_longest_mononucleotide_run`, `_hairpin_score`) are length-agnostic; only
+spacer extraction depends on the chosen length.
 """
 
 from __future__ import annotations
@@ -28,8 +44,17 @@ from thermocas.catalog import LOCAL_CONTEXT_HALF_WIDTH
 from thermocas.models import CandidateSite, PamFamily, SpacerScore, Strand
 from thermocas.pam_model import reverse_complement
 
-#: Length of the protospacer (Type II Cas9 = 20 nt).
-SPACER_LEN = 20
+#: Type II SpCas9 protospacer length (canonical 20 nt; current grna.py default).
+SPACER_LEN_TYPE_II = 20
+
+#: Roth System B pre-registration protospacer length (23 nt). Use when
+#: prioritizing for the System B assay; pass to extract_spacer / score_spacer
+#: as the `spacer_len` argument.
+SPACER_LEN_ROTH_SYSTEM_B = 23
+
+#: Backwards-compat alias of SPACER_LEN_TYPE_II — preserved so existing
+#: imports and tests keep working unchanged.
+SPACER_LEN = SPACER_LEN_TYPE_II
 
 
 # ---------- public API ----------
@@ -38,8 +63,16 @@ SPACER_LEN = 20
 def extract_spacer(
     candidate: CandidateSite,
     family: PamFamily,
+    *,
+    spacer_len: int = SPACER_LEN,
 ) -> str | None:
-    """Pull the 20-nt protospacer immediately upstream of the candidate's PAM.
+    """Pull the protospacer immediately upstream of the candidate's PAM.
+
+    `spacer_len` selects the protospacer length: defaults to 20 nt
+    (`SPACER_LEN` / Type II SpCas9). Pass `SPACER_LEN_ROTH_SYSTEM_B` (23) to
+    use the Roth System B pre-registration geometry. The same caller-provided
+    `local_seq_100bp` window is used; only the slice width upstream of the PAM
+    changes.
 
     `local_seq_100bp` is stored on the candidate's strand (V1 strand-orientation
     fix), with the **critical PAM cytosine** at index
@@ -56,6 +89,9 @@ def extract_spacer(
     Returns None when there isn't enough flanking context (chrom edges) or the
     expected PAM doesn't appear at the computed position.
     """
+
+    if spacer_len <= 0:
+        raise ValueError(f"spacer_len must be positive, got {spacer_len}")
 
     seq = candidate.local_seq_100bp
     if not seq or family.name != candidate.pam_family:
@@ -79,7 +115,7 @@ def extract_spacer(
         critical_c_idx = fwd_idx
     pam_start = critical_c_idx - family.critical_c_offset
 
-    if pam_start < SPACER_LEN:
+    if pam_start < spacer_len:
         return None
     pam_end = pam_start + len(candidate.pam)
     if pam_end > len(seq):
@@ -89,8 +125,8 @@ def extract_spacer(
         # don't fall back to seq.find(); refuse rather than guess.
         return None
 
-    spacer = seq[pam_start - SPACER_LEN : pam_start]
-    if len(spacer) != SPACER_LEN or "N" in spacer:
+    spacer = seq[pam_start - spacer_len : pam_start]
+    if len(spacer) != spacer_len or "N" in spacer:
         return None
     return spacer
 
@@ -99,14 +135,20 @@ def score_spacer(
     candidate: CandidateSite,
     family: PamFamily,
     spacer: str | None = None,
+    *,
+    spacer_len: int = SPACER_LEN,
 ) -> SpacerScore | None:
     """Compute a `SpacerScore` for a candidate. Returns None when no spacer
     can be extracted (chrom edge, or `local_seq_100bp` doesn't include the PAM
-    at the expected position)."""
+    at the expected position).
+
+    `spacer_len` selects the protospacer length: defaults to 20 nt (Type II
+    SpCas9). Pass `SPACER_LEN_ROTH_SYSTEM_B` (23) for Roth System B geometry.
+    """
 
     if spacer is None:
-        spacer = extract_spacer(candidate, family)
-    if spacer is None or len(spacer) != SPACER_LEN:
+        spacer = extract_spacer(candidate, family, spacer_len=spacer_len)
+    if spacer is None or len(spacer) != spacer_len:
         return None
 
     gc_frac = _gc_fraction(spacer)
@@ -240,6 +282,8 @@ def _geometric_mean(*xs: float) -> float:
 
 __all__ = [
     "SPACER_LEN",
+    "SPACER_LEN_TYPE_II",
+    "SPACER_LEN_ROTH_SYSTEM_B",
     "extract_spacer",
     "score_spacer",
 ]

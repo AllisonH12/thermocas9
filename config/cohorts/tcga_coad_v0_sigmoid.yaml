@@ -1,0 +1,43 @@
+# TCGA-COAD methylation cohort — V2.5-sigmoid variant of tcga_coad_v0.yaml.
+# Mirrors the V2.5-diff cohort spec exactly (same summaries, same n,
+# same provenance) but switches the probabilistic axis to
+# tumor_plus_gap_sigmoid (framework's recommended axis per PAPER.md
+# §5.2.2). Output: data/derived/scored_tcga_coad_wg_sigmoid.jsonl
+# (19,787,820 rows vs catalog_hg19_wg.jsonl sha256 d20661c5…).
+#
+# Atlas-side consumer: the v0.3 release line — see atlas-side
+# docs/v25_sigmoid_ingestion_contract.md for the four-cohort handoff.
+#
+# Provenance: same TCGA-COAD methylation summaries as tcga_coad_v0.yaml
+# (data/derived/tcga_coad_summary/, GDC fetched 2026-04-26).
+
+cohort:
+  name: TCGA-COAD-sigmoid
+  tumor_dataset: TCGA-COAD
+  normal_dataset: TCGA-COAD-normal
+  platform: HM450
+  min_samples_tumor: 30
+  min_samples_normal: 10
+
+  # V2.5-sigmoid: probabilistic ranking axis with σ_fixed=√2·σ_floor=0.0707
+  # bandwidth and δ=0.2 gap threshold. PAPER.md §5.2.2 documents the
+  # tie-band reduction at WG K=100 vs V2.5-diff.
+  probabilistic_mode: tumor_plus_gap_sigmoid
+  differential_delta: 0.2
+  sigma_fixed: 0.07071067811865475
+
+# Same probe-distance evidence bands as the V2.5-diff config.
+evidence_thresholds:
+  exact_bp: 0
+  proximal_close_bp: 25
+  proximal_bp: 50
+  regional_bp: 500
+
+# Same penalty weights as V2.5-diff config; low_coverage_n_threshold
+# matches the p_trust_ramp_n=30 default in
+# src/thermocas/probabilistic.py.
+penalties:
+  heterogeneity_iqr_threshold: 0.30
+  heterogeneity_weight: 0.4
+  low_coverage_n_threshold: 30
+  low_coverage_weight: 0.3
