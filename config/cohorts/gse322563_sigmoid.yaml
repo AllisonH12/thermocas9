@@ -1,0 +1,30 @@
+# GSE322563 (Roth Nature 2026) cell-line cohort — V2.5-sigmoid variant.
+# Mirrors the cohort spec used to build scored_gse322563_wg_differential.jsonl
+# but switches probabilistic axis to tumor_plus_gap_sigmoid.
+#
+# Output: data/derived/scored_gse322563_wg_sigmoid.jsonl (19,787,820 rows
+# vs catalog_hg19_wg.jsonl). Atlas-side consumer: BRCA v0.3 release.
+
+cohort:
+  name: GSE322563-sigmoid
+  tumor_dataset: GSE322563-tumor
+  normal_dataset: GSE322563-normal
+  platform: HM450
+  min_samples_tumor: 2     # n=2/2 cell-line cohort per PAPER.md §5.1
+  min_samples_normal: 2
+
+  probabilistic_mode: tumor_plus_gap_sigmoid
+  differential_delta: 0.2
+  sigma_fixed: 0.07071067811865475
+
+evidence_thresholds:
+  exact_bp: 0
+  proximal_close_bp: 25
+  proximal_bp: 50
+  regional_bp: 500
+
+penalties:
+  heterogeneity_iqr_threshold: 0.30
+  heterogeneity_weight: 0.4
+  low_coverage_n_threshold: 30
+  low_coverage_weight: 0.3

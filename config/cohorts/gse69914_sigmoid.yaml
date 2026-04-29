@@ -1,0 +1,30 @@
+# GSE69914 BRCA tissue cohort (n=305 vs 50) — V2.5-sigmoid variant.
+# Mirrors the cohort spec used to build scored_gse69914_wg_differential.jsonl
+# but switches probabilistic axis to tumor_plus_gap_sigmoid.
+#
+# Output: data/derived/scored_gse69914_wg_sigmoid.jsonl (19,787,820 rows
+# vs catalog_hg19_wg.jsonl). Atlas-side consumer: BRCA v0.3 release.
+
+cohort:
+  name: GSE69914-sigmoid
+  tumor_dataset: GSE69914-tumor
+  normal_dataset: GSE69914-normal
+  platform: HM450
+  min_samples_tumor: 30    # tissue regime, n=305
+  min_samples_normal: 30   # n=50 ≥ p_trust_ramp_n=30
+
+  probabilistic_mode: tumor_plus_gap_sigmoid
+  differential_delta: 0.2
+  sigma_fixed: 0.07071067811865475
+
+evidence_thresholds:
+  exact_bp: 0
+  proximal_close_bp: 25
+  proximal_bp: 50
+  regional_bp: 500
+
+penalties:
+  heterogeneity_iqr_threshold: 0.30
+  heterogeneity_weight: 0.4
+  low_coverage_n_threshold: 30
+  low_coverage_weight: 0.3

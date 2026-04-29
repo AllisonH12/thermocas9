@@ -1,0 +1,29 @@
+# TCGA-LIHC methylation cohort — V2.5-sigmoid variant of tcga_lihc_v0.yaml.
+# Mirrors the V2.5-diff cohort spec (same summaries, same n, same provenance)
+# but switches the probabilistic axis to tumor_plus_gap_sigmoid.
+# Output: data/derived/scored_tcga_lihc_wg_sigmoid.jsonl (19,787,820 rows
+# vs catalog_hg19_wg.jsonl sha256 d20661c5…).
+
+cohort:
+  name: TCGA-LIHC-sigmoid
+  tumor_dataset: TCGA-LIHC
+  normal_dataset: TCGA-LIHC-normal
+  platform: HM450
+  min_samples_tumor: 30
+  min_samples_normal: 10
+
+  probabilistic_mode: tumor_plus_gap_sigmoid
+  differential_delta: 0.2
+  sigma_fixed: 0.07071067811865475
+
+evidence_thresholds:
+  exact_bp: 0
+  proximal_close_bp: 25
+  proximal_bp: 50
+  regional_bp: 500
+
+penalties:
+  heterogeneity_iqr_threshold: 0.30
+  heterogeneity_weight: 0.4
+  low_coverage_n_threshold: 30
+  low_coverage_weight: 0.3
