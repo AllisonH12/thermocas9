@@ -1,0 +1,51 @@
+# TCGA-LIHC methylation cohort for atlas pan-cancer expansion (fourth
+# cancer; mirrors tcga_coad_v0.yaml / tcga_luad_v0.yaml). Atlas-v0
+# compatible: tumor_plus_differential_protection mode with the same
+# scoring policy fields the BRCA / COAD / LUAD WG releases used.
+#
+# Provenance:
+#   - GDC API (https://api.gdc.cancer.gov), platform Illumina Human Methylation 450
+#   - Adjacent-normal cache: 50 files cached in
+#     data/raw/gdc_broad_normal/tcga_lihc/ via the Phase 3.5a broad-normal
+#     fetch (these are also the v0.2 broad-normal panel's `liver` source).
+#   - Tumor cache: pending fetch via
+#       thermocas gdc-fetch --project TCGA-LIHC --platform HM450
+#                           --sample-type tumor
+#                           --cache-dir data/raw/gdc_tcga_lihc
+#                           --output-dir data/derived/tcga_lihc_summary
+#   - Atlas-side decision doc: ../thermocas-atlas/docs/phase4b_fourth_cancer_decision.md
+#
+# Within-project sample reuse caveat: the broad-normal panel's `liver`
+# tissue source is the same TCGA-LIHC adjacent-normal pool that this
+# cohort's comparator uses. Same pattern as BRCA/COAD/LUAD v0.2 — not
+# LIHC-specific.
+
+cohort:
+  name: TCGA-LIHC
+  tumor_dataset: TCGA-LIHC
+  normal_dataset: TCGA-LIHC-normal
+  platform: HM450
+  min_samples_tumor: 30
+  min_samples_normal: 10
+
+  # V2.5-diff for atlas-v0 compatibility, matching BRCA/COAD/LUAD.
+  # See tcga_lihc_v0_sigmoid.yaml (to be written when the v0.3 sigmoid
+  # line includes LIHC) for the V2.5-sigmoid variant.
+  probabilistic_mode: tumor_plus_differential_protection
+  differential_delta: 0.2
+
+# Same probe-distance evidence bands as BRCA/COAD/LUAD.
+evidence_thresholds:
+  exact_bp: 0
+  proximal_close_bp: 25
+  proximal_bp: 50
+  regional_bp: 500
+
+# Same penalty weights as BRCA/COAD/LUAD; low_coverage_n_threshold
+# matches the p_trust_ramp_n=30 default in
+# src/thermocas/probabilistic.py.
+penalties:
+  heterogeneity_iqr_threshold: 0.30
+  heterogeneity_weight: 0.4
+  low_coverage_n_threshold: 30
+  low_coverage_weight: 0.3
