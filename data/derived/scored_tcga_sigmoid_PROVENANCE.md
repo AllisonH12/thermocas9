@@ -40,7 +40,8 @@ thermocas score-cohort \
 | `scored_gse322563_wg_sigmoid.jsonl` (BRCA cell-line, n=2/2) | 19,787,820 | 25,218,545,759 B (~25.2 GB) | `e7f229b12713d269b41b2a0998138697e6dabfbcc74530f86159a3c5fb609b89` |
 | `scored_gse69914_wg_sigmoid.jsonl` (BRCA tissue, n=305/50) | 19,787,820 | 25,746,487,172 B (~25.7 GB) | `fbcb8e7d40f98a40e3ec6f10b9cfd88aa8bdfddeece5a5c0931dabce171bb9ac` |
 | `scored_surrogate_wg_sigmoid.jsonl` (BRCA cell-line surrogate, n=3/3) | 19,787,820 | 25,463,904,450 B (~25.5 GB) | `4c450df82384a1e630304f49301a25ffca79bff04885a15d5410e0306ca5459f` |
-| `scored_tcga_lihc_wg_sigmoid.jsonl` (TCGA-LIHC, n=377/50) | TBD | TBD | TBD (scoring in progress) |
+| `scored_tcga_lihc_wg_sigmoid.jsonl` (TCGA-LIHC, n=377/50) | 19,787,820 | 25,589,237,565 B (~25.6 GB) | `e43647a97d64330926dd9bd88a7b486ede3c586e643b7082ec843301373b14ee` |
+| `scored_tcga_lihc_wg_differential.jsonl` (TCGA-LIHC, n=377/50; companion v25_diff artifact for atlas v0.2 LIHC release) | 19,787,820 | 25,225,605,429 B (~25.2 GB) | `d8bad4d162493c17a09f986df8c44345d0183547550f3000a779f7628e458321` |
 
 Row count matches `catalog_hg19_wg.jsonl` exactly (19,787,820 rows; sha256 `d20661c5d5fc0c42491d9a94ef9485f69dbf071ea9a69f43a887d6f82b1357dc`). One row per HM450 hg19 WG ThermoCas9 PAM catalog site.
 
@@ -57,9 +58,9 @@ The sigmoid mode replaces the V2.5-diff threshold-based `p_differential_protecti
 
 These artifacts are referenced by SHA256 from the future atlas v0.3 release configs. Until BRCA + LIHC sigmoid JSONLs exist, the atlas's v0.3 line stays pending — see atlas-side `docs/v25_sigmoid_ingestion_contract.md`.
 
-## Pending
+## Status (2026-04-29)
 
-- `scored_tcga_lihc_wg_sigmoid.jsonl` — scoring in progress (LIHC tumor GDC fetch + summaries done 2026-04-29; both differential and sigmoid scoring kicked off). SHA256 + size will land here when scoring completes.
+All four cohorts have V2.5-sigmoid scored JSONLs. Atlas roadmap item 11 framework-side blocker resolved; remaining work is atlas-side schema bump to v0.3 (see `../thermocas-atlas/docs/v25_sigmoid_ingestion_contract.md`).
 
 ## Build wall-time
 
