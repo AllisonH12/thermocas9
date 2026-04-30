@@ -37,7 +37,7 @@ required.
 | 1 | `data/raw/hg38/hg38_wg.fa` | hours (~3 GB DL) | not started |
 | 2 | `data/raw/probes_hg38_hm450.tsv` | days (liftover OR Bioconductor fetch) | not started |
 | 3 | `data/raw/probes_hg38_epic_v2_wg.tsv` | hours (script tweak — skip liftover) | not started |
-| 4 | `data/raw/ucsc_hg38/{rmsk,refGene,cpgIslandExt,wgEncodeRegDnaseClusteredV3}.txt.gz` | hours | not started |
+| 4 | `data/raw/ucsc_hg38/{rmsk,refGene,cpgIslandExt,wgEncodeRegDnaseClustered}.txt.gz` | hours | not started |
 | 5 | `data/derived/catalog_hg38_wg.jsonl` (HM450) | hours run-time | not started |
 | 6 | `data/derived/catalog_hg38_wg_epic_v2.jsonl` (EPIC-v2) | hours run-time | not started |
 | 7 | One per-cancer cohort summary on hg38 coords | weeks (re-process) OR fast (liftover) | not started |
@@ -66,7 +66,7 @@ cd data/raw/ucsc_hg38
 curl -O http://hgdownload.cse.ucsc.edu/goldenpath/hg38/database/rmsk.txt.gz
 curl -O http://hgdownload.cse.ucsc.edu/goldenpath/hg38/database/refGene.txt.gz
 curl -O http://hgdownload.cse.ucsc.edu/goldenpath/hg38/database/cpgIslandExt.txt.gz
-curl -O http://hgdownload.cse.ucsc.edu/goldenpath/hg38/encDCC/wgEncodeRegDnaseClusteredV3.txt.gz
+curl -O http://hgdownload.cse.ucsc.edu/goldenpath/hg38/database/wgEncodeRegDnaseClustered.txt.gz  # no V3 suffix on hg38
 ```
 
 ## Probe-annotation paths
