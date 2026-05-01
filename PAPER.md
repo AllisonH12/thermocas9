@@ -2,7 +2,7 @@
 
 **Author.** Allison Huang, Columbia University. Contact: <allisonhmercer@gmail.com>.
 **Date.** 2026-04-24.
-**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10j` (immutable pointer to the exact revision that produced this paper).
+**Code.** <https://github.com/AllisonH12/thermocas9> at tag `paper-5-10j` (immutable pointer to the exact revision that produced this paper). The bioRxiv-shape trim (`MANUSCRIPT.md` at tag `memo-2026-04-22-bx`) is the abstract-style companion that cross-references this long form.
 **Status.** Educational research framework. Not peer-reviewed. No clinical claims. Cites Roth et al., *Nature* (2026), DOI [10.1038/s41586-026-10384-z](https://doi.org/10.1038/s41586-026-10384-z).
 
 ---
@@ -43,7 +43,7 @@ candidate mapping. The tissue stress-test gain is per-positive
 heterogeneous: GATA3 remains strong under feature-matched controls,
 while ESR1 is matched-near-random under V2.5-sigmoid (§5.9). A frozen
 whole-genome panel shows V2.5-sigmoid matches V2.5-diff's cell-line AUC
-within 0.002, avoids V2.5-diff's whole-genome low-`n` top-K tied bands
+within 0.001, avoids V2.5-diff's whole-genome low-`n` top-K tied bands
 (`tie_band@100 = 1` vs 421–1,493), and improves tissue AUC by +0.05 to
 +0.08.
 
@@ -722,7 +722,7 @@ probabilities.
 |---|---|---:|---|---:|
 | GSE322563 HM450      | V1 final_score | 0.821 | [0.166, 0.817] | 2.2 × 10⁻² |
 | GSE322563 HM450      | Δβ-only        | 0.974 | [0.181, 0.823] | 8.6 × 10⁻⁵ |
-| **GSE322563 HM450**  | **V2.5 diff**  | **0.990** | [0.338, 0.802] | **<1 × 10⁻⁵** |
+| **GSE322563 HM450**  | **V2.5 diff**  | **0.990** | [0.338, 0.802] | **4 × 10⁻⁶** |
 | GSE322563 native v2  | V1 final_score | 0.933 | [0.206, 0.823] | 1.3 × 10⁻³ |
 | GSE322563 native v2  | Δβ-only        | 0.961 | [0.177, 0.823] | 3.1 × 10⁻⁴ |
 | **GSE322563 native v2** | **V2.5 diff** | **0.986** | [0.313, 0.817] | **1.5 × 10⁻⁵** |
@@ -730,9 +730,9 @@ probabilities.
 | GSE77348             | Δβ-only        | 0.972 | [0.177, 0.823] | 1.1 × 10⁻⁴ |
 | **GSE77348**         | **V2.5 diff**  | **0.982** | [0.176, 0.823] | **2.8 × 10⁻⁵** |
 
-V2.5-diff is the strictest listed axis on every row and sits below the
-old 10⁴-draw resolution floor; the exact Monte Carlo tail-count
-estimates are preserved in the artifact. This is an against-random
+V2.5-diff is the strictest listed axis on every row; under 10⁶ draws the
+GSE322563 HM450 cell resolves to the exact Monte Carlo tail-count
+estimate `4 × 10⁻⁶` (preserved in `examples/auc_uncertainty_1e6.md`). This is an against-random
 check, not a superiority test between axes. The direct paired comparison with
 Δβ-only is descriptive (§5.1.3). Full output:
 `examples/auc_uncertainty_1e6.md`; the negative bootstrap is omitted
@@ -1654,7 +1654,7 @@ and the interval collapses when `tie_band_size_at_k = 1`. Recall uses
 
 ## Data and code availability
 
-- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10j`** for this document. 245 tests pass under `uv run pytest -q`.
+- **Code**: <https://github.com/AllisonH12/thermocas9>. Cite tag **`paper-5-10j`** for this document. 249 tests pass under `uv run pytest -q`.
 - **Citable archive (DOI)**: a Zenodo release archive of the tagged revision is planned at the time of preprint posting; the GitHub → Zenodo integration mints a DOI for each GitHub release tag. The DOI will be added to this section and to the citation block below before journal-version submission. Until then, the immutable git tag above is the canonical citable identifier.
 - **Cohort data**: publicly-downloadable GEO series GSE322563, GSE77348, GSE69914, GSE68379; build scripts in `scripts/build_gse*_cohort.py` produce the per-probe summary TSVs in `data/derived/*_cohort/`. Positives-list builder at `scripts/build_roth_positives.py` (requires the Ensembl REST `/map` endpoint for the hg38 → hg19 liftover of Roth Fig. 5d coordinates).
 - **Reference data**: UCSC hg19 `refGene.txt.gz` and `cpgIslandExt.txt.gz` (fetched on demand; gitignored).
