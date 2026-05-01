@@ -159,7 +159,7 @@ class LocalArrayBackend(MethylationBackend):
         tumor_beta: str | Path,
         normal_beta: str | Path,
         sample_subtypes: str | Path,
-    ) -> dict[str, "LocalArrayBackend"]:
+    ) -> dict[str, LocalArrayBackend]:
         """V2 — return one `LocalArrayBackend` per subtype.
 
         Splits the tumor matrix on subtype labels and returns a mapping
@@ -438,7 +438,7 @@ class GDCBackend:
                     url, data=body, headers=headers,
                     method="POST" if body else "GET",
                 )
-                with urllib.request.urlopen(req, timeout=300) as resp:  # noqa: S310 — GDC is HTTPS
+                with urllib.request.urlopen(req, timeout=300) as resp:
                     return resp.read()
             except (TimeoutError, OSError) as e:
                 last_err = e
@@ -460,13 +460,35 @@ class GDCBackend:
         if self._files_cache is not None:
             return self._files_cache
 
+        platform_value = _GDC_PLATFORM_MAP.get(self.platform, self.platform)
         filters = {
             "op": "and",
             "content": [
-                {"op": "=", "content": {"field": "cases.project.project_id", "value": [self.project_id]}},
-                {"op": "=", "content": {"field": "data_type", "value": ["Methylation Beta Value"]}},
-                {"op": "=", "content": {"field": "platform", "value": [_GDC_PLATFORM_MAP.get(self.platform, self.platform)]}},
-                {"op": "=", "content": {"field": "cases.samples.sample_type", "value": [self.sample_type]}},
+                {
+                    "op": "=",
+                    "content": {
+                        "field": "cases.project.project_id",
+                        "value": [self.project_id],
+                    },
+                },
+                {
+                    "op": "=",
+                    "content": {
+                        "field": "data_type",
+                        "value": ["Methylation Beta Value"],
+                    },
+                },
+                {
+                    "op": "=",
+                    "content": {"field": "platform", "value": [platform_value]},
+                },
+                {
+                    "op": "=",
+                    "content": {
+                        "field": "cases.samples.sample_type",
+                        "value": [self.sample_type],
+                    },
+                },
             ],
         }
         body = json.dumps({

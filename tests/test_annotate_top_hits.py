@@ -16,8 +16,6 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
-
 # Load the script as a module so we can import its helpers cleanly.
 _SCRIPT_PATH = Path(__file__).resolve().parent.parent / "scripts" / "annotate_top_hits.py"
 _spec = importlib.util.spec_from_file_location("annotate_top_hits", _SCRIPT_PATH)

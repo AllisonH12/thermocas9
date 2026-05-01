@@ -40,6 +40,8 @@ spacer extraction depends on the chosen length.
 
 from __future__ import annotations
 
+import itertools
+
 from thermocas.catalog import LOCAL_CONTEXT_HALF_WIDTH
 from thermocas.models import CandidateSite, PamFamily, SpacerScore, Strand
 from thermocas.pam_model import reverse_complement
@@ -201,7 +203,7 @@ def _longest_mononucleotide_run(seq: str) -> int:
         return 0
     longest = 1
     current = 1
-    for prev, this in zip(seq, seq[1:], strict=False):
+    for prev, this in itertools.pairwise(seq):
         if prev == this:
             current += 1
             longest = max(longest, current)
@@ -282,8 +284,8 @@ def _geometric_mean(*xs: float) -> float:
 
 __all__ = [
     "SPACER_LEN",
-    "SPACER_LEN_TYPE_II",
     "SPACER_LEN_ROTH_SYSTEM_B",
+    "SPACER_LEN_TYPE_II",
     "extract_spacer",
     "score_spacer",
 ]

@@ -55,3 +55,8 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "RUF"]
+# Greek letters and math operators are scientific-notation convention throughout
+# (sigma, alpha, multiplication sign, minus sign, en-dash). Ignore the ambiguous-
+# unicode rules rather than strip the math from docstrings, comments, and
+# Field descriptions.
+ignore = ["RUF001", "RUF002", "RUF003"]

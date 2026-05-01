@@ -10,11 +10,10 @@ The catalog is cohort-independent and gets reused across cohorts.
 
 from __future__ import annotations
 
+from bisect import bisect_left
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import NamedTuple
-
-from bisect import bisect_left
 
 from thermocas.io import iter_fasta
 from thermocas.models import CandidateSite, Strand

@@ -175,7 +175,11 @@ def score_candidate(
             DEFAULT_GAP_SIGMOID_SIGMA_FIXED,
             probabilistic_score,
         )
-        sigma_fixed = cohort.sigma_fixed if cohort.sigma_fixed is not None else DEFAULT_GAP_SIGMOID_SIGMA_FIXED
+        sigma_fixed = (
+            cohort.sigma_fixed
+            if cohort.sigma_fixed is not None
+            else DEFAULT_GAP_SIGMOID_SIGMA_FIXED
+        )
         probabilistic = probabilistic_score(
             observation,
             mode=cohort.probabilistic_mode,

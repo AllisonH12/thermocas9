@@ -30,7 +30,6 @@ from thermocas.models import (
     ScoredCandidate,
 )
 
-
 # ---------- chromosome splits ----------
 
 
