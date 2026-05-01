@@ -272,11 +272,8 @@ def test_scored_candidate_rejects_cross_cohort_probabilistic():
 
     from thermocas.models import (
         CandidateSite,
-        CohortConfig,
         EvidenceClass,
-        EvidenceThresholds,
         MethylationObservation,
-        Penalties,
         ProbabilisticScore,
         ScoreComponents,
         ScoredCandidate,

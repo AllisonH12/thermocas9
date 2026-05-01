@@ -7,23 +7,22 @@ contract — analysis code in later layers operates only on these types.
 from __future__ import annotations
 
 import re
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-
 # ---------- enums ----------
 
 
-class Strand(str, Enum):
+class Strand(StrEnum):
     """Reference-genome strand."""
 
     PLUS = "+"
     MINUS = "-"
 
 
-class EvidenceClass(str, Enum):
+class EvidenceClass(StrEnum):
     """How directly an assay observation maps onto a candidate's critical PAM cytosine.
 
     Defined in Roth et al. context: methylation arrays measure probe-associated
@@ -209,7 +208,10 @@ class MethylationObservation(BaseModel):
     evidence_distance_bp: int | None = Field(
         default=None,
         ge=0,
-        description="Distance from critical C to nearest informative probe (bp). None if unobserved.",
+        description=(
+            "Distance from critical C to nearest informative probe (bp). "
+            "None if unobserved."
+        ),
     )
     probe_id: str | None = None
 
@@ -294,7 +296,9 @@ class ScoreComponents(BaseModel):
     Stored alongside the final score so reviewers can audit ranking decisions.
     """
 
-    sequence_score: Score = Field(description="From the PAM family weight; reflects motif compatibility")
+    sequence_score: Score = Field(
+        description="From the PAM family weight; reflects motif compatibility"
+    )
     selectivity_score: Score = Field(
         description="max(0, normal_mean - tumor_mean) + max(0, normal_q25 - tumor_q75)"
     )
@@ -317,14 +321,14 @@ class ScoredCandidate(BaseModel):
             "Can go negative when penalties dominate."
         )
     )
-    probabilistic: "ProbabilisticScore | None" = Field(
+    probabilistic: ProbabilisticScore | None = Field(
         default=None,
         description=(
             "Optional V2 probabilistic decomposition. None when score_candidate "
             "is invoked without compute_probabilistic=True."
         ),
     )
-    spacer: "SpacerScore | None" = Field(
+    spacer: SpacerScore | None = Field(
         default=None,
         description=(
             "Optional V3 protospacer (gRNA) scoring. None when score_candidate "

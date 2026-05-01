@@ -52,7 +52,8 @@ def test_find_pam_matches_reverse_strand_coords_translate():
     assert minus_matches, "expected at least one minus-strand PAM match"
     for m in minus_matches:
         # critical_c_pos must be within sequence bounds and on a C in the +strand sequence
-        # (because reverse-complement of a G is C; the minus-strand PAM cytosine sits on a +strand G)
+        # (because reverse-complement of a G is C; the minus-strand PAM cytosine
+        # sits on a +strand G)
         assert 0 <= m.critical_c_pos < len(seq)
         assert seq[m.critical_c_pos] in "CG"  # forward position of critical C on minus strand
 

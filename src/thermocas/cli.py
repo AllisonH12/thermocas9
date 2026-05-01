@@ -142,7 +142,10 @@ def _build_parser() -> argparse.ArgumentParser:
     # inspect
     ip = sub.add_parser(
         "inspect",
-        help="V3 — pretty-print summary stats for any JSONL artifact (catalog / scored / aggregate).",
+        help=(
+            "V3 — pretty-print summary stats for any JSONL artifact "
+            "(catalog / scored / aggregate)."
+        ),
     )
     ip.add_argument("file", type=Path, help="JSONL file produced by another subcommand")
     ip.add_argument("--top", type=_positive_int, default=10,
@@ -328,7 +331,10 @@ def _cmd_score_cohort_by_subtype(
         sub_out = out_prefix.with_name(f"{out_prefix.stem}.{subtype}{out_prefix.suffix}")
         n = write_jsonl_atomic(sub_out, scored)
         total += n
-        print(f"score-cohort[{sub_cohort.name}]: wrote {n} scored candidates{extras_str} → {sub_out}")
+        print(
+            f"score-cohort[{sub_cohort.name}]: wrote {n} scored candidates"
+            f"{extras_str} → {sub_out}"
+        )
     print(f"score-cohort[{cohort.name}]: {total} candidates across {len(backends)} subtype(s)")
     return 0
 
@@ -349,7 +355,7 @@ def _cmd_inspect(args: argparse.Namespace) -> int:
     import heapq
     import json
 
-    from thermocas.io import _open_text  # noqa: PLC0415
+    from thermocas.io import _open_text
 
     # First pass: detect the record type from the first non-empty line.
     with _open_text(args.file, "rt") as f:

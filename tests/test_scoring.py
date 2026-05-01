@@ -138,7 +138,8 @@ def test_low_coverage_penalty_zero_at_threshold():
 def test_low_coverage_penalty_scales_with_deficit():
     cohort = _cohort()
     obs = _high_selectivity_observation().model_copy(update={"n_samples_tumor": 6})
-    deficit = (cohort.penalties.low_coverage_n_threshold - 6) / cohort.penalties.low_coverage_n_threshold
+    threshold = cohort.penalties.low_coverage_n_threshold
+    deficit = (threshold - 6) / threshold
     expected = deficit * cohort.penalties.low_coverage_weight
     assert low_coverage_penalty(obs, cohort.penalties) == pytest.approx(expected)
 

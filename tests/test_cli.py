@@ -273,7 +273,7 @@ def test_cli_inspect_reads_gzipped_jsonl(tmp_path: Path, capsys):
     """Regression: `_cmd_inspect` opened the file with Path.open() directly,
     failing on .jsonl.gz with a UTF-8 decode error on the gzip header byte."""
     import gzip
-    from thermocas.io import write_jsonl
+
     from thermocas.models import CandidateSite, Strand
 
     cand = CandidateSite(
@@ -338,7 +338,10 @@ def test_cli_inspect_tie_break_matches_evaluate_ranking(tmp_path: Path, capsys):
     printed = capsys.readouterr().out
     # `a` and `b` should appear in the output; `c` should NOT.
     # (Using a loose check — exact layout can change with formatting.)
-    lines = [ln for ln in printed.splitlines() if ln.startswith("     1  ") or ln.startswith("     2  ")]
+    lines = [
+        ln for ln in printed.splitlines()
+        if ln.startswith("     1  ") or ln.startswith("     2  ")
+    ]
     assert len(lines) == 2
     assert " a " in lines[0] or lines[0].split()[1] == "a", lines
     assert " b " in lines[1] or lines[1].split()[1] == "b", lines
@@ -387,7 +390,10 @@ def test_cli_inspect_tie_break_handles_prefix_candidate_ids(tmp_path: Path, caps
     rc = main(["inspect", str(out), "--top", "2"])
     assert rc == 0
     printed = capsys.readouterr().out
-    lines = [ln for ln in printed.splitlines() if ln.startswith("     1  ") or ln.startswith("     2  ")]
+    lines = [
+        ln for ln in printed.splitlines()
+        if ln.startswith("     1  ") or ln.startswith("     2  ")
+    ]
     assert len(lines) == 2
     assert lines[0].split()[1] == "a", lines
     assert lines[1].split()[1] == "ab", lines

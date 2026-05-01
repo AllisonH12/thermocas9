@@ -32,6 +32,7 @@ CDF strategy (V3):
 
 from __future__ import annotations
 
+import itertools
 import math
 
 from thermocas.models import (
@@ -65,8 +66,7 @@ DEFAULT_DIFFERENTIAL_SIGMA_FLOOR = 0.05
 #: case on low-`n` matched cell-line cohorts per PAPER.md §3.5 binding-rate
 #: diagnostic. Bandwidth-robust on tissue across {0.05, 0.0707, 0.10}
 #: (PAPER.md §5.2.1 sweep).
-import math as _math
-DEFAULT_GAP_SIGMOID_SIGMA_FIXED = _math.sqrt(2) * DEFAULT_DIFFERENTIAL_SIGMA_FLOOR
+DEFAULT_GAP_SIGMOID_SIGMA_FIXED = math.sqrt(2) * DEFAULT_DIFFERENTIAL_SIGMA_FLOOR
 
 #: Default per-EvidenceClass trust ceiling. With enough samples,
 #: P(trustworthy) saturates at this value.
@@ -502,7 +502,7 @@ def _piecewise_linear_cdf(
             deduped.append((beta, cdf))
 
     # Find the segment containing x and linearly interpolate.
-    for (b0, f0), (b1, f1) in zip(deduped, deduped[1:], strict=False):
+    for (b0, f0), (b1, f1) in itertools.pairwise(deduped):
         if b0 <= x <= b1:
             if b1 == b0:
                 return max(f0, f1)

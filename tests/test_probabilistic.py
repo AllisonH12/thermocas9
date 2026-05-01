@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import itertools
+
 import pytest
 
 from thermocas.models import EvidenceClass, MethylationObservation
@@ -61,7 +63,7 @@ def test_piecewise_cdf_monotonic_random_grid():
     knots = (0.05, 0.30, 0.70)
     xs = [i / 100 for i in range(0, 101)]
     fs = [_piecewise_linear_cdf(x, *knots) for x in xs]
-    for a, b in zip(fs, fs[1:], strict=False):
+    for a, b in itertools.pairwise(fs):
         assert a <= b + 1e-12
 
 
@@ -227,7 +229,7 @@ def test_beta_cdf_monotonic_in_x():
     a, b = 4.0, 6.0
     xs = [i / 100 for i in range(0, 101)]
     fs = [regularized_incomplete_beta(x, a, b) for x in xs]
-    for u, v in zip(fs, fs[1:], strict=False):
+    for u, v in itertools.pairwise(fs):
         assert u <= v + 1e-12
 
 
@@ -323,7 +325,10 @@ def test_p_differential_protection_increases_with_gap():
     big_gap = _obs(bt_mean=0.05, bt_q25=0.02, bt_q75=0.08,
                    bn_mean=0.95, bn_q25=0.92, bn_q75=0.98)
 
-    assert p_differential_protection(small_gap, delta=0.2) < p_differential_protection(big_gap, delta=0.2)
+    assert (
+        p_differential_protection(small_gap, delta=0.2)
+        < p_differential_protection(big_gap, delta=0.2)
+    )
 
 
 def test_p_differential_protection_half_at_breakpoint():
@@ -577,6 +582,7 @@ def test_gap_sigmoid_score_rejects_differential_field():
     """A ProbabilisticScore record with mode=gap_sigmoid must not carry
     p_differential_protection — iff validator on the model."""
     from pydantic import ValidationError
+
     from thermocas.models import ProbabilisticScore
 
     with pytest.raises(ValidationError):
@@ -594,6 +600,7 @@ def test_gap_sigmoid_score_rejects_differential_field():
 def test_differential_score_rejects_gap_sigmoid_field():
     """And the reverse: a mode=differential record must not carry p_gap_sigmoid."""
     from pydantic import ValidationError
+
     from thermocas.models import ProbabilisticScore
 
     with pytest.raises(ValidationError):
@@ -621,6 +628,7 @@ def test_p_gap_sigmoid_rejects_zero_sigma():
 def test_cohort_config_rejects_zero_sigma_fixed():
     """CohortConfig.sigma_fixed has gt=0.0 — sigma_fixed: 0 in YAML must error."""
     from pydantic import ValidationError
+
     from thermocas.models import CohortConfig
 
     base = dict(

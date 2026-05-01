@@ -20,7 +20,6 @@ from thermocas.grna import (
 )
 from thermocas.models import CandidateSite, PamFamily, Strand
 
-
 _CGA_FAMILY = PamFamily(
     name="NNNNCGA",
     regex="[ACGT][ACGT][ACGT][ACGT]CG[AG]",

@@ -86,7 +86,9 @@ class EvidenceClassifier:
         best_pos, best_probe = min(candidates, key=lambda t: abs(t[0] - pos))
         return best_probe, abs(best_pos - pos)
 
-    def classify(self, chrom: str, pos: int) -> tuple[EvidenceClass, ProbeRecord | None, int | None]:
+    def classify(
+        self, chrom: str, pos: int
+    ) -> tuple[EvidenceClass, ProbeRecord | None, int | None]:
         """Return (evidence class, nearest probe, distance) for one critical-C position."""
 
         probe, dist = self.nearest(chrom, pos)
